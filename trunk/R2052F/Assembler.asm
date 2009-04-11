@@ -6670,10 +6670,10 @@ L1:
 L3: sub al 030 | shl edx 4 | or dl al | jmp L1<
 L4: mov D$Ordinal edx
 L0:
-    mov edi D$LabelList | add edi 5
+    mov edi D$LabelList | mov edx D$edi | add edx edi | add edi 5
 
 L0: push esi
-
+    cmp edx edi | jbe FindLostExportString
 L1:     lodsb | mov bl B$edi | inc edi
 L2:     If al = '_'
             lodsb | jmp L2<
@@ -6813,6 +6813,47 @@ L8:
 E0: mov D$ErrorLevel 0 |mov B$esi-1 EOI | mov B$esi+ebx EOI
     mov ecx D$StatementsPtr | mov D$ecx edi
     Error D$SymbolDupPtr, esi
+
+FindLostExportString:
+    pop esi
+    mov edi esi | mov al EOI | or ecx 0-1 | repne scasb
+    If B$edi-2 = 0E
+        dec edi | mov B$edi-1 EOI
+    End_If
+    mov ecx edi | sub ecx esi | mov ebx ecx
+L0: mov al B$edi-1 | mov B$edi al | dec edi | loop L0<
+    mov B$edi EOI | dec ebx | inc esi | mov edi D$CodeSource | mov edx D$SourceEnd
+    While edi < edx
+        mov al B$edi | cmp al '"' | je L3> | cmp al "'" | je L3> | cmp al ';' | jne L0>
+        If D$edi-1 = MLC
+            add edi 2
+            Do
+            inc edi
+            Loop_Until D$edi = MLC
+            add edi 3
+        Else
+            Do
+            inc edi
+            Loop_Until B$edi < ' '
+        End_If
+        jmp L8>
+L3:     inc edi | or ecx 0-1 | repne scasb | dec edi | jmp L8>
+L0:     cmp W$edi '::' | jne L8> | mov ecx edi
+L0:     cmp B$edi-1 ' ' | jbe L1>
+        cmp B$edi-1 '[' | je L1>
+        cmp B$edi-1 ']' | je L1>
+        cmp W$edi-2 '[<' | je L1>
+        cmp B$edi-1 '|' | je L1>
+        dec edi | jmp L0<
+L1:     mov eax ecx | sub eax edi | cmp eax ebx | jne L2>
+L0:     pushad | mov ecx ebx | repe cmpsb | popad | je E0>
+L2:     mov edi ecx
+L8:     inc edi
+    End_While
+E1: mov eax D$UnknownSymbolPtr | jmp OutOnError
+
+E0: mov D$ErrorLevel 0 | mov ecx D$StatementsPtr | mov D$ecx edi
+    Error D$UnknownSymbolPtr, esi
 
  __________________________________________________________________________________________
  __________________________________________________________________________________________
