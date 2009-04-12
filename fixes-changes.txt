@@ -297,4 +297,12 @@ OnlyOrdinalExport OrdinalExport ExpOrdBase
 .removed many unwanted &FILE_SHARE_WRITE from any Call CreateFileA..
 .in StoreAllMacros fixed '<' char case, it was above xored by 080..
 
+.fixed cases of Call ExitProcess. correct programming requires closing Window before ExitProcess
+so added line
+ON D$hwnd <> 0, call 'USER32.DestroyWindow' D$hwnd
+for same reason upgraded Proc FinalExceptionHandler
++added LastFinalException in case subsequent crashes.
+
+.upgraded Title Config. for better programming.
+
 ; this bad taped> [ B|uildCommentedCodeReference:: 32 ] infinite_loop in macros-jobs!!!
