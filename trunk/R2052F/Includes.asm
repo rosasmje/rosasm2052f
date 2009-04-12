@@ -456,12 +456,14 @@ BadEquatesFile:
 
 
     call 'USER32.MessageBoxA' 0, BadEquatesFileMessage, BadEquatesFileTitle, 0
+    ON D$hwnd <> 0, call 'USER32.DestroyWindow' D$hwnd ; jE!
     call 'KERNEL32.ExitProcess', 0
 
 
 BadEquatesFileEnd:
 
     call 'USER32.MessageBoxA' 0, BadEquatesFileEndMessage, BadEquatesFileTitle, 0
+    ON D$hwnd <> 0, call 'USER32.DestroyWindow' D$hwnd ; jE!
     call 'KERNEL32.ExitProcess', 0
 
 

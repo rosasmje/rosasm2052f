@@ -323,7 +323,10 @@ SetUndoDirectory:
         .If eax <> &INVALID_HANDLE_VALUE
             If B$MultiInstance = &TRUE
                 call 'USER32.MessageBoxA' D$hwnd, UndoExist, Argh, &MB_OKCANCEL__&MB_ICONHAND
-                On eax = &IDCANCEL, call 'KERNEL32.ExitProcess' 0
+                cmp eax &IDCANCEL | jne L0>
+                ON D$hwnd <> 0, call 'USER32.DestroyWindow' D$hwnd ; jE!
+                call 'KERNEL32.ExitProcess' 0
+L0:
             End_If
 
             call DeleteOldUndoFiles

@@ -255,7 +255,10 @@ LicenseView:
                    Accept?", 0},
         {'License', 0}, &MB_SYSTEMMODAL__&MB_YESNO
 
-    On eax = &IDNO, call 'KERNEL32.ExitProcess' 0
+    cmp eax &IDNO | jne L0>
+    ON D$hwnd <> 0, call 'USER32.DestroyWindow' D$hwnd ; jE!
+    call 'KERNEL32.ExitProcess' 0
+L0:
 ret
 
 

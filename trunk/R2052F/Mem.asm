@@ -106,6 +106,7 @@ VirtAlloc:                                  ; In: ebx = Pointer, edx = size
                                           &MB_SYSTEMMODAL__&MB_ICONSTOP
                 call ViewRosAsmMems
                 ShowMe VirtAllocOverFlowString
+                ON D$hwnd <> 0, call 'USER32.DestroyWindow' D$hwnd ; jE!
                 call 'KERNEL32.ExitProcess' 0
             End_If
         End_While
@@ -149,7 +150,7 @@ VirtAlloc:                                  ; In: ebx = Pointer, edx = size
                                          &MB_SYSTEMMODAL__&MB_ICONSTOP
             call ViewRosAsmMems
             ShowMe VirtAllocFailureString
-
+            ON D$hwnd <> 0, call 'USER32.DestroyWindow' D$hwnd ; jE!
             call 'KERNEL32.ExitProcess' 0
         End_If
     pop ebx
@@ -177,6 +178,7 @@ VirtFree:       ; eax = D$Pointer
                                       &MB_SYSTEMMODAL__&MB_ICONSTOP
             call ViewRosAsmMems
             ShowMe VirtFreeOverFlowString
+            ON D$hwnd <> 0, call 'USER32.DestroyWindow' D$hwnd ; jE!
             call 'KERNEL32.ExitProcess' 0
         End_If
     End_While

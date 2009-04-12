@@ -346,7 +346,7 @@ M1:
     inc eax
 
 ..End_While
-
+ON D$hwnd <> 0, call 'USER32.DestroyWindow' D$hwnd ; jE!
 call 'KERNEL32.ExitProcess' &Null
 ____________________________________________________________________________________________
 

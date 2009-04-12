@@ -18,11 +18,13 @@ Proc FinalExceptionHandler:
     Uses ebx esi edi
 
   ; Save whole source
+    call 'KERNEL32.SetUnhandledExceptionFilter', LastFinalException ; jE!
     On B$RealSourceRestored = &FALSE, call RestoreRealSource
     mov B$WeAreSavingPart &FALSE | call SaveSource
 
     mov eax D@ExceptionInfo | call GetExceptionInfo D$eax
     mov eax D@ExceptionInfo | call WriteCrashLog D$eax D$eax+4
+    call 'USER32.DestroyWindow' D$hwnd ; jE!
 
     call 'User32.MessageBoxA' 0, ExceptionMessage,
         {'RosAsm crashed' 0}, &MB_OK+&MB_ICONEXCLAMATION
@@ -31,6 +33,9 @@ Proc FinalExceptionHandler:
 
     mov eax &EXCEPTION_CONTINUE_SEARCH
 EndP
+
+LastFinalException:
+call 'KERNEL32.ExitProcess', 0-1
 ____________________________________________________________________________________________
 
 

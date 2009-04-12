@@ -139,6 +139,7 @@ VerifyEquatesPath:
     ..If D$FolderPath = 0
         If B$IncludesOK = &FALSE
 L1:         call 'USER32.MessageBoxA', D$hwnd, MustHaveEquatesPath, Argh, &MB_SYSTEMMODAL
+            ON D$hwnd <> 0, call 'USER32.DestroyWindow' D$hwnd ; jE!
             call 'KERNEL32.ExitProcess' 0
         End_If
 
@@ -1432,7 +1433,7 @@ L1:     push esi
             call GetFieldDataSize esi
             call 'ADVAPI32.RegSetValueExA' D$hRegKey, D$esi, 0, D$esi+4, D$esi+8, eax
         pop esi
-        On eax <> &ERROR_SUCCESS, jmp AutoInit
+;        On eax <> &ERROR_SUCCESS, jmp AutoInit
         add esi 12 | cmp D$esi 0 | ja L1<<
 
         call AutoInit
@@ -1459,7 +1460,7 @@ ret
 UpdateRegistry:
     On D$UserConfig = CONFIGFILE, jmp WriteConfigFile
 
-    call OpenRegistry
+    call OpenRegistry | On eax <> &ERROR_SUCCESS, jmp WriteConfigFile
 
     mov esi RegistryData
   ; either &REG_BINARY // &REG_DWORD // &REG_SZ
@@ -1745,8 +1746,9 @@ WineKey:
                                     0, 0,
                                     &KEY_READ__&KEY_WRITE__&KEY_QUERY_VALUE,
                                     0, hRegKey, Result
-
+    On eax <> &ERROR_SUCCESS, ret
     call 'ADVAPI32.RegSetValueExA' D$hRegKey, WineDbgString, 0, &REG_SZ, WineDbg, 15
+    call 'ADVAPI32.RegCloseKey' D$hRegKey
 ret
 ____________________________________________________________________________________________
 
@@ -1756,12 +1758,9 @@ WhateverConfig:  ; 'Main'
     call SetMainConfigFilePath
 
     call 'KERNEL32.FindFirstFileA' ConfigFilePath, FindFile
-    push eax
-        call 'KERNEL32.FindClose' eax
-    pop eax
 
     ..If eax = &INVALID_HANDLE_VALUE
-        call OpenRegistry
+        call OpenRegistry | On eax <> &ERROR_SUCCESS, ret
 
         .If D$Result = &REG_CREATED_NEW_KEY
          ; Tag Dialog 3
@@ -1793,6 +1792,7 @@ WhateverConfig:  ; 'Main'
         .End_If
 
     ..Else
+        call 'KERNEL32.FindClose' eax
         call ReadConfigFile
         call CheckPaths
         mov D$UserConfig CONFIGFILE
