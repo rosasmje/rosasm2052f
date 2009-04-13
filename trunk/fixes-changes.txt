@@ -304,5 +304,7 @@ for same reason upgraded Proc FinalExceptionHandler
 +added LastFinalException in case subsequent crashes.
 
 .upgraded Title Config. for better programming.
+.added Proc GetLabelNamePtrFromExport. now in crash-log will written nearest Exported Label from crash-IP
+(requires Exports or ExportAll)
 
 ; this bad taped> [ B|uildCommentedCodeReference:: 32 ] infinite_loop in macros-jobs!!!
