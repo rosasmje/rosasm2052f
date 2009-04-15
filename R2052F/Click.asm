@@ -1783,7 +1783,7 @@ ________________________________________________________________________________
 
 EncodeBoxError:
     call ErrorMessageBox 0, D$ErrorMessagePtr
-    mov esp D$OldStackPointer | sub esp 4
+    mov esp D$OldStackPointer ;| sub esp 4 ;?? bug
 ret
 ____________________________________________________________________________________________
 
