@@ -1243,7 +1243,8 @@ L1:
   ;  call 'KERNEL32.WriteFile' D$DestinationHandle, D$CodeSource, D$SourceLen,
   ;                            NumberOfReadBytes, 0
 
-    call 'KERNEL32.CloseHandle' D$DestinationHandle | mov D$DestinationHandle 0
+    call 'KERNEL32.CloseHandle' D$DestinationHandle
+    call 'KERNEL32.FlushFileBuffers' D$DestinationHandle | mov D$DestinationHandle 0
 ret
 
 
@@ -1700,7 +1701,7 @@ ret
 
 OpenDestinationFile:
     On D$DestinationHandle > 0, call 'KERNEL32.CloseHandle' D$DestinationHandle
-
+    and D$DestinationHandle 0
     call 'KERNEL32.CreateFileA' DestinationFile, &GENERIC_WRITE,
                                 &FILE_SHARE_READ, 0,
                                 &CREATE_ALWAYS, &FILE_ATTRIBUTE_NORMAL, 0
@@ -2102,7 +2103,8 @@ L2: call OpenDestinationFile | mov D$NumberOfReadBytes 0
     call 'KERNEL32.WriteFile'  D$DestinationHandle, D$CodeSource, D$SourceLen,
                                NumberOfReadBytes, 0
 
-    call 'KERNEL32.CloseHandle' D$DestinationHandle | mov D$DestinationHandle 0
+    call 'KERNEL32.CloseHandle' D$DestinationHandle
+    call 'KERNEL32.FlushFileBuffers' D$DestinationHandle | mov D$DestinationHandle 0
 ret
 
 
@@ -2312,7 +2314,8 @@ L1:
     call 'KERNEL32.WriteFile' D$DestinationHandle, D$CodeSource, D$SourceLen,
                               NumberOfReadBytes, 0
 
-    call 'KERNEL32.CloseHandle' D$DestinationHandle | mov D$DestinationHandle 0
+    call 'KERNEL32.CloseHandle' D$DestinationHandle
+    call 'KERNEL32.FlushFileBuffers' D$DestinationHandle | mov D$DestinationHandle 0
 
     On D$SavingExtension = '.SYS', call WriteSysFile
 ret
@@ -2403,7 +2406,8 @@ L0:     repne scasb | cmp B$edi 0 | ja L0<
         call 'KERNEL32.WriteFile'  D$DestinationHandle, D$BookMarks, edi,
                                    NumberOfReadBytes, 0
 
-        call 'KERNEL32.CloseHandle' D$DestinationHandle | mov D$DestinationHandle 0
+        call 'KERNEL32.CloseHandle' D$DestinationHandle
+        call 'KERNEL32.FlushFileBuffers' D$DestinationHandle | mov D$DestinationHandle 0
     pop edi, D$edi
 ret
 
@@ -6627,15 +6631,15 @@ FillExportSection:
 ;int3
     mov esi D$ExportListAPtr
     and D$Ordinal 0 | mov D$ErrorLevel 9
-
+    call RemoveMSGs
 L1: call StoreExportAdresse | call StoreExportNamePtr
     call StoreExportOrdinal | call StoreFunctionName
     dec D$NumberOfExportedFunctions | jnz L1<
-
+    call RemoveMSGs
 ; sort Names & adjaust Ordinals to Base
     mov ebx D$ExportListBPtr | mov ecx D$ebx+EXPNumberOfNames | mov eax D$ebx+EXPnBase
     mov edi D$ebx+EXPAddressOfNameOrdinals | sub edi D$ExportAjust
-    call DualBubbleSortExportListPointersAndOrdinals
+    call DualBubbleSortExportListPointersAndOrdinals | call RemoveMSGs
 L0: sub W$edi ax | add edi 2 | loop L0<
 
     mov ebx D$ExportListBPtr | add ebx EXPnName

@@ -70,10 +70,21 @@ BarProgress:
     On B$WeAreUnfolding = &TRUE, ret
 
     pushad
-        call 'USER32.SendMessageA' D$ProgressInst &PBM_STEPIT 0 0
+    call 'USER32.SendMessageA' D$ProgressInst &PBM_STEPIT 0 0
     popad
+    call RemoveMSGs
 ret
 
+
+RemoveMSGs:
+    pushad
+    sub esp 020 | mov esi esp | jmp L1>
+L0: call 'User32.DispatchMessageA' esi
+L1: call 'User32.PeekMessageA' esi 0 0 0 &PM_REMOVE
+    test eax eax | jne L0<
+    add esp 020
+    popad
+ret
 
 [CompileInfos: ]
 ;;

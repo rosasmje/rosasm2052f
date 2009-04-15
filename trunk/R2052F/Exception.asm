@@ -132,25 +132,27 @@ Proc WriteCrashLog:
         call EmitNewLine D@File
         call EmitNewLine D@File
 
+      ; Output CPUID
+        sub esp 030 | mov esi CPUID0 | cmp D$esi 0 | je L2>>
+        mov edi esp | mov eax 'CPUI' | stosd | mov eax 0A0D3A44 | stosd
+        DwordToHex D$esi | mov al ' ' | stosb
+        mov eax esp | sub edi esp
+        call 'Kernel32.WriteFile' D@File, eax, edi, esp, 0
+        call 'Kernel32.WriteFile' D@File, CPUID0+4, 12, esp, 0
+        add esi 010 | mov edi esp | mov eax CRLF | stosw
+L0:     DwordToHex D$esi | add esi 4
+        cmp esi isMMX | jae L1> | mov al ' ' | stosb | jmp L0<
+L1:     mov eax CRLF2 | stosd | mov eax esp | sub edi esp
+        call 'Kernel32.WriteFile' D@File, eax, edi, esp, 0
+L2:     add esp 030
+
       ; Output exception info
         mov edi ExceptionInfo | call StrLen
         call 'Kernel32.WriteFile' D@File, ExceptionInfo, eax, BytesTransfered, 0
         call EmitNewLine D@File
 
       ; Output nearest export
-        mov ebx D@Context
-        sub esp 16
-        call GetLabelNamePtrFromExport, D$ebx+0B8 | cmp eax 0-1 | je L2>>
-        mov edi eax | mov esi edx | cmp edi 010000 | jae L1>
-        mov D$esp 'ORD0' | mov edx edi
-        lea edi D$esp+4 | WordToHex dx | mov eax esp
-        call 'Kernel32.WriteFile' D@File, eax, 8, esp, 0 | jmp L3>
-L1:     call 'Kernel32.WriteFile' D@File, edi, ecx, esp, 0
-L3:     mov W$esp ' +' | test esi esi | jns L0> | mov W$esp ' -' | neg esi
-L0:     lea edi D$esp+2 | DwordToHex esi | mov W$esp+10 CRLF | mov eax esp
-        call 'Kernel32.WriteFile' D@File, eax, 12, esp, 0
-L2:     add esp 16
-
+        call WriteNearestExports D@File, D@Context
         call EmitNewLine D@File
 
       ; Output reg contents
@@ -406,25 +408,101 @@ Proc GetWindowsVersionString:
 EndP
 
 
-
-Proc GetLabelNamePtrFromExport: ; eax = ExpNamePtr or ORD, edx = distance, ecx = len
-  Arguments @adres
-  Local @PEbase, @PEend, @ExportBase, @ExportEnd, @EXPFuncAdrBase, @nearLO, @nearHI
+Proc WriteNearestExports:
+  Arguments  @File, @Context
+  Local @PEbase, @PEend, @ExportBase, @ExportEnd, @CodeBase, @CodeEnd, @hi_esp, @next_esp
   USES EBX ESI EDI
+
     mov eax D$hinstance
-    mov D@PEbase eax | cmp W$eax 'MZ' | jne L9>>
-    add eax D$eax+03C | cmp D$eax 'PE' | jne L9>> | cmp W$eax+018 010B | jne L9>>
-    mov ebx D$eax+078, edx D$eax+050 | test ebx ebx | je L9>>
-    mov D@nearHI edx | and D@nearLO 0
-    mov eax D$eax+07C | add ebx D@PEbase | add edx D@PEbase | add eax ebx
-    mov D@PEend edx, D@ExportBase ebx, D@ExportEnd eax
-    cmp eax ebx | jbe L9>> | cmp ebx D@PEbase | jbe L9>> | cmp eax edx | jae L9>>
-    mov eax D@adres | cmp eax D@PEbase | jbe L9>> | cmp eax D@PEend | jae L9>>
-    cmp D$ebx+EXPnBase 010000 | jae L9>> | cmp D$ebx+EXPNumberOfFunctions 010000 | jae L9>>
-    cmp D$ebx+EXPNumberOfNames 010000 | jae L9>>
+    mov D@PEbase eax | cmp W$eax 'MZ' | jne P9>>
+    add eax D$eax+03C | cmp D$eax 'PE' | jne P9>> | cmp W$eax+018 010B | jne P9>>
+    mov ebx D$eax+078, edx D$eax+050 | test ebx ebx | je P9>> | test edx edx | jle P9>>
+    mov ecx D$eax+07C | add ebx D@PEbase | add edx D@PEbase | add ecx ebx
+    mov D@PEend edx, D@ExportBase ebx, D@ExportEnd ecx
+    cmp ecx ebx | jbe P9>> | cmp ebx D@PEbase | jbe P9>> | cmp ecx edx | jae P9>>
+    movzx ecx W$eax+6 | movzx edx W$eax+014 | lea edx D$eax+edx+018
+
+L0: cmp D$edx '.tex' | je L1> | add edx 028 | loop L0< | jmp P9>>
+L1: mov ecx D$edx+0C | add ecx D@PEbase | mov D@CodeBase ecx
+    add ecx D$edx+08 | ALIGN_ON 01000 ecx | mov D@CodeEnd ecx
+
+    cmp D$ebx+EXPnBase 010000 | jae P9>>
+    cmp D$ebx+EXPNumberOfFunctions 010000 | jae P9>>
+    cmp D$ebx+EXPNumberOfFunctions 0 | je P9>>
+    cmp D$ebx+EXPNumberOfNames 010000 | jae P9>>
+
+    mov eax D$ebx+EXPAddressOfFunctions | add eax D@PEbase
+    cmp eax D@ExportBase | jbe P9>> | cmp eax D@ExportEnd | jae P9>>
+    mov ecx D$ebx+EXPNumberOfFunctions | lea eax D$eax+ecx*4
+    cmp eax D@ExportBase | jbe P9>> | cmp eax D@ExportEnd | ja P9>>
+
+    mov eax D$ebx+EXPAddressOfNameOrdinals | add eax D@PEbase
+    cmp eax D@ExportBase | jbe P9>> | cmp eax D@ExportEnd | jae P9>>
+    mov ecx D$ebx+EXPNumberOfNames | lea eax D$eax+ecx*2
+    cmp eax D@ExportBase | jbe P9>> | cmp eax D@ExportEnd | ja P9>>
+
+    mov eax D$ebx+EXPAddressOfNames | add eax D@PEbase
+    cmp eax D@ExportBase | jbe P9>> | cmp eax D@ExportEnd | jae P9>>
+    lea eax D$eax+ecx*4
+    cmp eax D@ExportBase | jbe P9>> | cmp eax D@ExportEnd | ja P9>>
+
+    sub esp 16
+
+    mov ebx D@Context
+    mov eax D$ebx+0C4, D@hi_esp eax, D@next_esp eax | add D@hi_esp 080
+    mov eax D$ebx+0B4 | sub ecx ecx
+B1: test eax 3 | jne B0> | add eax 4
+    cmp FS:D$04 eax | jbe B0> | cmp FS:D$08 eax | ja B0>
+    mov edx D$eax | cmp edx D@CodeBase | jbe B0> | cmp edx D@CodeEnd | ja B0>
+    lea ecx D$eax+4 | mov eax D$eax-4 | cmp ecx eax | jb B1<
+B0: cmp D@hi_esp ecx | jae B0> | mov D@hi_esp ecx
+
+B0: mov eax D$ebx+0B8
+L5:
+    cmp eax D@CodeBase | jbe L2>> | cmp eax D@CodeEnd | ja L2>>
+    call GetLabelNamePtrFromExport, D@PEbase, D@PEend, D@ExportBase, D@ExportEnd, eax
+    cmp eax 0-1 | je L2>>
+    mov edi eax | mov esi edx | cmp edi 010000 | jb L1>
+    call 'Kernel32.WriteFile' D@File, edi, ecx, esp, 0 | jmp L3>
+
+L1: mov edx edi | mov edi esp | mov eax 'ORD0' | stosd
+    WordToHex dx | mov eax esp | sub edi esp
+    call 'Kernel32.WriteFile' D@File, eax, edi, esp, 0
+
+L3: mov edi esp | test esi esi | je L4> | js L1>
+    mov W$edi ' +' | add edi 2 | jmp L0>
+L1: mov W$edi ' -' | add edi 2 | neg esi
+L0: DwordToHex esi
+L4: mov eax CRLF | stosw | mov eax esp | sub edi esp
+    call 'Kernel32.WriteFile' D@File, eax, edi, esp, 0
+
+L2:
+    mov eax D@next_esp | add D@next_esp 4 | cmp D@hi_esp eax | jbe L8>
+    cmp FS:D$04 eax | jbe L8> | cmp FS:D$08 eax | ja L8>
+    mov esi D$eax | cmp esi D@CodeBase | jbe L2< | cmp esi D@CodeEnd | ja L2<
+    mov edx eax | sub edx D$ebx+0C4
+    mov edi esp | mov eax 'ESP+' | stosd
+    DwordToHex edx | mov eax '  ' | stosw | mov eax esp | sub edi esp
+    call 'Kernel32.WriteFile' D@File, eax, edi, esp, 0
+    mov eax esi | jmp L5<<
+
+L8: add esp 16
+EndP
+
+
+; eax = ExpNamePtr or ORD, edx = distance, ecx = len
+Proc GetLabelNamePtrFromExport:
+  Arguments @PEbase, @PEend, @ExportBase, @ExportEnd, @adres
+  Local  @EXPFuncAdrBase, @EXPNameOrdBase, @nearLO, @nearHI
+  USES EBX ESI EDI
+
+    mov ebx D@ExportBase
+    mov eax D$ebx+EXPAddressOfNameOrdinals | add eax D@PEbase | mov D@EXPNameOrdBase eax
     mov esi D$ebx+EXPAddressOfFunctions | add esi D@PEbase | mov D@EXPFuncAdrBase esi
-    mov ecx D$ebx+EXPNumberOfFunctions | test ecx ecx | jle L9>>
-    mov eax D@PEbase | sub D@adres eax | mov edx D@nearLO, edi D@nearHI
+    mov eax D@PEend | sub eax D@PEbase | mov D@nearHI eax | and D@nearLO 0
+
+    mov eax D@PEbase | sub D@adres eax
+    mov edx D@nearLO, edi D@nearHI, ecx D$ebx+EXPNumberOfFunctions
     CLD
 L1: dec ecx | js L5>
     lodsd | cmp eax D@adres | je L3> | ja L4>
@@ -433,11 +511,12 @@ L4: cmp eax edi | jae L1< | mov edi eax, D@nearHI esi | jmp L1<
 L5: mov eax D@adres, esi D@nearLO | sub edi eax | sub eax edx | mov edx eax
     cmp edi eax  | jae L0> | mov edx edi, esi D@nearHI | neg edx | jmp L0>
 L3: sub edx edx
+
 L0: sub esi 4 | sub esi D@EXPFuncAdrBase | shr esi 2 | mov eax esi ; esi = ORD
-    mov edi D$ebx+EXPAddressOfNameOrdinals | add edi D@PEbase
-    mov ecx D$ebx+EXPNumberOfNames | test ecx ecx | jle L7>
+    mov edi D@EXPNameOrdBase
+    mov ecx D$ebx+EXPNumberOfNames | test ecx ecx | je L7>
     repne scasw | jne L7>
-    sub edi 2 | sub edi D$ebx+EXPAddressOfNameOrdinals | sub edi D@PEbase | shl edi 1
+    sub edi 2 | sub edi D@EXPNameOrdBase | shl edi 1
     add edi D$ebx+EXPAddressOfNames | add edi D@PEbase
     mov eax D$edi | add eax D@PEbase | cmp eax D@PEbase | jbe L7>
     cmp eax D@PEend | jae L7> | mov ecx D@PEend | sub ecx eax | mov edi eax
@@ -449,10 +528,21 @@ L7: mov eax esi | add eax D$ebx+EXPnBase | cmp eax 010000 | jae L9> | jmp P9>
 L9: or eax 0-1
 EndP
 
-
-
-
-
+[CPUID0: D$ ? ? ? ?
+ CPUID10: ? CPUID11: ? CPUID12: ? CPUID13: ?
+ isMMX: B$ ? isSSE: ? isSSE2: ? isSSE3: ?]
+getCPUID:
+    push 0 | popfd | pushfd | pop edx | push 0200000 | popfd | pushfd | pop eax
+    xor eax edx | jz L8>>
+    mov eax 0 | CPUID
+    mov D$CPUID0 eax, D$CPUID0+04 ebx, D$CPUID0+08 edx, D$CPUID0+0C ecx
+    cmp D$CPUID0 1 | jl L8>
+    mov eax 1 |  CPUID
+    mov D$CPUID10 eax, D$CPUID11 ebx, D$CPUID12 edx, D$CPUID13 ecx
+    test edx  0800000 | setne B$isMMX | test edx 02000000 | setne B$isSSE
+    test edx 04000000 | setne B$isSSE2 | test ecx 01 | setne B$isSSE3
+    cmp B$isSSE &TRUE | jne L8> | push 01F80 | LDMXCSR D$esp | pop eax
+L8: ret
 
 
 
