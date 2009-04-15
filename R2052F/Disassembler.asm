@@ -726,8 +726,9 @@ L9:     pop ecx
 
         shr ecx 1 | mov eax ecx | shr eax 1 | add ecx eax
   ; Let the ecx = 0. This is to say down to one _Instruction_:
+    call RemoveMSGs
     .Loop_Until ecx = 0
-;map
+    call ReleaseDisTablesCopies ; now only release
     call FlagsCleaner
 
     call DisassembleForCodeRouting
@@ -3652,7 +3653,7 @@ L7:                    ; mov eax D$ebx | sub eax D$DisImageBase | add eax D$Sect
 L8:     inc esi
     .End_While
 
-    call ReleaseDisTablesCopies
+    ;call ReleaseDisTablesCopies
     mov B$No0CC &FALSE, B$StopAtEndOfChunk &FALSE
 ret
 ____________________________________________________________________________________________
@@ -3761,7 +3762,7 @@ L5:     inc esi
 
     .End_While
 
-L9:  call ReleaseDisTablesCopies
+L9:  ;call ReleaseDisTablesCopies
 EndP
 
 
@@ -3770,6 +3771,7 @@ EndP
 [DisTableLength: ?]
 
 InitDisTablesCopies:
+  ON D$SectionsMapCopy <> 0, ret ; Reuse existing mem; jE!
     mov eax D$EndOfSectionsMap | sub eax D$SectionsMap
   ; Align_On_Variable D$DisRvaSectionAlignment eax |
     mov D$DisTableLength eax
@@ -3786,15 +3788,48 @@ ret
 
 
 SetDisTablesCopies:
-    push esi, edi, ecx
-        mov esi D$SectionsMap, edi D$SectionsMapCopy, ecx D$DisTableLength
-        shr ecx 2 | rep movsd
-        mov esi D$RoutingMap, edi D$RoutingMapCopy, ecx D$DisTableLength
-        shr ecx 2 | rep movsd
-        mov esi D$SizesMap, edi D$SizesMapCopy, ecx D$DisTableLength
-        shr ecx 2 | rep movsd
-    pop ecx, edi, esi
+    call tryFastMove D$SectionsMapCopy, D$SectionsMap, D$DisTableLength
+    call tryFastMove D$RoutingMapCopy, D$RoutingMap, D$DisTableLength
+    call tryFastMove D$SizesMapCopy, D$SizesMap, D$DisTableLength
+    call RemoveMSGs
 ret
+
+
+Proc tryFastMove:
+  Arguments @dest, @src, @nbytes
+  USES ecx, esi, edi
+
+mov edi D@Dest, esi D@src, ecx D@nbytes
+cmp ecx 028000 | jb D0> | cmp B$isSSE &TRUE | je @XMMMOVE | cmp B$isMMX &TRUE | je @MMXMOVE
+D0:
+shr ecx 2 | rep movsd | mov ecx D@nbytes | and ecx 3 | rep movsb | jmp P9>>
+
+@MMXMOVE:
+jmp L1>
+ALIGN 16
+L0:
+    movq mm0 Q$esi | movq mm1 Q$esi+08  | movq mm2 Q$esi+010 | movq mm3 Q$esi+018
+movq mm4 Q$esi+020 | movq mm5 Q$esi+028 | movq mm6 Q$esi+030 | movq mm7 Q$esi+038
+    movntq Q$edi mm0 | movntq Q$edi+08 mm1  | movntq Q$edi+010 mm2 | movntq Q$edi+018 mm3
+movntq Q$edi+020 mm4 | movntq Q$edi+028 mm5 | movntq Q$edi+030 mm6 | movntq Q$edi+038 mm7
+add esi 040 | add edi 040
+L1:
+sub ecx 040 | jae L0< | SFENCE | emms | add ecx 040 | jne D0<< | jmp P9>>
+
+@XMMMOVE:
+test edi 0F | je L1> | push eax | mov eax edi | mov ecx 010 | and eax 0F | sub ecx eax
+sub D@nbytes ecx | rep movsb | mov ecx D@nbytes | pop eax | jmp L1>
+ALIGN 16
+L0:
+    MOVUPS xmm0 X$esi | MOVUPS xmm1 X$esi+010 | MOVUPS xmm2 X$esi+020 | MOVUPS xmm3 X$esi+030
+MOVUPS xmm4 X$esi+040 | MOVUPS xmm5 X$esi+050 | MOVUPS xmm6 X$esi+060 | MOVUPS xmm7 X$esi+070
+    MOVNTPS X$edi xmm0 | MOVNTPS X$edi+010 xmm1 | MOVNTPS X$edi+020 xmm2 | MOVNTPS X$edi+030 xmm3
+MOVNTPS X$edi+040 xmm4 | MOVNTPS X$edi+050 xmm5 | MOVNTPS X$edi+060 xmm6 | MOVNTPS X$edi+070 xmm7
+add esi 080 | add edi 080
+L1:
+sub ecx 080 | jae L0< | SFENCE | add ecx 080 | jne D0<<
+EndP
+
 
 ExchangeDisTables:
     sub esi D$RoutingMap

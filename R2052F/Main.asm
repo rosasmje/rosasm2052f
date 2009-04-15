@@ -74,20 +74,23 @@ ACCELNUMBER 2    FLAGLAST 080]
 [IncludesOK: ?  RichEditHandle: ?]
 
 Main:
-  ; For the Resurces Editor:
-    call 'KERNEL32.LoadLibraryA' {'riched20.dll',0} | mov D$RichEditHandle eax
+    call 'Kernel32.GetModuleHandleA' 0
+      mov D$hInstance eax, D$wc_hInstance eax, D$OSSInstance eax,
+          D$OPESInstance eax, D$BmOpenInstance eax
+
+    mov D$OSVersionInfo.Size OSVI_SIZE
+    call 'Kernel32.GetVersionExA' OSVersionInfo
 
   ; Install exception handler
     call 'KERNEL32.SetUnhandledExceptionFilter' FinalExceptionHandler
+    call getCPUID
+   ; For the Resurces Editor:
+    call 'KERNEL32.LoadLibraryA' {'riched20.dll',0} | mov D$RichEditHandle eax
 
   ; Ensure mono-instance:
     call 'KERNEL32.CreateMutexA' &NULL &TRUE RosAsmMutexName
     call 'KERNEL32.GetLastError'
     On eax = &ERROR_ALREADY_EXISTS, mov B$MultiInstance &TRUE
-
-    call 'Kernel32.GetModuleHandleA' 0
-      mov D$hInstance eax, D$wc_hInstance eax, D$OSSInstance eax,
-          D$OPESInstance eax, D$BmOpenInstance eax
 
     call 'User32.LoadIconA' eax 1
     mov D$wc_hIcon eax, D$wc_hIconSm eax
