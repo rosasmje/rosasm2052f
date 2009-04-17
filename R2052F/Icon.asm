@@ -1034,8 +1034,8 @@ ret
 
 Proc IconEditProc:
   Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     move D$DrawIconMessage D@Message
 
@@ -1089,7 +1089,7 @@ Proc IconEditProc:
         .Else_If D@wParam = ID_Help
             call Help, B_U_AsmName, IconHelp, ContextHlpMessage
         .Else
-            popad | mov eax &FALSE | jmp L9>>
+            mov eax &FALSE | jmp L9>>
         .End_If
 
     ...Else_If D@Message = &WM_INITDIALOG
@@ -1109,14 +1109,14 @@ Proc IconEditProc:
             call deleteRainbowDC
             mov B$OnRainbow &FALSE
         End_If
-        popad | call DeleteIconBrushes | mov eax &FALSE | jmp L9>
+        call DeleteIconBrushes | mov eax &FALSE | jmp L9>
 
     ...Else
-        popad | mov eax &FALSE | jmp L9>
+        mov eax &FALSE | jmp L9>
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 

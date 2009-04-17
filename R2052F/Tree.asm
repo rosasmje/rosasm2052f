@@ -459,9 +459,9 @@ ret
 [ListKeyBoardInput: ?    AutoHideTreeView: ?    AutoRebuildTreeView: ?]
 
 Proc ShowTree:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ..If D@Message = &WM_COMMAND
         .If D@wParam = &IDCANCEL
@@ -486,7 +486,7 @@ L7:        mov D$ShowTreeHandle 0
         Else                                ; But allow Search if [Return] Key depressed.
             call SearchFromTreeListBox D@lParam
         End_If
-        popad | mov eax 0-1 | jmp L9>>
+        mov eax 0-1 | jmp L9>>
 
     ..Else_If D@Message = &WM_INITDIALOG
       ; Does not survive in the Minimized state...:
@@ -523,7 +523,7 @@ L1:     push D$TreeWP.ptMinPosition.x, D$TreeWP.ptMinPosition.y, D$TreeWP.flags
 
     ..Else_If D@Message = &WM_CTLCOLORLISTBOX
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | jmp L9>
+        mov eax D$DialogsBackGroundBrushHandle | jmp L9>
 
     ..Else_If D@Message = &WM_ACTIVATE
        ; Wanted by... Anvar if i remember, but conflicts with any wish of moving
@@ -532,11 +532,11 @@ L1:     push D$TreeWP.ptMinPosition.x, D$TreeWP.ptMinPosition.y, D$TreeWP.flags
        ; On B$AutoHideTreeView = &TRUE, call 'USER32.ShowWindow' D@Adressee &SW_NORMAL
 
     ..Else
-        popad | mov eax &FALSE | jmp L9>
+        mov eax &FALSE | jmp L9>
 
     ..End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 

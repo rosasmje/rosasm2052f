@@ -510,7 +510,7 @@ ret
 
 Proc TitleWindowProc:
     Arguments @Adressee, @Message, @wParam, @lParam
-
+    USES EBX ESI EDI
         On B$SourceReady = &FALSE, jmp L8>>
 
 L8:     call 'USER32.CallWindowProcA' D$OriginalTitleBarProcedure,
@@ -522,7 +522,7 @@ L8:     call 'USER32.CallWindowProcA' D$OriginalTitleBarProcedure,
 ; here! Risks of Stack overflow, with the Tab Messages.
         ...If D@Message >= &WM_MOUSEFIRST
             ..If D@Message =< &WM_MOUSELAST ; (0209) // &WM_CAPTURECHANGED (0215)
-                pushad
+
                     call 'User32.SendMessageA' D$TitleWindowHandle, &TCM_GETCURSEL, 0, 0
                     If eax <> D$ActualPartIndex
                         mov B$BlockInside &FALSE
@@ -534,7 +534,7 @@ L8:     call 'USER32.CallWindowProcA' D$OriginalTitleBarProcedure,
                         call SetPartialEdition
                         call AskForRedrawNow
                     End_If
-                popad
+
             ..End_If
         ...End_If
 EndP

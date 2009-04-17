@@ -508,9 +508,9 @@ ret
 ; Tag Dialog 600
 
 Proc UnicodeEditorProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_INITDIALOG
         move D$UnicodeEditorHandle D@Adressee, D$UnicodeDataPointer D@lParam
@@ -571,17 +571,17 @@ Proc UnicodeEditorProc:
         .End_If
 
     ...Else_If D@Message = &WM_CTLCOLOREDIT
-        call 'USER32.SendMessageA' D@lParam, &EM_SETSEL, 0-1, 0
+        call 'USER32.SendMessageW' D@lParam, &EM_SETSEL, 0-1, 0
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | ExitP
+        mov eax D$DialogsBackGroundBrushHandle | ExitP
 
 
     ...Else
-L8:     popad | mov eax &FALSE | ExitP
+L8:     mov eax &FALSE | ExitP
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 EndP
 
 

@@ -296,8 +296,8 @@ ________________________________________________________________________________
  OldUnusedSymbolDialogSubClassProc6: ?]
 
 Proc UnusedSymbolDialogSubClassProc:
-Arguments @Adressee, @Message, @wParam, @lParam
-
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
     .if D@Message = &WM_KEYDOWN
         if D@Wparam = &VK_F5
             mov B$RecompileWanted &TRUE
@@ -377,8 +377,8 @@ EndP
 
 Proc UnusedCodeAndDataDialogCallBack:
     Arguments @Adressee, @Message, @wParam, @lParam
+    USES EBX ESI EDI
 
-       pushad
 
         mov eax &FALSE
         ..If D@Message = &WM_COMMAND
@@ -471,11 +471,11 @@ L9:         call 'user32.SetDlgItemTextA' D$UnusedCodeAndDataDialogHandle,
             On eax <> 0 call RestoreUnusedIndex
 
         ..Else
-            popad | mov eax &FALSE | ExitP
+            mov eax &FALSE | ExitP
 
         ..End_If
 
-        popad | mov eax &TRUE
+        mov eax &TRUE
 EndP
 ____________________________________________________________________________________________
 

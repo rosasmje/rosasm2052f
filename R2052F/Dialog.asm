@@ -312,9 +312,9 @@ ________________________________________________________________________________
 [ArrowCursor: ?]
 
 Proc EditedDialogBoxProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
   ; while opening and closing this dialog to show work progress to user, after
   ; some time, the menu seems destroyed (must be by Win -as bound to dialog-)
@@ -339,11 +339,11 @@ Proc EditedDialogBoxProc:
   ;      call 'User32.DestroyWindow' D@Adressee
 
     ...Else
-L8:     popad | mov eax &FALSE | jmp L9>
+L8:     mov eax &FALSE | jmp L9>
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 
@@ -1274,9 +1274,9 @@ ret
 ; zero. The Value is a signed dWord.
 
 Proc EditDialogBoxProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     .If B$OnMenuEdition = &TRUE
         If D@Message = &WM_NOTIFY
@@ -1301,7 +1301,7 @@ L1:         call 'User32.SendMessageA' D$MenuEditorHandle, &WM_COMMAND, &IDCANCE
             move D$ProposedUpDowmChange D$ebx+16    ; This is the proposed change (signed dWord)
             call WriteDim
             call 'User32.SetForegroundWindow' D$DialogEditorHandle
-            popad | mov eax &FALSE | jmp L9>>
+            mov eax &FALSE | jmp L9>>
         End_If
 
     ...Else_If D@Message = &WM_VSCROLL        ; user clicked and release Updown in Dim edition
@@ -1465,13 +1465,13 @@ L2:             call 'User32.SetForegroundWindow' D$DialogEditorHandle
 
     ...Else_If D@Message = &WM_CTLCOLOREDIT
 L1:     call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | jmp L9>
+        mov eax D$DialogsBackGroundBrushHandle | jmp L9>
 
     ...Else
-L8:     popad | mov eax &FALSE | jmp L9>
+L8:     mov eax &FALSE | jmp L9>
     ...End_If
 
-L7: popad | mov eax &TRUE
+L7: mov eax &TRUE
 
 L9: EndP
 
@@ -4596,9 +4596,9 @@ ________________________________________________________________________________
 ____________________________________________________________________________________________
 
 Proc HelpDialogProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     .If D@Message = &WM_INITDIALOG
       ; lParam >>> InitValue >>> set Text...
@@ -4607,7 +4607,7 @@ Proc HelpDialogProc:
     .Else_If D@Message = &WM_CTLCOLOREDIT
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
         call 'USER32.SendMessageA' D@lParam &EM_SETSEL 0 0
-        popad | mov eax D$DialogsBackGroundBrushHandle | jmp L9>>
+        mov eax D$DialogsBackGroundBrushHandle | jmp L9>>
 
     .Else_If D@Message = &WM_PARENTNOTIFY
         jmp L4>
@@ -4633,10 +4633,10 @@ L5:         call 'User32.EndDialog' D@Adressee 0
         End_If
 
     .Else
-L8:     popad | mov eax &FALSE | jmp L9>
+L8:     mov eax &FALSE | jmp L9>
     .End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 
@@ -5007,9 +5007,9 @@ ret
 [NewOrExistingMenuChoice: ?]
 
 Proc NewOrExistingMenuProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_INITDIALOG
       ; If no Menu >>> Disable the [Load Existing] Button:
@@ -5040,11 +5040,11 @@ Proc NewOrExistingMenuProc:
         End_If
 
     ...Else
-L8:     popad | mov eax &FALSE | jmp L9>
+L8:     mov eax &FALSE | jmp L9>
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 L9: EndP
 ____________________________________________________________________________________________
 
@@ -6233,9 +6233,9 @@ ret
 [UserAbortID: 0] [IDstring: '        ' 0]
 
 Proc WhatDialogIdProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_INITDIALOG
         mov B$UserAbortID &FALSE
@@ -6293,11 +6293,11 @@ L0:         mov edx 0 | div ebx
         ..End_If
 
     ...Else
-        popad | mov eax &FALSE | jmp L9>
+        mov eax &FALSE | jmp L9>
 
     ...End_If
 
-L5: popad | mov eax &TRUE
+L5: mov eax &TRUE
 
 L9: EndP
 ____________________________________________________________________________________________
@@ -6967,9 +6967,9 @@ ret
 
 [ListOrigin: ?]
 Proc ChoiceDialogBoxProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_COMMAND
         mov eax D@wParam | and eax 0FFFF
@@ -7017,11 +7017,11 @@ L0:         add D$WhatDialogListPtr 12 | mov eax D$WhatDialogListPtr
             call 'USER32.GetFocus'
             On eax <> D@Adressee, call 'User32.SetForegroundWindow' D@Adressee
         End_If
-        popad | mov eax &FALSE | jmp L9>
+        mov eax &FALSE | jmp L9>
 
     ...End_If
 
-L8: popad | mov eax &TRUE
+L8: mov eax &TRUE
 
 L9: EndP
 

@@ -6895,9 +6895,9 @@ ret
 [ShowApiDialogHandle: ?]
 
 Proc ApiChoice:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     .If D@Message = &WM_COMMAND
          If D@wParam = &IDCANCEL
@@ -6922,14 +6922,14 @@ Proc ApiChoice:
             mov B$FirstCTLCOLOREDIT &FALSE
         End_If
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | jmp L9>
+        mov eax D$DialogsBackGroundBrushHandle | jmp L9>
 
     .Else
-        popad | mov eax &FALSE | jmp L9>
+        mov eax &FALSE | jmp L9>
 
     .End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 

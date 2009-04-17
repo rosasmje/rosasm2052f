@@ -81,9 +81,9 @@ Proc MainWindowProc:
   'KillTrailingSpaces', 'NewFileNameDialog', 'DataToStructureProc'
 ;;
 
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     If D@Message = &WM_CREATE
         call 'SHELL32.DragAcceptFiles' D@Adressee, &TRUE | jmp L9>>
@@ -187,7 +187,7 @@ Proc MainWindowProc:
     ...Else_If eax = &WM_GETMINMAXINFO
         mov eax D@lParam
         mov D$eax+24 500, D$eax+28 300
-        popad | mov eax &FALSE | ExitP
+        mov eax &FALSE | ExitP
 
     ...Else_If eax = &WM_SIZE
         On D$TitleWindowHandle > 0, call KillTitleTab
@@ -220,15 +220,15 @@ Proc MainWindowProc:
             mov D$ebx+TOOLTIPTEXT_lpszText eax
 
         .Else_If D$ebx+TOOLTIPTEXT_NMHDR_code = &TBN_QUERYINSERT ; May be inserted ?
-            popad | mov eax &TRUE | ExitP                   ; > yes for all.
+            mov eax &TRUE | ExitP                   ; > yes for all.
 
         .Else_If D$ebx+TOOLTIPTEXT_NMHDR_code = &TBN_QUERYDELETE ; May be deleted?
-                        popad | mov eax &TRUE | ExitP                   ; > yes for all.
+                        mov eax &TRUE | ExitP                   ; > yes for all.
 
         .Else_If D$ebx+TOOLTIPTEXT_NMHDR_code = &TBN_FIRST  ; = &TBN_GETBUTTONINFO (missing?)
             mov ecx D$ebx+TB_NOTIFY_Item, edx ecx
             If ecx a TOOLBUTTONS_NUMBER
-                popad | mov eax &FALSE | ExitP
+                mov eax &FALSE | ExitP
             End_If
             lea ecx D$ecx*4+ecx | shl ecx 2                 ; ecx = ecx * 20 >>>
             add ecx ToolBarButtons                          ; Pointer to whished Button Data
@@ -246,7 +246,7 @@ Proc MainWindowProc:
                 lodsb | stosb | inc ecx
             Loop_Until al = 0
             mov D$ebx+TB_NOTIFY_CharCount ecx               ; Lenght of String    (+36)
-            popad | mov eax &TRUE | ExitP
+            mov eax &TRUE | ExitP
 
         .Else_If D$ebx+TOOLTIPTEXT_NMHDR_code = &TBN_TOOLBARCHANGE
             mov B$ToolBarChange &TRUE                       ; For Saving at Exit if TRUE.
@@ -681,7 +681,7 @@ L5: If B$SourceReady = &FALSE
             call RestoreRealSource | call ForwardClick | call SetPartialEditionFromPos
         ..End_If
 
-        popad | mov eax &TRUE | ExitP
+        mov eax &TRUE | ExitP
 
     ...Else_If eax = &WM_COMMAND
         mov eax D@Wparam | and eax 0FFFF
@@ -920,7 +920,7 @@ L5: If B$SourceReady = &FALSE
     ...End_If
  ____________________________________
 
-L9: popad | mov eax &FALSE | jmp P9>>
+L9: mov eax &FALSE | jmp P9>>
 
 L7: ; NotReadyToRun:
     .If B$ReadyToRun = &TRUE         ; (Something has just been modified).
@@ -930,10 +930,10 @@ L7: ; NotReadyToRun:
 
     mov B$SourceHasChanged &TRUE
 
-    popad | mov eax &FALSE | jmp P9>
+    mov eax &FALSE | jmp P9>
 
 L8: ; NoClient:
-    popad | call 'User32.DefWindowProcA' D@Adressee D@Message D@wParam D@lParam
+    call 'User32.DefWindowProcA' D@Adressee D@Message D@wParam D@lParam
 EndP
 
 ____________________________________________________________________________________________
@@ -1037,11 +1037,11 @@ ________________________________________________________________________________
 ____________________________________________________________________________________________
 
 Proc ScrollBarProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
     On B$SourceReady = &FALSE, jmp L8>>
 
-    pushad
 
     ...If D@Message = &WM_VSCROLL
         call KillCompletionList
@@ -1075,13 +1075,13 @@ L0:             call UpOneLine | loop L0<
             call AskForRedraw
         ..End_If
 
-        popad | mov eax &FALSE | ExitP
+        mov eax &FALSE | ExitP
 
      ...End_If
 
      On D$TitleWindowHandle > 0, call KillTitleTab
 
-    popad
+
 L8: call 'User32.DefWindowProcA' D@Adressee D@Message D@wParam D@lParam
 EndP
 

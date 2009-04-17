@@ -238,8 +238,8 @@ ret
 ;;
 Proc IncludeListCompilationDialogCallBack:
     Arguments @Adressee, @Message, @wParam, @lParam
+    USES EBX ESI EDI
 
-        pushad
 
         mov eax &FALSE
         ..If D@Message = &WM_COMMAND
@@ -269,10 +269,10 @@ Proc IncludeListCompilationDialogCallBack:
 
         ..Else
 
-            popad | mov     eax &FALSE | ExitP
+            mov eax &FALSE | ExitP
         ..End_if
 
-        popad | mov eax &TRUE
+        mov eax &TRUE
 EndP
 
 

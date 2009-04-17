@@ -62,9 +62,9 @@ ret
 ; Tag Dialog 19000
 
 Proc OutputFormatProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_COMMAND
         .If D@wParam = &IDCANCEL
@@ -125,11 +125,11 @@ L1:         mov D$OutputHandle 0 | call 'User32.EndDialog' D@Adressee 0
         call InitOutputDialog
 
     ...Else
-L8:     popad | mov eax &FALSE | jmp L9>
+L8:     mov eax &FALSE | jmp L9>
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 
@@ -140,9 +140,9 @@ DlgSetRelocs: mov D$RelocsWanted &TRUE | call 'USER32.CheckDlgButton' D$OutputHa
 ; Tag Dialog 21000
 
 Proc DLLFormatProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_COMMAND
         ..If D@wParam = &IDCANCEL
@@ -202,11 +202,11 @@ L1:         mov al bl | and al 0F | On al >= 0A, add al 7
         call CheckDLLFlags
 
     ...Else
-L8:     popad | mov eax &FALSE | jmp L9>
+L8:     mov eax &FALSE | jmp L9>
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 
@@ -219,9 +219,9 @@ ________________________________________________________________________________
 ; Tag Dialog 21001
 
 Proc SYSFormatProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_COMMAND
         ..If D@wParam = &IDCANCEL
@@ -244,11 +244,11 @@ L1:         mov D$OutputHandle 0
         call 'USER32.SetClassLongA' D@Adressee &GCL_HICON D$wc_hIcon
 
     ...Else
-L8:     popad | mov eax &FALSE | jmp L9>
+L8:     mov eax &FALSE | jmp L9>
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 ____________________________________________________________________________________________

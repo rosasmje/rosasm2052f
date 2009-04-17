@@ -338,9 +338,9 @@ EndP
 [DisViewPos: ?    ViewCommand: ?]
 
 Proc DisViewProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     .If D@Message = &WM_INITDIALOG
         mov D$EmptyDialogHandle eax
@@ -373,11 +373,11 @@ Proc DisViewProc:
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
 
     .Else
-        popad | mov eax &FALSE | jmp L9>
+        mov eax &FALSE | jmp L9>
 
     .End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 ____________________________________________________________________________________________
@@ -3278,9 +3278,9 @@ ________________________________________________________________________________
 ret
 
 Proc ProgressProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ..If D@Message = &WM_COMMAND
         If D@wParam = &IDCANCEL
@@ -3301,11 +3301,11 @@ Proc ProgressProc:
         call 'User32.SendMessageA' D$hwndForBar, &WM_SETTEXT, 0, DisPasses
 
     ..Else
-        popad | mov eax &FALSE | ExitP
+        mov eax &FALSE | ExitP
 
     ..End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 EndP
 ____________________________________________________________________________________________
 

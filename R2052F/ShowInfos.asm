@@ -29,9 +29,9 @@ ret
 [ShowTypesDialogHandle: ?    FirstCTLCOLOREDIT: ?]
 
 Proc ShowTypesInfo:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     .If D@Message = &WM_COMMAND
          If D@wParam = &IDCANCEL
@@ -52,14 +52,14 @@ Proc ShowTypesInfo:
             mov B$FirstCTLCOLOREDIT &FALSE
         End_If
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | jmp L9>
+        mov eax D$DialogsBackGroundBrushHandle | jmp L9>
 
     .Else
-        popad | mov eax &FALSE | jmp L9>
+        mov eax &FALSE | jmp L9>
 
     .End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 
@@ -225,9 +225,9 @@ jmp OldSearchMneMonic
 [ShowMnemonicHandle: 0    MnemonicsTitle: 'Mnemonics list (More Infos with OpHelp.exe...)', 0]
 
 Proc ShowMnemonicInfo:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     .If D@Message = &WM_COMMAND
          If D@wParam = &IDCANCEL
@@ -249,14 +249,14 @@ Proc ShowMnemonicInfo:
             mov B$FirstCTLCOLOREDIT &FALSE
         End_If
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | jmp L9>
+        mov eax D$DialogsBackGroundBrushHandle | jmp L9>
 
     .Else
-        popad | mov eax &FALSE | jmp L9>
+        mov eax &FALSE | jmp L9>
 
     .End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 
@@ -269,9 +269,9 @@ ________________________________________________________________________________
 ; Tag Dialog 1000
 
 Proc ShowApiInfo:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     .If D@Message = &WM_COMMAND
          If D@wParam = &IDCANCEL
@@ -290,14 +290,14 @@ Proc ShowApiInfo:
             mov B$FirstCTLCOLOREDIT &FALSE
         End_If
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | jmp L9>
+        mov eax D$DialogsBackGroundBrushHandle | jmp L9>
 
     .Else
-        popad | mov eax &FALSE | jmp L9>
+        mov eax &FALSE | jmp L9>
 
     .End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 ____________________________________________________________________________________________
@@ -1351,9 +1351,9 @@ ________________________________________________________________________________
 [DataTextTable: ?    StructureTextTable: ?    DataToStructureDialogHandle: ?]
 
 Proc DataToStructureProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_COMMAND
         mov eax D@wParam | and eax 0FFFF
@@ -1378,11 +1378,11 @@ L5:         VirtualFree D$DataTextTable, D$StructureTextTable
         ; Control of output
 
     ...Else
-        popad | mov eax &FALSE | ExitP
+        mov eax &FALSE | ExitP
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 EndP
 
 

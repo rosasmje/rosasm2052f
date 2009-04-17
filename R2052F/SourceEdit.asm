@@ -2619,8 +2619,8 @@ ________________________________________________________________________________
 ; React to the [Apply] Button (&CF_APPLY__&CF_ENABLEHOOK, in EditorCHOOSEFONT@Flags):
 
 Proc ChooseFontHook:
-    Arguments @Adressee, @Message, @wParam, @lParam
-
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
             .If D@Message = &WM_COMMAND
                 If D@wParam = 0402
                     call LoadFont | call AskForRedrawNow

@@ -10374,9 +10374,9 @@ Label1:
 [DecodeOnlyHexa: ? #10]
 
 Proc EncodingProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_INITDIALOG
         move D$EncodingDialogHandle D@Adressee
@@ -10426,14 +10426,14 @@ L3:         call 'USER32.GetDlgItemTextA' D@Adressee, 16, HexaCodeText, 80
 
     ...Else_If D@Message = &WM_CTLCOLORLISTBOX
 L1:     call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | jmp L9>
+        mov eax D$DialogsBackGroundBrushHandle | jmp L9>
 
     ...Else
-L8:     popad | mov eax &FALSE | jmp L9>
+L8:     mov eax &FALSE | jmp L9>
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 

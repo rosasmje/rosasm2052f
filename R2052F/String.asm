@@ -115,9 +115,9 @@ ________________________________________________________________________________
 [StringsEditorHandle: ?     StringsListHandle: ?    StringEditFirstRun: ?]
 
 Proc StringsProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_INITDIALOG
         mov B$StringEditFirstRun &TRUE
@@ -135,7 +135,7 @@ Proc StringsProc:
             End_If
         .End_If
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | jmp L9>>
+        mov eax D$DialogsBackGroundBrushHandle | jmp L9>>
 
     ...Else_If D@Message = &WM_COMMAND
         ..If D@wParam = &IDCANCEL
@@ -155,11 +155,11 @@ L1:         mov D$StringsEditorHandle 0
         ..End_If
 
     ...Else
-L8:     popad | mov eax &FALSE | jmp L9>
+L8:     mov eax &FALSE | jmp L9>
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 
