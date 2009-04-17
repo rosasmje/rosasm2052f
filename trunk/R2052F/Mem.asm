@@ -94,8 +94,10 @@ ________________________________________________________________________________
 [VirtAllocOverFlowString: 'VirtualAlloc Buffer overflowed', 0]
 [VirtAllocFailureString:  'VirtualAlloc Function failure' 0]
 
-VirtAlloc:                                  ; In: ebx = Pointer, edx = size
-    push ebx
+Proc VirtAlloc:
+  Arguments @sz, @ptr
+  USES ecx edx ebx esi edi
+
         mov edi MemTable                    ; Search an empty Record.
         While D$edi > 0
             add edi MEMRECORD
@@ -113,7 +115,7 @@ VirtAlloc:                                  ; In: ebx = Pointer, edx = size
 
       ; The 'add eax GUARDPAGE' is to reserve a never Committed Page (allow Win
       ; error if i overflow write to a Buffer):
-        mov eax edx | Align_On PAGESIZE eax | add eax GUARDPAGE
+        mov eax D@sz | Align_On PAGESIZE eax | add eax GUARDPAGE
         mov D$MemChunSize eax, D$edi+4 eax
 
       ; VirtualAlloc Reserves by 01_0000 Octets Block (16 Pages). So, as any previous
@@ -153,11 +155,11 @@ VirtAlloc:                                  ; In: ebx = Pointer, edx = size
             ON D$hwnd <> 0, call 'USER32.DestroyWindow' D$hwnd ; jE!
             call 'KERNEL32.ExitProcess' 0
         End_If
-    pop ebx
-    mov D$ebx eax                           ; Return Pointer Value to caller.
-ret
+    mov ebx D@ptr
+    mov D$ebx eax                           ; Writes Value in Pointer & in EAX!
+EndP
 
-[VirtualAlloc | mov ebx #1, edx #2 | call VirtAlloc | #+2]
+[VirtualAlloc | push #1 | push #2 | call VirtAlloc | #+2]
 ; Evocation: VirtualAlloc Pointer, Size
 ____________________________________________________________________________________________
 

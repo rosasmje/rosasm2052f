@@ -621,12 +621,14 @@ DisMain: ; 'MSVBVM' 'OpenRosAsmPe', 'DisassembleProc'
   ; Positive Recognition for Data and Code:
 
   ; 'MarkEvocated' _MUST_ be kept _first_ Recognition.
-    call MarkEvocated | call ConditionalJumpsAnalyzes
+    call TryLoadPointersFromRELOC
+    call ImportReferencesToCode
+    call MarkEvocatedRelative | call ConditionalJumpsAnalyzes
 ;map
     call MarkEntryPoint
     call MarkProcedures | call MarkJumpsTables
 ;map
-    call MarkPointersFlows | call MarkAlternatedPointersFlows
+;    call MarkPointersFlows | call MarkAlternatedPointersFlows
 ;map
     call DisassembleForCodeRouting
 ;map
@@ -1201,7 +1203,7 @@ MarkEntryPoint:
 ret
 ____________________________________________________________________________________________
 
-MarkEvocated:
+MarkEvocatedRelative:
 ; We are going to analyze the PE up to the last dWord (mov eax D$esi >>> error!!!). So:
     sub D$UserPeEnd 4
 ;;
@@ -1239,15 +1241,17 @@ MarkEvocated:
                         or B$eax PUSH_EBP+NODE+INSTRUCTION+ACCESSED+EVOCATED+LABEL
                         mov ebx eax | sub ebx D$RoutingMap | add ebx D$SectionsMap
                         mov B$ebx CODEFLAG
-
+L1:                     or B$eax EVOCATED
                     Else_If B$esi-1 = 0E9
-                        test B$eax EVOCATED | jz L1>
+L2:                     test B$eax EVOCATED | jz L1>
                       ; 2 or more JMP Instructions to the same location:
-                        or B$eax PUSH_EBP+NODE+INSTRUCTION+ACCESSED+EVOCATED+LABEL
+                        or B$eax PUSH_EBP+NODE+INSTRUCTION+ACCESSED+EVOCATED+LABEL ; PUSH_EBP??
                         mov ebx eax | sub ebx D$RoutingMap | add ebx D$SectionsMap
                         mov B$ebx CODEFLAG
-
 L1:                     or B$eax EVOCATED
+                    Else_If B$esi-2 = 0F
+                      ; jE! long Jcc
+                        mov bl B$esi-1 | and bl 0F0 | cmp bl 080 | jz L2<
 
                     End_If
 
@@ -1258,27 +1262,35 @@ L1:                     or B$eax EVOCATED
 L5:     inc esi
     .End_While
 
-    mov esi D$UserPeStart | add esi D$FirstSection
+    add D$UserPeEnd 4
+ret
+;;
+MarkEvocatedAbsolute:
+    sub D$UserPeEnd 4
+
+    mov esi D$UserPeStart | add esi D$FirstSection | sub ebx ebx ; count
   ; Absolute:
     While esi < D$UserPeEnd
-        mov eax D$esi | sub eax D$DisImageBase | add eax D$UserPeStart
-        ..If eax > D$UserPeStart
-            .If eax < D$UserPeEnd
+        mov eax D$esi ; test esi 3| jne L0>| cmp eax 0408dc3| je L2>; | cmp eax 0408d00| je L2>
+L0:     sub eax D$DisImageBase | add eax D$UserPeStart
+        ..If eax >= D$UserPeStart
+            .If eax =< D$UserPeEnd
                 sub eax D$UserPeStart | add eax D$SectionsMap
-                mov bl B$eax | and bl IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG
-                If bl = 0
-                    sub eax D$SectionsMap | add eax D$RoutingMap
-                    or B$eax EVOCATED
-                End_If
+                test B$eax IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jne L2> ; imp?
+                sub eax D$SectionsMap | add eax D$RoutingMap
+                or B$eax EVOCATED
+                ;mov eax esi | sub eax D$UserPeStart | add eax D$SizesMap | mov D$eax POINTER; V3
+                add esi 3 | inc ebx
+L2:
             .End_If
         ..End_If
 
 L5:     inc esi
     End_While
 
-    add D$UserPeEnd 4
+    add D$UserPeEnd 4 | mov eax ebx
 ret
-
+;;
 ____________________________________________________________________________________________
 
 MarkProcedures:
@@ -2257,7 +2269,7 @@ L0: push ecx
 
     While D$eax+SECTION_RVA <> 0
         mov esi D$eax+SECTION_FILEPOINTER | add esi D$UserPeStart
-        mov edi D$eax+SECTION_RVA | On edi = D$DisRelocPointer, jmp L1>
+        mov edi D$eax+SECTION_RVA ;| On edi = D$DisRelocPointer, jmp L1>
         add edi D$TempoUserPeStart
         mov ecx D$eax+SECTION_FILESIZE | Align_On 4 ecx | shr ecx 2 | rep movsd
 L1:     add eax SECTIONHEADERSIZE | dec edx | jz L2>
@@ -2300,7 +2312,7 @@ AllocateDisTables:
     add ecx D$CodeSource | mov D$EndOfSourceMemory ecx
 
   ; restore the true length (without the security tail):
-    sub D$UserPeLen 01000
+;    sub D$UserPeLen 01000  << jE! hey! it was untouched
 
     mov edi D$CodeSource, eax CRLF2, ecx 100 | rep stosd
 
@@ -3043,7 +3055,7 @@ L0: lodsd
             inc D$NumberOfForwardedExport | loop L0<
         Else
             sub  eax D$SectionsMap | add eax D$RoutingMap
-            or B$eax EXPORTNODE+ACCESSED+EVOCATED+LABEL
+            or B$eax EXPORTNODE+ACCESSED+EVOCATED;+LABEL
             sub eax D$RoutingMap | add eax D$SectionsMap | mov B$eax 0 | loop L0<
         End_If
     .End_If
@@ -5811,6 +5823,191 @@ Proc GetStringsMapSymbol:
         End_If
 EndP
 
+____
 
+Proc ImportReferencesToCode:
+  Local @impBase
+    GetPeHeader AppBaseOfImport | mov eax D$eax | test eax eax | je P9>>
+    add eax D$UserPeStart | sub eax 014 | mov D@impBase eax
+L0: add D@impBase 014 | mov eax D@impBase | cmp D$eax+0C 0 | je P9>>
+    mov esi D$eax+010 | add esi D$UserPeStart
+L5: lodsd | test eax eax | je L0< | lea eax D$esi-4 | sub eax D$UserPeStart
+    add eax D$DisImageBase | mov edi D$UserPeStart | add edi D$FirstSection
+    mov ecx D$UserPeEnd | sub ecx 4 | dec edi
+L1: inc edi | cmp edi ecx | ja L5< | cmp D$edi eax | jne L1<
+L2: lea edx D$edi-2 | mov bx W$edx
+    cmp bl 0FF | jne L4>
+    cmp bh 015 | je L3> | cmp bh 025 | je L3> | cmp bh 035| je L3>| jmp L1<
+L4: cmp bl 08D | je L6>
+    cmp bl 08B | jne L4>
+L6: test bh 0C2| jne L1< | and bh 5| cmp bh 5| je L3>| jmp L1<
+L4: cmp bh 0A1 | jne L1< | inc edx
+L3: sub edx D$UserPeStart
+    add edx D$SectionsMap | mov B$edx CODEFLAG | sub edx D$SectionsMap
+    ;add edx D$SizesMap | mov D$edx+1 0 | sub edx D$SizesMap
+    add edx D$RoutingMap | or B$edx ACCESSED+INSTRUCTION | add edi 3 | jmp L1<
+EndP
+
+____
+
+Proc TryLoadPointersFromRELOC: ; jE! Version2
+  Local @memRelp, @numRelp
+  USES EBX ESI EDI
+    and D@memRelp 0
+    mov esi D$UserPeStart| add esi D$esi+03C
+    mov ebx D$esi+0A4| mov esi D$esi+0A0| test esi esi| je @FindPointers
+    lea eax D$esi+ebx | add esi D$UserPeStart | cmp D$UserPeLen eax | jae L0>
+    mov ebx D$UserPeEnd | sub ebx esi | jmp @orFindPointers
+L0:
+    call ScanRelocation, esi, ebx, D$UserPeLen | test eax eax| je @orFindPointers
+
+    lea eax D$eax*4+010 | lea edx D@memRelp
+    VirtualAlloc edx, eax
+
+    call BuildRVAPointersFromReloc D@memRelp, esi, ebx | mov D@numRelp eax
+    shl eax 2 | call BubbleSort D@memrelp, eax
+    sub eax eax | mov edi esi | mov ecx ebx | shr ecx 2 | rep stosd ; cleanup RELOCs
+    mov edx D@numRelp, esi D@memrelp ; check 2 same
+L0: lodsd | lea ecx D$edx-1 | mov edi esi | repne scasd | je B0> | dec edx | jne L0<
+    jmp @ManagePointers
+ B0:
+    VirtualFree D@memrelp | jmp @FindPointers
+
+@orFindPointers:
+    sub eax eax | mov edi esi | mov ecx ebx | shr ecx 2 | rep stosd
+@FindPointers:
+    mov esi D$UserPeStart | add esi D$FirstSection | sub ebx ebx ; count
+    mov ecx D$UserPeEnd | sub ecx 4 | mov edx ecx | sub edx D$UserPeStart
+    While esi < ecx
+        mov eax D$esi | sub eax D$DisImageBase
+        cmp eax edx | ja L2> | cmp eax D$FirstSection | jb L2> | add eax D$SectionsMap
+        test B$eax RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jne L2>
+        add esi 3 | inc ebx
+L2:     inc esi
+    End_While
+
+    lea eax D$ebx*4+010 | lea edx D@memRelp
+    VirtualAlloc edx, eax
+
+    mov esi D$UserPeStart | add esi D$FirstSection | sub ebx ebx ; count
+    mov ecx D$UserPeEnd | sub ecx 4 | mov edx ecx | sub edx D$UserPeStart
+    mov edi D@memrelp
+    While esi < ecx
+        mov eax D$esi | sub eax D$DisImageBase
+        cmp eax edx | ja L2> | cmp eax D$FirstSection | jb L2> | add eax D$SectionsMap
+        test B$eax RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jne L2>
+        mov eax esi | sub eax D$UserPeStart | stosd | add esi 3 | inc ebx
+L2:     inc esi
+    End_While
+    mov D@numRelp ebx
+
+@ManagePointers:
+    mov esi D@memRelp | mov ecx D@numRelp | mov edi 080000000 | sub ebx ebx
+L3: lodsd | mov edx eax | sub edx edi | cmp edx 4 | je L4> | sub ebx ebx | jmp L6>
+L4: inc ebx | cmp ebx 2 | jb L6> | mov edx D$SizesMap | lea edx D$edx+eax | jne L7>
+    mov D$edx-8 POINTER | mov D$edx-4 POINTER ; 3+ together are sure POINTERs in DATA
+L7: mov D$edx POINTER
+    mov edx D$SectionsMap | lea edx D$edx+eax | jne L7>
+    mov D$edx-8 FOURDATAFLAGS | mov D$edx-4 FOURDATAFLAGS
+L7: mov D$edx FOURDATAFLAGS
+L6: mov edi eax| add eax D$UserPeStart| mov eax D$eax| sub eax D$DisImageBase| cmp D$UserPeLen eax| jbe L5>
+    push ecx, edi| mov edi D@memRelp|  mov ecx D@numRelp| repne scasd| pop edi, ecx| jne L2>
+    mov edx D$SizesMap| mov D$edx+eax POINTER| mov edx D$SectionsMap| mov D$edx+eax FOURDATAFLAGS
+L2: add eax D$RoutingMap | or B$eax LABEL+EVOCATED
+L5: dec ecx| jne L3<<
+
+L8:
+    VirtualFree D@memrelp
+EndP
+
+;;
+Mark3PointerAsDataPointerFlow: ; jE! Ver3
+    pushad
+    mov edi D$SizesMap | mov ecx D$UserPeLen | mov eax POINTER | sub ecx 4
+S0: test ecx ecx| jle S8>|repne scasb| jne S8>| dec edi| inc ecx| mov edx ecx
+    shr ecx 2| push edi, ecx| repe scasd| sub D$esp ecx| pop ecx, edi| dec ecx|xchg ecx edx
+    cmp edx 3| jl S1>| mov ebx edi| sub ebx D$SizesMap| add ebx D$SectionsMap
+S2: mov D$ebx FOURDATAFLAGS| add ebx 4| add edi 4| sub ecx 4| dec edx| jg S2<| jmp S0<
+S1: shl edx 2| add edi edx| sub ecx edx| jmp S0<
+S8: popad | ret
+
+____
+
+Proc TryLoadPointersFromRELOC: ; jE! Version3
+  Local @memRelp, @numRelp
+  USES EBX ESI EDI
+....
+    mov esi D@memRelp | mov ecx D@numRelp
+L3: lodsd | mov edx D$SizesMap | mov D$edx+eax POINTER | add eax D$UserPeStart
+    mov eax D$eax | sub eax D$DisImageBase | cmp D$UserPeLen eax | jb L5>
+; Referenced pointer is DATA-POINTER! >>
+    push ecx| mov edi D@memRelp|  mov ecx D@numRelp| repne scasd| pop ecx| jne L2>
+    mov edx D$SectionsMap| mov D$edx+eax FOURDATAFLAGS
+L2: add eax D$RoutingMap | mov B$eax LABEL+EVOCATED;+INDIRECT
+L5: dec ecx| jne L3<; loop L3<
+    or ebx 0-1
+L8:
+    call 'Kernel32.VirtualFree', D@memrelp, 0, &MEM_RELEASE | mov eax ebx
+EndP
+;;
+________________________
+
+Proc BuildRVAPointersFromReloc: ;returns NumOfPointer or 0 on bad
+ Arguments @PntrsTable, @Relocs, @RelocSize
+  USES EBX ESI EDI
+
+    cld| mov edi D@PntrsTable, esi D@Relocs, ebx D@RelocSize
+
+L0: ;@rep_ldsect:
+    sub ebx 8 | jle B0>
+    lodsd | mov edx eax | lodsd | lea ecx D$eax-8 | cmp ecx 0800 | ja B0>
+    shr ecx 1
+L1: ;@rep_ldw:
+    dec ecx | js L0<
+    sub ebx 2 | js B0>
+    mov ax W$esi | shl eax 010| lodsw|
+    shr ax 0C| je N0>| cmp al 06| je N0>| cmp al 07| je N0>| cmp al 03| jne B0>
+    shr eax 010| and eax 0FFF | add eax edx | stosd
+N0: ;@NullRlc:
+    test ebx ebx | je L3>;Done
+    jmp L1<;@rep_ldw
+B0: ;@badReloc:
+    sub eax eax | jmp P9>
+L3: ;@Done:
+    mov eax edi | sub eax D@PntrsTable | shr eax 2
+
+EndP
+
+_____
+
+Proc ScanRelocation: ; returns NumOfPointer or 0 on bad
+ Arguments @Relocs, @RelocSize, @maxVA
+  USES EBX ESI EDI
+
+    cld| mov esi D@Relocs, ebx D@RelocSize, edi D@maxVA
+    sub edi 4 | xor edx edx
+
+L0: ;@szrep_ldsect:
+    sub ebx 8 | jle B0>
+    lodsd | cmp eax edi | ja B0>
+    lodsd | lea ecx D$eax-8 | cmp ecx 0800 | ja B0>
+    shr ecx 1
+L1: ;@szrep_ldw:
+    dec ecx | js L0<
+    sub ebx 2 | js B0>
+    lodsw
+    shr ax 0C| je N0>| cmp al 06| je N0>| cmp al 07| je N0>| cmp al 03| jne B0>
+    inc edx
+N0: ;@szNullRlc:
+    test ebx ebx | je L3>
+    jmp L1<
+B0: ;@szbadReloc:
+    xor edx edx
+L3: ;Done
+    mov eax edx
+
+EndP
+
+__________________________________
 
 

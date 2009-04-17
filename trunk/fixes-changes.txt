@@ -322,7 +322,13 @@ GetModuleHandle moved at first.
 
 .added FlushFileBuffers in 4 places. more secure.
 
+!RosAsm2052f_05
+.changes in Disassembler > now Relocation info will used from source file.
+advantage > gives No_false_pointers.
 
+.cleanup in VirtualAlloc_macro/VirtAlloc Proc
+This procedure changed 5 registers! now only EAX will changed (& this is REQ).
+there are places many in source, where registers are push-poped because of this.
 
 
 ; this bad taped> [ B|uildCommentedCodeReference:: 32 ] infinite_loop in macros-jobs!!!

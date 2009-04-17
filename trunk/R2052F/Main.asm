@@ -92,7 +92,7 @@ Main:
     call 'KERNEL32.GetLastError'
     On eax = &ERROR_ALREADY_EXISTS, mov B$MultiInstance &TRUE
 
-    call 'User32.LoadIconA' eax 1
+    call 'User32.LoadIconA' D$hInstance 1
     mov D$wc_hIcon eax, D$wc_hIconSm eax
 
     call 'User32.LoadCursorA' 0, &IDC_ARROW  | mov D$Bp_hCursor eax
