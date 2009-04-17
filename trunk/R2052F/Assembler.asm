@@ -813,8 +813,8 @@ ________________________________________________________________________________
 
 Proc NewFileType:
     Arguments @Adressee, @Message, @wParam, @lParam
+    USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_COMMAND
         ..If D@wParam = &IDCANCEL
@@ -841,11 +841,11 @@ L1:         call 'User32.EndDialog' D@Adressee 0
         call SetBaseList
 
     ...Else
-        popad | mov eax &FALSE | ExitP
+        mov eax &FALSE | ExitP
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 EndP
 
 
@@ -1568,8 +1568,8 @@ ________________________________________________________________________________
 
 Proc DisassembleProc:
     Arguments @Adressee, @Message, @wParam, @lParam
+    USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_COMMAND                  ; User action
         ..If D@wParam = &IDCANCEL                   ; User clicks on upper right [X]
@@ -1630,11 +1630,11 @@ Proc DisassembleProc:
   ;      ; Control of output
 
     ...Else
-        popad | mov eax &FALSE | ExitP               ; Non processed
+        mov eax &FALSE | ExitP               ; Non processed
 
     ...End_If
 
-    popad | mov eax &TRUE                           ; Processed
+    mov eax &TRUE                           ; Processed
 EndP
 ____________________________________________________________________________________________
 
@@ -2013,9 +2013,9 @@ ________________________________________________________________________________
 ; Tag Dialog 26000
 
 Proc AllOrPartProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_INITDIALOG
             On B$OpeningSourceOnly = &TRUE,
@@ -2059,11 +2059,11 @@ Proc AllOrPartProc:
         call 'User32.DestroyWindow' D@Adressee
 
     ...Else
-L8:     popad | mov eax &FALSE | jmp L9>
+L8:     mov eax &FALSE | jmp L9>
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 L9: EndP
 
 

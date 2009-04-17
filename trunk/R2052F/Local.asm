@@ -265,8 +265,8 @@ ret
 
 Proc TestLocalTables:
     Arguments @Adressee, @Message, @wParam, @lParam
+    USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_COMMAND                  ; User action
         ..If D@wParam = &IDCANCEL                   ; User clicks on upper right [X]
@@ -309,11 +309,11 @@ Proc TestLocalTables:
           ;      ; Control of output
 
     ...Else
-        popad | mov eax &FALSE | ExitP               ; Non processed
+        mov eax &FALSE | ExitP               ; Non processed
 
     ...End_If
 
-    popad | mov eax &TRUE                           ; Processed
+    mov eax &TRUE                           ; Processed
 EndP
 
 

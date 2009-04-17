@@ -1042,17 +1042,17 @@ ret
 ; Tag Dialog 1050
 
 Proc BlockReplaceAllProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
-    Local @StartOfBlock, @EndOfBlock
+  Arguments @Adressee, @Message, @wParam, @lParam
+  Local @StartOfBlock, @EndOfBlock
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_INITDIALOG
        ; call 'USER32.SendDlgItemMessageA' D@Adressee, 50, &BM_SETCHECK, D$BlockFrCase, 0
        ; call 'USER32.SendDlgItemMessageA' D@Adressee, 51, &BM_SETCHECK, D$BlockWwSearch, 0
         call 'USER32.GetDlgItem' D@Adressee, 10
         call 'USER32.SetFocus' eax
-        popad | mov eax &TRUE | ExitP
+        mov eax &TRUE | ExitP
 
     ...Else_If D@Message = &WM_COMMAND
 
@@ -1108,11 +1108,11 @@ L1:                 mov B$OnReplaceAll &FALSE, B$Disassembling &FALSE, B$BlockIn
         ..End_If
 
     ...Else
-L8:     popad | mov eax &FALSE | ExitP
+L8:     mov eax &FALSE | ExitP
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 EndP
 
 
@@ -1452,9 +1452,9 @@ ________________________________________________________________________________
 ; Tag Dialog 23000
 
 Proc ShowUnfoldDialog:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     .If D@Message = &WM_COMMAND
          If W@wParam = &IDCANCEL
@@ -1488,18 +1488,18 @@ L0:         mov D$ShowUnfoldDialogHandle 0
             mov B$FirstCTLCOLOREDIT &FALSE
         End_If
         call 'GDI32.SetBkColor' D@wParam, D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | jmp L9>
+        mov eax D$DialogsBackGroundBrushHandle | jmp L9>
 
     .Else_If B$CompileErrorHappend = &TRUE
         mov D$ShowUnfoldDialogHandle 0
         call 'USER32.EndDialog' D@Adressee, 0
 
     .Else
-        popad | mov eax &FALSE | jmp L9>
+        mov eax &FALSE | jmp L9>
 
     .End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 

@@ -3726,8 +3726,8 @@ EndP
 ____________________________________________________________________________________________
 Proc EqualDebugProcProc:
     Arguments @Adressee, @Message, @wParam, @lParam
+    USES EBX ESI EDI
 
-    pushad
 
     If D@Message = &WM_INITDIALOG
         call 'USER32.SetClassLongA' D@Adressee &GCL_HICON D$wc_hIcon
@@ -3740,11 +3740,11 @@ Proc EqualDebugProcProc:
 
 
     Else
-        popad | mov eax &FALSE | jmp L9>
+        mov eax &FALSE | jmp L9>
 
     End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 

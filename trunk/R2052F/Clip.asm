@@ -332,9 +332,9 @@ ret
 
 
 Proc TemplateChoice:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_COMMAND
          ..If D@wParam = &IDCANCEL
@@ -421,7 +421,7 @@ Proc TemplateChoice:
 
     ...Else_If D@Message = &WM_CTLCOLORLISTBOX
 L1:     call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | jmp L9>>
+        mov eax D$DialogsBackGroundBrushHandle | jmp L9>>
 
     ...Else
        ; mov eax D$BlockEndTextPtr | sub eax D$BlockStartTextPtr
@@ -429,11 +429,11 @@ L1:     call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
        ; mov ecx D$BlockInside | On eax >= ebx, mov ecx &FALSE
        ; EnableControl D@Adressee, AD_TEMPLATE, ecx
 
-        popad | mov eax &FALSE | jmp L9>
+        mov eax &FALSE | jmp L9>
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: Endp
 
@@ -510,9 +510,9 @@ ret
 [GroupInsert: ?]
 
 Proc GetNewGroupName:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
         .If D@Message = &WM_COMMAND
             If D@wParam = &IDOK         ; [Append]
@@ -521,14 +521,14 @@ L1:             call 'USER32.SendDlgItemMessageA' D@Adressee, 10, &WM_GETTEXTLEN
                 mov D$NewGroupNameLen eax
                 call 'USER32.SendDlgItemMessageA' D@Adressee, 10, &WM_GETTEXT, 38,
                                                   NewGroupName
-                call 'USER32.EndDialog' D@Adressee, 0 | popad | mov eax &TRUE | ExitP
+                call 'USER32.EndDialog' D@Adressee, 0 | mov eax &TRUE | ExitP
 
             Else_If D@wParam = 20       ; [Insert]
                 mov D$GroupInsert &TRUE | jmp L1<
 
             Else_If D@wParam = &IDCANCEL
                 mov D$GetNewGroupNameHandle 0
-                call 'USER32.EndDialog' D@Adressee, 0 | popad | mov eax &TRUE | ExitP
+                call 'USER32.EndDialog' D@Adressee, 0 | mov eax &TRUE | ExitP
 
             End_If
 
@@ -543,7 +543,7 @@ L1:             call 'USER32.SendDlgItemMessageA' D@Adressee, 10, &WM_GETTEXTLEN
 
         .End_If
 
-    popad | mov eax &FALSE
+    mov eax &FALSE
 EndP
 
 
@@ -779,9 +779,9 @@ ret
 [NewTemplateName: NewGroupName: ? #10] [WithCustomisation: ?    NewGroupNameLen: ?]
 
 Proc GetNewTemplateName:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
         .If D@Message = &WM_COMMAND
             If D@wParam = &IDOK
@@ -790,11 +790,11 @@ Proc GetNewTemplateName:
                 call 'USER32.SendDlgItemMessageA' D@Adressee, 10, &WM_GETTEXT, eax,
                                                    NewTemplateName
 
-                call 'User32.EndDialog' D@Adressee 0 | popad | mov eax &TRUE | ExitP
+                call 'User32.EndDialog' D@Adressee 0 | mov eax &TRUE | ExitP
 
             Else_If D@wParam = &IDCANCEL
                 mov D$GetNewTemplateNameHandle 0
-                call 'User32.EndDialog' D@Adressee 0 | popad | mov eax &TRUE | ExitP
+                call 'User32.EndDialog' D@Adressee 0 | mov eax &TRUE | ExitP
 
             Else_If D@wParam = 20
                 xor B$WithCustomisation &TRUE
@@ -808,7 +808,7 @@ Proc GetNewTemplateName:
 
         .End_If
 
-    popad | mov eax &FALSE
+    mov eax &FALSE
 EndP
 
 

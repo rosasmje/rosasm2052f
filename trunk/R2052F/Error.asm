@@ -382,8 +382,8 @@ EndP
 
 Proc ErrorMessageProcW:
     Arguments @Adressee, @Message, @wParam, @lParam
+    USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_INITDIALOG
         call 'USER32.SetClassLongW' D@Adressee, &GCL_HICON, D$wc_hIcon
@@ -395,7 +395,7 @@ Proc ErrorMessageProcW:
             call 'User32.SendDlgItemMessageW' D@Adressee, 20, &WM_SETFONT,
                                               D$NationalFontHandle, &FALSE
 
-        call 'USER32.SendDlgItemMessageA' D@Adressee, 10, &EM_SETMARGINS,
+        call 'USER32.SendDlgItemMessageW' D@Adressee, 10, &EM_SETMARGINS,
                                           &EC_LEFTMARGIN__&EC_RIGHTMARGIN, 10
         call 'USER32.SendDlgItemMessageW' D@Adressee, 20, &EM_SETMARGINS,
                                           &EC_LEFTMARGIN__&EC_RIGHTMARGIN, 10
@@ -415,7 +415,7 @@ Proc ErrorMessageProcW:
 ;;
     ...Else_If D@Message = &WM_SETFONT
         If D$NationalFontHandle <> 0
-            popad | mov eax D$NationalFontHandle | ExitP
+            mov eax D$NationalFontHandle | ExitP
         End_If
 ;;
     ...Else_If D@Message = &WM_COMMAND
@@ -432,21 +432,21 @@ Proc ErrorMessageProcW:
     ...Else_If D@Message = &WM_CTLCOLOREDIT
         call 'USER32.SendMessageW' D@lParam, &EM_SETSEL, 0-1, 0
         call 'GDI32.SetBkColor' D@wParam, D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | ExitP
+        mov eax D$DialogsBackGroundBrushHandle | ExitP
 
     ...Else
-L8:     popad | mov eax &FALSE | ExitP
+L8:     mov eax &FALSE | ExitP
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 EndP
 
 
 Proc ErrorMessageProcA:
     Arguments @Adressee, @Message, @wParam, @lParam
+    USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_INITDIALOG
         call 'USER32.SetClassLongA' D@Adressee, &GCL_HICON, D$wc_hIcon
@@ -467,7 +467,7 @@ Proc ErrorMessageProcA:
             call 'User32.SendDlgItemMessageA' D@Adressee, 20, &WM_SETFONT,
                                               D$NationalFontHandle, &FALSE
 
-        call 'User32.SendDlgItemMessageW' D@Adressee, 10, &WM_SETFONT,
+        call 'User32.SendDlgItemMessageA' D@Adressee, 10, &WM_SETFONT,
                                               D$Font1Handle, &FALSE
 
         On B$trash2 <> 0,
@@ -489,14 +489,14 @@ Proc ErrorMessageProcA:
     ...Else_If D@Message = &WM_CTLCOLOREDIT
         call 'USER32.SendMessageA' D@lParam, &EM_SETSEL, 0-1, 0
         call 'GDI32.SetBkColor' D@wParam, D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | ExitP
+        mov eax D$DialogsBackGroundBrushHandle | ExitP
 
     ...Else
-L8:     popad | mov eax &FALSE | ExitP
+L8:     mov eax &FALSE | ExitP
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 EndP
 
 

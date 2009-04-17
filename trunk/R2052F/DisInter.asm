@@ -58,9 +58,9 @@ ret
 ; Tag Dialog 2500
 
 Proc ForcedFlagsProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ..If D@Message = &WM_INITDIALOG
         move D$ForcedFlagsProcHandle D@Adressee
@@ -180,14 +180,14 @@ Proc ForcedFlagsProc:
     ..Else_If D@Message = &WM_CTLCOLOREDIT
         call 'USER32.SendMessageA' D@lParam, &EM_SETSEL, 0-1, 0
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | ExitP
+        mov eax D$DialogsBackGroundBrushHandle | ExitP
 
     ..Else
-        popad | mov eax &FALSE | jmp L9>
+        mov eax &FALSE | jmp L9>
 
     ..End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 ____________________________________________________________________________________________

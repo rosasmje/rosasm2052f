@@ -740,9 +740,9 @@ call 'USER32.MessageBeep' &MB_ICONHAND
 [ClickMessage: ?   OnMenuEdition: ?    MenuEditorHandle: ?]
 
 Proc MenuEditProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     mov eax D@wParam | shr eax 16 | mov D$ClickMessage eax
 
@@ -755,7 +755,7 @@ Proc MenuEditProc:
         .If eax = D$MenuEditHandle
             mov eax D@wParam | shr eax 16
             If eax = &EN_CHANGE
-                call MenuLinesControl | popad | mov eax &TRUE | jmp L9>>
+                call MenuLinesControl | mov eax &TRUE | jmp L9>>
             End_If
         .End_If
 
@@ -823,14 +823,14 @@ Proc MenuEditProc:
 
     ...Else_If D@Message = &WM_CTLCOLOREDIT
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | jmp L9>
+        mov eax D$DialogsBackGroundBrushHandle | jmp L9>
 
     ...Else
-L8:   popad | mov eax &FALSE | jmp L9>
+L8:   mov eax &FALSE | jmp L9>
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 
@@ -1113,9 +1113,9 @@ ret
 
 
 Proc DelDialogMenuProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_COMMAND
 
@@ -1162,11 +1162,11 @@ L2:         mov eax D$DialogListPtr                     ; > List recorded lenght
         call 'USER32.SetClassLongA' D@Adressee, &GCL_HICON, D$wc_hIcon
 
     ...Else
-        popad | mov eax &FALSE | jmp L9>
+        mov eax &FALSE | jmp L9>
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 
@@ -1250,9 +1250,9 @@ ret
 ; Tag Dialog 500
 
 Proc WhatMenuProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_COMMAND
 
@@ -1287,11 +1287,11 @@ Proc WhatMenuProc:
         call SetTestMenu D@Adressee
 
     ...Else
-L8:     popad | mov eax &FALSE | jmp L9>
+L8:     mov eax &FALSE | jmp L9>
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 

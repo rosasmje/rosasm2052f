@@ -556,9 +556,9 @@ EndP
 ; Tag Dialog 1200
 
 Proc CompletionListProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_INITDIALOG
         On D$CompletionListHandle <> 0,
@@ -610,15 +610,15 @@ L1:     If ecx = 0
     ...Else_If D@Message = &WM_VKEYTOITEM
         If W@wParam = &VK_RETURN
             call ListOk
-            popad | mov eax 0-2 | jmp L9>
+            mov eax 0-2 | jmp L9>
 
         Else_If W@wParam = &VK_ESCAPE
             call 'USER32.EndDialog' D$CompletionListHandle, 0
             mov D$CompletionListHandle 0
-            popad | mov eax 0-2 | jmp L9>
+            mov eax 0-2 | jmp L9>
 
         Else
-            popad | mov eax 0-1 | jmp L9>
+            mov eax 0-1 | jmp L9>
 
         End_If
 
@@ -627,11 +627,11 @@ L1:     If ecx = 0
         call 'USER32.SetFocus' D$hwnd
 
     ...Else
-L8:     popad | mov eax &FALSE | jmp L9>
+L8:     mov eax &FALSE | jmp L9>
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 L9: EndP
 
 [ListRectangle: @X1: ? @Y1: ? @X2: @W: ? @Y2: @H: ?

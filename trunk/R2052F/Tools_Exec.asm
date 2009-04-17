@@ -406,9 +406,9 @@ ret
 [TabDimPtr: 10] [AsciiDialogHandle: ?]
 
 Proc AsciiProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     .If D@Message = &WM_COMMAND
         If D@wParam = &IDCANCEL
@@ -427,11 +427,11 @@ Proc AsciiProc:
         call 'User32.SetDlgItemTextA' D@Adressee 0100 AsciiData
 
     .Else
-       popad | mov eax &FALSE | jmp L9>
+       mov eax &FALSE | jmp L9>
 
     .End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 
@@ -601,9 +601,9 @@ ret
 [ViewSysResourcesHandle: ?    SysBitMapsHandle: ?    SysIconsHandle: ?    SysCursorsHandle: ?]
 
 Proc ViewSysResourcesProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_INITDIALOG
         move D$ViewSysResourcesHandle D@Adressee
@@ -670,14 +670,14 @@ L1:         mov D$ViewSysResourcesHandle 0
 
     ...Else_If D@Message = &WM_CTLCOLORLISTBOX
 L1:     call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | jmp L9>
+        mov eax D$DialogsBackGroundBrushHandle | jmp L9>
 
     ...Else
-L8:     popad | mov eax &FALSE | jmp L9>
+L8:     mov eax &FALSE | jmp L9>
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 
@@ -832,9 +832,9 @@ EndP
 ; Tag Dialog 1100
 
 Proc ViewSourceImportsProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_COMMAND
         mov eax D@wParam | and eax 0FFFF
@@ -904,14 +904,14 @@ Proc ViewSourceImportsProc:
             call 'USER32.EndDialog' D@Adressee, 0
         End_If
 
-        popad | mov eax &FALSE | ExitP
+        mov eax &FALSE | ExitP
 
     ...Else
-        popad | mov eax &FALSE | ExitP
+        mov eax &FALSE | ExitP
 
     ...End_If
 
-L8: popad | mov eax &TRUE
+L8: mov eax &TRUE
 EndP
 
 
@@ -1248,9 +1248,9 @@ ________________________________________________________________________________
 ; Tag Dialog 1101
 
 Proc ViewSourceExportsProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_COMMAND
         mov eax D@wParam | and eax 0FFFF
@@ -1286,14 +1286,14 @@ Proc ViewSourceExportsProc:
             call 'USER32.EndDialog' D@Adressee, 0
         End_If
 
-        popad | mov eax &FALSE | ExitP
+        mov eax &FALSE | ExitP
 
     ...Else
-        popad | mov eax &FALSE | ExitP
+        mov eax &FALSE | ExitP
 
     ...End_If
 
-L8: popad | mov eax &TRUE
+L8: mov eax &TRUE
 EndP
 
 ____________________________________________________________________________________________
@@ -1493,10 +1493,10 @@ ret
 ; Tag Dialog 30500
 
 Proc ViewExport:
-    Arguments @Adressee, @Message, @wParam, @lParam
-    Structure @RECT 16, @leftDis 0,  @topDis 4,  @rightDis 8,  @bottomDis 12
+  Arguments @Adressee, @Message, @wParam, @lParam
+  Structure @RECT 16, @leftDis 0,  @topDis 4,  @rightDis 8,  @bottomDis 12
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_COMMAND
         mov eax D@wParam | and eax 0FFFF
@@ -1606,14 +1606,14 @@ L2:
 L5:
         popad | add ebx 4 | inc D$LV_ITEM@iItem | dec ecx | jnz L0<<
         call 'USER32.SendMessageA' D$SfListHandle, &LVM_SETITEMCOUNT, D$LV_ITEM@iItem, 0
-L7:     popad | mov eax &FALSE | ExitP
+L7:     mov eax &FALSE | ExitP
 
     ...Else
-        popad | mov eax &FALSE | ExitP
+        mov eax &FALSE | ExitP
 
     ...End_If
 
-L8: popad | mov eax &TRUE
+L8: mov eax &TRUE
 EndP
 
 ____________________________________________________________________________________________
@@ -1639,9 +1639,9 @@ ret
 ; Tag Dialog 35
 
 Proc ShowGUIDsProc:
-     Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ..If D@Message = &WM_COMMAND
         .If D@wParam = &IDCANCEL
@@ -1700,14 +1700,14 @@ L8:         call 'USER32.SendDlgItemMessageA' D@Adressee, 10, &LB_GETCURSEL, 0, 
 
     ..Else_If D@Message = &WM_CTLCOLORLISTBOX
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | jmp L9>
+        mov eax D$DialogsBackGroundBrushHandle | jmp L9>
 
     ..Else
-        popad | mov eax &FALSE | jmp L9>
+        mov eax &FALSE | jmp L9>
 
     ..End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 L9: EndP
 ____________________________________________________________________________________________
 

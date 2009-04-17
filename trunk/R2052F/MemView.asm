@@ -32,8 +32,7 @@ _______________________________________________________
 
 Proc MemViewWarning:
     Arguments @Adressee, @Message, @wParam, @lParam
-
-     pushad
+    USES EBX ESI EDI
 
 
     ..If D@Message = &WM_INITDIALOG
@@ -75,11 +74,10 @@ Proc MemViewWarning:
 
     ..Else
 
-       popad | mov eax &FALSE | ExitP
+       mov eax &FALSE | ExitP
 
     ..End_If
 
-    popad
     mov eax &TRUE
 EndP
 

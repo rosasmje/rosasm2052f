@@ -245,9 +245,9 @@ ________________________________________________________________________________
 ; Tag Dialog 4100 [Text Editor]
 
 Proc ConfigTabProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message = &WM_INITDIALOG
         .If D$ConfigDialogHandle = 0
@@ -492,14 +492,14 @@ L2:             popad
 
     ...Else_If D@Message = &WM_CTLCOLORLISTBOX
 L1:     call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | jmp L9>
+        mov eax D$DialogsBackGroundBrushHandle | jmp L9>
 
     ...Else
-L8:     popad | mov eax &FALSE | jmp L9>
+L8:     mov eax &FALSE | jmp L9>
 
     ...End_If
 
-L7: popad | mov eax &TRUE
+L7: mov eax &TRUE
 
 L9: EndP
 ____________________________________________________________________________________________
@@ -1816,9 +1816,9 @@ ________________________________________________________________________________
 ; Tag Dialog 3
 
 Proc ConfigProc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ..If D@Message = &WM_COMMAND
         and D@wParam 0FFFF
@@ -1852,17 +1852,17 @@ Proc ConfigProc:
             mov B$FirstCTLCOLOREDIT &FALSE
         End_If
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | jmp L9>
+        mov eax D$DialogsBackGroundBrushHandle | jmp L9>
 
     ..Else
-        popad | mov eax &FALSE | jmp L9>
+        mov eax &FALSE | jmp L9>
 
     ..End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
-EndP
+
 
 ____________________________________________________________________________________________
 

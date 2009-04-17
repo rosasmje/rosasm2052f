@@ -260,9 +260,9 @@ ________________________________________________________________________________
 [FinfOrReplace: ?    FindReplaceHandle: ?]
 
 Proc FRproc:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     ...If D@Message  = &WM_INITDIALOG
         mov B$ShiftBlockInside &FALSE
@@ -334,14 +334,14 @@ L1:         call GetUserSearchString
 
     ...Else_If D@Message = &WM_CTLCOLOREDIT
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | jmp L9>
+        mov eax D$DialogsBackGroundBrushHandle | jmp L9>
 
     ...Else
-L8:     popad | mov eax &FALSE | jmp L9>
+L8:     mov eax &FALSE | jmp L9>
 
     ...End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 
 L9: EndP
 

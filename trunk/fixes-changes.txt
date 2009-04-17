@@ -330,6 +330,8 @@ advantage > gives No_false_pointers.
 This procedure changed 5 registers! now only EAX will changed (& this is REQ).
 there are places many in source, where registers are push-poped because of this.
 
+.fixed in WndProcs: removed Pushad-Popad, added USES EXB ESI EDI
+fixed few Ansi<>Unicode User32 import calls
 
 ; this bad taped> [ B|uildCommentedCodeReference:: 32 ] infinite_loop in macros-jobs!!!
 ; if ESC OpenFileName, then prev exe-name lost

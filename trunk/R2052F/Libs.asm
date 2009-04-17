@@ -15790,24 +15790,24 @@ ________________________________________________________________________________
 
 
 Proc Tab2Proc:
-    Arguments @hWin, @uMsg, @wParam, @lParam
+  Arguments @hWin, @uMsg, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     If D@uMsg = &WM_INITDIALOG
-        call 'USER32.SendMessageW' D@lParam, &EM_SETSEL, 0-1, 0
+        call 'USER32.SendMessageA' D@lParam, &EM_SETSEL, 0-1, 0
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | ExitP
+        mov eax D$DialogsBackGroundBrushHandle | ExitP
     Else_If D@uMsg = &WM_NOTIFY
         call LibScanDialog_OnNotify D@hWin, D@lParam
     Else_If D@uMsg = &WM_CTLCOLOREDIT
         call 'GDI32.SetBkColor' D@wParam, D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | ExitP
+        mov eax D$DialogsBackGroundBrushHandle | ExitP
     Else
-        popad | mov eax &FALSE | ExitP
+        mov eax &FALSE | ExitP
     End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 EndP
 
 
@@ -15818,24 +15818,24 @@ EndP
 
 
 Proc Tab1Proc:
-    Arguments @hWin, @uMsg, @wParam, @lParam
+  Arguments @hWin, @uMsg, @wParam, @lParam
+  USES EBX ESI EDI
 
-    pushad
 
     .If D@uMsg = &WM_INITDIALOG
-        call 'USER32.SendMessageW' D@lParam, &EM_SETSEL, 0-1, 0
+        call 'USER32.SendMessageA' D@lParam, &EM_SETSEL, 0-1, 0
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | ExitP
+        mov eax D$DialogsBackGroundBrushHandle | ExitP
     .Else_If D@uMsg = &WM_NOTIFY
         call LibScanDialog_OnNotify D@hWin, D@lParam
     .Else_If D@uMsg = &WM_CTLCOLOREDIT
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | ExitP
+        mov eax D$DialogsBackGroundBrushHandle | ExitP
     .Else
-        popad | mov eax &FALSE | ExitP
+        mov eax &FALSE | ExitP
     .End_If
 
-    popad | mov eax &TRUE
+    mov eax &TRUE
 EndP
 
 
@@ -15904,9 +15904,9 @@ ________________________________________________________________________________
 ; Tag Dialog 20
 
 Proc ScanLibFile:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-     pushad
 
     ...If D@Message = &WM_COMMAND                  ; User action
 
@@ -16148,14 +16148,14 @@ L5:
 
     ...Else_If D@Message = &WM_CTLCOLOREDIT
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
-        popad | mov eax D$DialogsBackGroundBrushHandle | ExitP
+        mov eax D$DialogsBackGroundBrushHandle | ExitP
 
     ...Else
-        popad | mov eax &FALSE | ExitP
+        mov eax &FALSE | ExitP
 
     ...End_If
 
-L9: popad | mov eax &TRUE
+L9: mov eax &TRUE
 EndP
 ____________________________________________________________________________________________
 ____________________________________________________________________________________________
@@ -16885,9 +16885,9 @@ __________________________________________________", 0]
 [LibScanhIcon: D$ 0]
 
 Proc LibScanWarning:
-    Arguments @Adressee, @Message, @wParam, @lParam
+  Arguments @Adressee, @Message, @wParam, @lParam
+  USES EBX ESI EDI
 
-     pushad
 
 
     ..If D@Message = &WM_INITDIALOG
@@ -16940,11 +16940,11 @@ Proc LibScanWarning:
 
     ..Else
 
-       popad | mov eax &FALSE | ExitP
+       mov eax &FALSE | ExitP
 
     ..End_If
 
-    popad
+
     mov eax &TRUE
 EndP
 
