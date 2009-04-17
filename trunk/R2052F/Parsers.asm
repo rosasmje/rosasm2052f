@@ -1744,7 +1744,7 @@ L4: ; calculate Export size
 
     mov ecx 1 | mov eax D$NumberOfExportedFunctions | cmp D$OrdinalExport 0 | je L4>>
 
-    mov edx D$ExpOrdArray, ecx D$OrdinalExport | shl ecx 2 | call BubbleSort edx, ecx
+    mov edx D$ExpOrdArray, ecx D$OrdinalExport | call DualBubbleSortDWORDs edx, ecx
     sub ebx ebx | mov ecx D$OrdinalExport
 
     mov edi D$edx+ecx*4-4 | mov ecx D$edx
