@@ -5865,7 +5865,7 @@ L0:
     VirtualAlloc edx, eax
 
     call BuildRVAPointersFromReloc D@memRelp, esi, ebx | mov D@numRelp eax
-    shl eax 2 | call BubbleSort D@memrelp, eax
+    call DualBubbleSortDWORDs D@memrelp, eax
     sub eax eax | mov edi esi | mov ecx ebx | shr ecx 2 | rep stosd ; cleanup RELOCs
     mov edx D@numRelp, esi D@memrelp ; check 2 same
 L0: lodsd | lea ecx D$edx-1 | mov edi esi | repne scasd | je B0> | dec edx | jne L0<

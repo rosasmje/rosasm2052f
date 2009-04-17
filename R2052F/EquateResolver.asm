@@ -319,6 +319,7 @@ L8:         mov eax 1 | jmp L9>
 L9: mov esp ebp
     pop ebp
 ret
+EndP ; << jE! CCall hack.
 ____________________________________________________________________________________________
 
 ; Check if the referenced equate corresponds to an already listed equate in the

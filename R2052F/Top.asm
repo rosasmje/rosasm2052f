@@ -450,7 +450,33 @@ L2:         cmp ebx edi | jne L1<
 
         stosd | loop L0<
 L9: EndP
+________________________________
+________________________________
 
+proc DualBubbleSortDWORDs: ; << jE! >>
+ ARGUMENTS @array, @num
+
+PUSHAD
+    mov ecx D@num | mov ebx D@array | dec ecx | jle L9>
+    lea ecx D$ebx+ecx*4 | lea edx D$ebx-4
+ALIGN 16
+
+B0: sub edi edi
+B1: add edx 4 | cmp edx ecx | jae N1>
+    mov esi D$edx | mov eax D$edx+4 | cmp esi eax | jbe B1<
+    mov D$edx+4 esi | mov D$edx eax | or edi 1 |jmp B1<
+
+N1: sub ecx 4 | test edi edi | je L9>
+
+    sub edi edi
+B3: sub edx 4 | cmp edx ebx | jbe N2>
+    mov esi D$edx-4 | mov eax D$edx | cmp esi eax | jbe B3<
+    mov D$edx esi | mov D$edx-4 eax | or edi 1 | jmp B3<
+
+N2: add ebx 4 | test edi edi | jne B0<
+
+L9: POPAD
+EndP
 ____________________________________________________________________________________________
 ____________________________________________________________________________________________
 

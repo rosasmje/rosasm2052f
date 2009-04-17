@@ -6639,7 +6639,7 @@ L1: call StoreExportAdresse | call StoreExportNamePtr
 ; sort Names & adjaust Ordinals to Base
     mov ebx D$ExportListBPtr | mov ecx D$ebx+EXPNumberOfNames | mov eax D$ebx+EXPnBase
     mov edi D$ebx+EXPAddressOfNameOrdinals | sub edi D$ExportAjust
-    call DualBubbleSortExportListPointersAndOrdinals | call RemoveMSGs
+    call DualBubbleSortExportNamesPointersAndOrdinals | call RemoveMSGs
 L0: sub W$edi ax | add edi 2 | loop L0<
 
     mov ebx D$ExportListBPtr | add ebx EXPnName
@@ -6774,31 +6774,32 @@ ret
 [ExportsectionWanted: ?  NumberOfExportedFunctions: ?  ExportALL: ?
  ExportListAPtr: ?  ExportListBPtr: ?  ExportListPointers: ?  NumberOfJunkBytes: ? ExpOrdArray: ?]
 
-DualBubbleSortExportListPointersAndOrdinals:
+DualBubbleSortExportNamesPointersAndOrdinals:
     pushad
     mov ebx D$ebx+EXPAddressOfNames | sub ebx D$ExportAjust
-    push ecx | sub eax eax
+    push ebx | dec ecx | jle L7>>
+    sub eax eax | lea esi D$ebx+ecx*4 | sub ebx 4 | sub edi 2
 
-L0: mov esi D$esp | sub ebp ebp | sub ebx 4 | sub edi 2
-L1: dec esi | je L5>
-    add ebx 4 | add edi 2
+L0: sub ebp ebp
+L1: add ebx 4 | add edi 2 | cmp ebx esi | jae L5>
     mov ecx D$ebx | mov edx D$ebx+4 | sub ecx D$ExportAjust | sub edx D$ExportAjust
 L3: mov al B$ecx | mov ah B$edx | inc ecx | inc edx | test eax eax | je L4>
     cmp ah al | je L3< | ja L1<
     Exchange D$ebx D$ebx+4 | Exchange W$edi W$edi+2 | or ebp 1 | jmp L1<
-L4: mov eax D$ebx | sub eax D$ExportAjust | pop ecx | mov D$esp+01C eax | popad
+L4: mov eax D$ebx | sub eax D$ExportAjust | pop ebx | mov D$esp+01C eax | popad
     jmp FindExportFullNameString
-L5: test ebp ebp | je L7>
 
-    mov esi D$esp | sub ebp ebp | add ebx 4 | add edi 2
-L1: dec esi | je L5>
-    sub ebx 4 | sub edi 2
-    mov ecx D$ebx | mov edx D$ebx+4 | sub ecx D$ExportAjust | sub edx D$ExportAjust
+L5: sub esi 4 | xchg D$esp esi | test ebp ebp | je L7>
+
+    sub ebp ebp
+L1: sub ebx 4 | sub edi 2 | cmp ebx esi | jbe L5>
+    mov ecx D$ebx-4 | mov edx D$ebx | sub ecx D$ExportAjust | sub edx D$ExportAjust
 L3: mov al B$ecx | mov ah B$edx | inc ecx | inc edx | test eax eax | je L4<
     cmp ah al | je L3< | ja L1<
-    Exchange D$ebx D$ebx+4 | Exchange W$edi W$edi+2 | or ebp 1 | jmp L1<
-L5: test ebp ebp | jne L0<<
-L7: pop ecx | popad
+    Exchange D$ebx-4 D$ebx | Exchange W$edi-2 W$edi | or ebp 1 | jmp L1<
+
+L5: add esi 4 | xchg D$esp esi | test ebp ebp | jne L0<<
+L7: pop ebx | popad
 ret
 
 FindExportFullNameString:

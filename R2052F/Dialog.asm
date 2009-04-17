@@ -1668,9 +1668,9 @@ ShowDialogStyles:
     move D$CheckingMask DialogCheckingMask
     mov esi DialogBitTable
 
-    push ebp
+    ;push ebp
         call CheckControlStyles
-    pop ebp
+    ;pop ebp
 ret
 
 
@@ -1712,7 +1712,7 @@ CheckControlStyles:
  may be significant - and Check / UnCheck- (exemple: BS_PUSHBUTTON) and that we have to
  discriminate 00_10 (BS_CHECKBOX, for exemple) from 00_10... Killing:
 ;;
-    mov edx D$CheckingMask, ebp 0              ; ebp = handles index for 'SendMessage'
+    mov edx D$CheckingMask, edi 0              ; ebp = handles index for 'SendMessage' <EDI <jE!
 
 L0: lodsd                                      ; loads one style value from Styles list
     pushad
@@ -1734,8 +1734,8 @@ L5:   mov eax &TRUE | jmp L7>    ; check
 
 L6:   mov eax &FALSE             ; UnCheck
 
-L7:   call 'User32.SendMessageA' D$DialogControlsHandles+ebp &BM_SETCHECK eax 0
-    popad | add ebp 4 | add edx 4 | loop L0<
+L7:   call 'User32.SendMessageA' D$DialogControlsHandles+edi &BM_SETCHECK eax 0
+    popad | add edi 4 | add edx 4 | loop L0<
 ret
 
 
