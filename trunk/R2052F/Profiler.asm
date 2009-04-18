@@ -121,7 +121,7 @@ Profiler:
     mov D$AddressOfTimeCount 0
 
     mov B$ShowStats &FALSE | call AsmMain | mov B$ShowStats &TRUE
-    mov D$OldStackPointer 0
+    mov D$OldStackPointer 0, D$OldStackEBP 0
   ; Main Call >>> 'CreateProfilerTables'
 
   ret

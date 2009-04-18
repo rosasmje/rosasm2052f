@@ -831,7 +831,7 @@ L9: If D$LinesCounter = 0
         call 'USER32.MessageBoxA' 0, {"RosAsm can't compile empty files", 0},
                                      {' Sorry', 0}, 0
         mov B$CompileErrorHappend &TRUE
-        mov esp D$OldStackPointer | ret ; direct error
+        mov esp D$OldStackPointer, ebp D$OldStackEBP | ret ; direct error
        ; pop eax | ret                  ; Abort, pop caller and return to Message Loop
     End_If
 
@@ -1819,7 +1819,7 @@ FromDataToStructure:
 
     mov B$WeAreInTheCodeBox &TRUE
 ;    push D$CodeSource, D$SourceLen, D$SourceEnd
-        mov eax esp, D$OldStackPointer eax, B$CompileErrorHappend &FALSE
+        mov D$OldStackPointer esp, D$OldStackEBP ebp, B$CompileErrorHappend &FALSE
 
         mov eax D$DataTextTable
         While B$eax > 0
@@ -1922,7 +1922,7 @@ EncodeDecode:
     mov B$WeAreInTheCodeBox &TRUE
 ;    push D$CodeSource, D$SourceLen, D$SourceEnd
       ; ('AsmMain' 'OutOnError')
-        mov eax esp, D$OldStackPointer eax, B$CompileErrorHappend &FALSE
+        mov D$OldStackPointer esp, D$OldStackEBP ebp, B$CompileErrorHappend &FALSE
 
 ; What on earth is EncodeSource???
         mov eax EncodeSource ;, D$CodeSource eax
@@ -2015,7 +2015,7 @@ EncodeError:
 L0: mov ebx, esp | cmp ebx, D$OldStackPointer | jnb L1>
     pop ebx | jmp L0<
 L1: sub esp 8 | call ErrorMessageBox 0, D$ErrorMessagePtr
-ret
+    mov ebp D$OldStackEBP | ret
 ____________________________________________________________________________________________
 ____________________________________________________________________________________________
 ; Some routines I haven't got round to deleting. :)

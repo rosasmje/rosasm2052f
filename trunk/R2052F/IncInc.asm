@@ -306,7 +306,7 @@ ________________________________________________________________________________
 ;;
 
 IncParser: UpdateTitlesFromIncludeFiles:
-    mov D$OldStackPointer esp
+    mov D$OldStackPointer esp, D$OldStackEBP ebp
 
     call GetResourcesSize
     add eax D$SourceLen | add eax 1_000_000 | add eax D$MemReservation

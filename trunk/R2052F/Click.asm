@@ -812,7 +812,7 @@ L3:     lodsb
         On al <> '_', stosb
     End_While
 
-    mov D$OldStackPointer esp
+    mov D$OldStackPointer esp, D$OldStackEBP ebp
     mov B$edi 0
     mov esi NumberCopy
     .If W$esi = '00'
@@ -1566,10 +1566,10 @@ UnfoldingError:
 
     call 'USER32.SetCursor' D$ActualCursor
 
-    While esp <> D$StackBeforeUnfolding
-        pop ebx
-    End_While
-
+;    While esp <> D$StackBeforeUnfolding
+;        pop ebx
+;    End_While
+    mov esp D$StackBeforeUnfolding, ebp D$OldStackEBP
     jmp L8<<
 ____________________________________________________________________________________________
 
@@ -1783,7 +1783,7 @@ ________________________________________________________________________________
 
 EncodeBoxError:
     call ErrorMessageBox 0, D$ErrorMessagePtr
-    mov esp D$OldStackPointer ;| sub esp 4 ;?? bug
+    mov esp D$OldStackPointer, ebp D$OldStackEBP ;| sub esp 4 ;?? bug
 ret
 ____________________________________________________________________________________________
 

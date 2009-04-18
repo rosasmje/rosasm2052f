@@ -58,7 +58,7 @@ AsmMain:
 
     call 'KERNEL32.GetTickCount' | mov D$Time1 eax
 
-    mov eax esp, D$OldStackPointer eax         ; To restore stack on error jump
+    mov D$OldStackPointer esp, D$OldStackEBP ebp        ; To restore stack on error jump
 
     mov D$NoMeanLabel 'ZZZZ', D$NoMeanLabel+4 'ZZZZ'
     mov B$CompileErrorHappend &FALSE, B$FirstPass &True
@@ -286,7 +286,7 @@ L1:     mov esi FindFile.cFileName, edi D$OneOfMultiplePathNamePointer
         call 'USER32.MessageBoxA' D$hwnd, SaveFilter,
                                   {'Ready to Compile...', 0}, &MB_SYSTEMMODAL
 
-        call AsmMain | mov D$OldStackPointer 0
+        call AsmMain | and D$OldStackPointer 0 | and D$OldStackEBP 0
         On B$CompileErrorHappend = &TRUE, jmp L9>
 
         call 'KERNEL32.FindNextFileA' D$MultipleCompileFindHandle, FindFile

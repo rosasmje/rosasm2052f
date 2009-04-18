@@ -337,8 +337,12 @@ fixed few Ansi<>Unicode User32 import calls
 upgraded DualBubbleSortExportNamesPointersAndOrdinals
 added util proc DualBubbleSortDWORDs:
 
-
-
+.Because of Pushad-Popad removal, there comes problem with EBP. (popad did restore it).
+i added variable OldStackEBP & placed save-restore instruction in required places with OldStackPointer
+also for tracking damage EBP & ESP i implmented debug-version of Proc-Macros.
+(it is commented below normal. if need, comment normal, uncomment this.)
+it will execute BP, if ESP or EBP will not match to saved ones.
+it also can be used as safe macro, because can mostly restore ESP or EBP.
 
 ; this bad taped> [ B|uildCommentedCodeReference:: 32 ] infinite_loop in macros-jobs!!!
 ; if ESC OpenFileName, then prev exe-name lost
