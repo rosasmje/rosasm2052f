@@ -5950,7 +5950,7 @@ L5: lodsb | cmp al EOI | jne L0<<
             If eax = &IDNO
                 mov B$CompileErrorHappend &TRUE, D$NextSearchPos 0
                 call CloseProgressBar
-                cld | mov esp D$OldStackPointer
+                cld | mov esp D$OldStackPointer, ebp D$OldStackEBP
                 call ReleaseAsmTables
                 ret ; for 'no search' errors (esi known) or 'Main:' missing
            End_If

@@ -544,7 +544,7 @@ DisMain: ; 'MSVBVM' 'OpenRosAsmPe', 'DisassembleProc'
   holds the length of the PE. All of this is the PE as found on Disk.
 ;;
   ; For 'DisFail' short exit:
-    mov eax esp, D$OldStackPointer eax, D$CompiledBy 0
+    mov D$OldStackPointer esp, D$OldStackEBP ebp, D$CompiledBy 0
 
     call DisInitialise | call FixMzParagraphsNumber
 
@@ -3257,7 +3257,7 @@ DisFail:
 L0: mov ebx, esp | cmp ebx, D$OldStackPointer | jnb L1>
         pop ebx | jmp L0<
 
-L1: jmp StartNewFile
+L1: mov ebp D$OldStackEBP | jmp StartNewFile
 
 ____________________________________________________________________________________________
 ____________________________________________________________________________________________

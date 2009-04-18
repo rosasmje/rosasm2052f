@@ -260,7 +260,7 @@ ________________________________________________________________________________
 ; &1 <<< Size of Argument(s) (for ending Ret n, in EndP). Set by Argument(s)
 ; &2 <<< Size of Local (for Stack Management). Set by Local
 ; &3 <<< What to pop before ret. Set by Uses.
-
+;
 [Proc | &1=0 | &2=0 | &3= | #1 | push ebp | mov ebp esp]
 
 [ExitP | jmp P9>>]
@@ -268,31 +268,40 @@ ________________________________________________________________________________
 [Arguments | {#1 ebp+4+(#x shl 2)} | #+1 | &1=(#N shl 2)]
 [Argument  | {#1 ebp+4+(#x shl 2)} | #+1 | &1=(#N shl 2)]
 
-[Local | {#1 ebp-(#x shl 2)} | #+1 | &2=(#N shl 2) | sub esp &2]
+[Local | {#1 ebp-(#x shl 2 +&2)} | #+1 | &2=&2+(#N shl 2) | sub esp (#N shl 2)]
 
-[StrucPtrs | {#3 ebp+#2+#F} | #+2]
+[GetMember | {#3 ebp-(#F-#2)} | #+2]
+[Structure | {#1 ebp-(&2+#2+4)} | sub esp #2 | push esp | GetMember &2+#2 #L>3 | &2=&2+#2+4]
+;[SZLocal | &2=&2+#1 | &4=&4+#1 | {#2 ebp-(&2)} | {SZ@#2 #1} | #+2 | sub esp &4 | &4= ]
+[Uses | &2=&2+(#N shl 2) | push #1>L | &3=pop #L>1]
 
-[Structure | {#1 ebp-&2-4} | sub esp #2+4 | mov D$#1 esp | StrucPtrs 0-&2-#2-4 #L>3]
+[EndP | P9: | &3 | leave | ret &1]
+;;
+;DEBUG VERSION PROC-MACROS
+[Proc  | &1=0 | &3= | &4= | #1 | push ebp | mov ebp esp
+push ebp | push ebp | mov D$esp esp | &2=8 ]
 
-[Uses | push #1>L | &3=pop #L>1]
+[ExitP | jmp P9>>]
 
-[EndP | P9: | &3 | mov esp ebp | pop ebp | ret &1]
+[Arguments | {#1 ebp+4+(#x shl 2)} | #+1 | &1=(#N shl 2)]
+[Argument  | {#1 ebp+4+(#x shl 2)} | #+1 | &1=(#N shl 2)]
+[Local | {#1 ebp-(#x shl 2 +&2)} | #+1 | &2=&2+(#N shl 2) | sub esp (#N shl 2) | mov D$ebp-8 esp]
+;[cLocal | {#1 ebp-(#x shl 2 +&2)} | push 0 | #+1 | &2=&2+(#N shl 2) | mov D$ebp-8 esp]
 
-; For pointing to transmitted parameters (upper "Arg#x" fall here):
+[GetMember | {#3 ebp-(#F-#2)} | #+2]
+[Structure | {#1 ebp-(&2+#2+4)} | sub esp #2 | push esp | GetMember &2+#2 #L>3 | &2=&2+#2+4 | mov D$ebp-8 esp ]
 
-;[Arg1 ebp+8    Arg2 ebp+12    Arg3 ebp+16    Arg4 ebp+20   Arg5 ebp+24
-; Arg6 ebp+28   Arg7 ebp+32    Arg8 ebp+36    Arg9 ebp+40   Arg10 ebp+44]
+;[SZLocal | &2=&2+#1 | &4=&4+#1 | {#2 ebp-(&2)} | {SZ@#2 #1} | #+2 | sub esp &4 | &4= | mov D$ebp-8 esp]
 
-; For pointing Local Stack declared data (upper "Local#x" fall here):
-
-;[Local1 ebp-4     Local2 ebp-8     Local3 ebp-12    Local4 ebp-16    Local5 ebp-20
-; Local6 ebp-24    Local7 ebp-28    Local8 ebp-32    Local9 ebp-36    Local10 ebp-40]
-
-; To help preventing from stack sizes' mistakes (upper "SizeOf#x" fall here):
-
-;[SizeOf1 4     SizeOf2 8     SizeOf3 12    SizeOf4 16    SizeOf5 20
-; SizeOf6 24    SizeOf7 28    SizeOf8 32    SizeOf9 36    SizeOf10 40]
-
+[Uses | &2=&2+(#N shl 2) | push #1>L | &3=pop #L>1 | mov D$ebp-8 esp]
+;[StackSafe | #If &3<>0 | lea esp D$ebp-(&2) | #End_If]
+[EndP
+P9: cmp D$esp+(&2 -8) esp | je P8> | #If &3<>0 | int 3 | #End_If | jmp P7>
+P8: cmp D$esp+(&2 -4) ebp | je P8> | int3
+    lea ebp D$esp+ &2
+P7: cmp D$ebp-4 ebp | je P8> | int3
+P8: &3 | leave | ret &1]
+;;
 ____________________________________________________________________________________________
 ____________________________________________________________________________________________
 ; Equates for HLL comparisons (with 'If' and friends):
@@ -402,7 +411,7 @@ Proc ExtendTableMemory:
         If B$Dynamic = &FALSE
             call 'USER32.MessageBoxW' D$hwnd, Surprise, Surprise, &MB_OK
             call CloseProgressBar
-            mov esp D$OldStackPointer | ret
+            mov esp D$OldStackPointer, ebp D$OldStackEBP | ret
         End_If
 
         mov eax D@Mem, eax D$eax

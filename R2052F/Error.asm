@@ -27,7 +27,7 @@ TITLE Error
 ____________________________________________________________________________________________
 ____________________________________________________________________________________________
 
-[OldStackPointer: ?]
+[OldStackPointer: ? OldStackEBP: ?]
 
 [bracketCounter: ?  StatementsCounter: ?  ErrorLevel: ?  InsideBracket: ?
  InsideComment: ?   InsideMLC: ?]
@@ -241,7 +241,7 @@ OutOnError:
     On B$WeAreInTheCodeBox = &TRUE, jmp EncodeBoxError
 
     cld
-L0: mov esp D$OldStackPointer               ; restor stack (...comming from anywhere)
+L0: mov esp D$OldStackPointer, ebp D$OldStackEBP ; restor stack (...comming from anywhere)
 
 L1: pushad
 

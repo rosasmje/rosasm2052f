@@ -951,7 +951,7 @@ Compile:
 
         On D$UnusedCodeAndDataDialogHandle <> 0, call ReInitUnusedDialog
 
-        call AsmMain | mov D$OldStackPointer 0
+        call AsmMain | mov D$OldStackPointer 0, D$OldStackEBP 0
 
         If B$CompileErrorHappend = &FALSE
             mov B$ReadyToRun &TRUE, B$SourceHasChanged &FALSE
@@ -983,7 +983,7 @@ Run:
     If B$ReadyToRun = &FALSE
         mov B$ShowStats &FALSE
         call AsmMain
-        mov D$OldStackPointer 0
+        mov D$OldStackPointer 0, D$OldStackEBP 0
         mov D$UnusedSymbolsDialogWanted &FALSE
 
         On B$CompileErrorHappend = &FALSE, mov B$ReadyToRun &TRUE
@@ -1101,7 +1101,7 @@ Security:
             call 'MessageBoxA' D$hwnd, QuitMessage, QuitTitle, &MB_YESNOCANCEL
             .If eax = &IDYES
                 call RestoreRealSource
-                call AsmMain | mov D$OldStackPointer 0
+                call AsmMain | mov D$OldStackPointer 0, D$OldStackEBP 0
                 If B$CompileErrorHappend = &FALSE
                     mov B$ReadyToRun &TRUE, B$SourceHasChanged &FALSE, eax &IDNO
                 Else

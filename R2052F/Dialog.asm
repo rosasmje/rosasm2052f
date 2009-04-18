@@ -6808,7 +6808,7 @@ L0: On D$ClipBoardPtr = 0, ret
     On D$ClipBoardlen = 0, ret
 
     mov B$WeAreInTheCodeBox &TRUE
-    mov eax esp, D$OldStackPointer eax
+    mov D$OldStackPointer esp, D$OldStackEBP ebp
 
     push D$CodeSourceA, D$CodeSourceB
 
