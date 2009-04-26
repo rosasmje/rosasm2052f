@@ -4915,11 +4915,11 @@ OpF3:
         .If B$esi+1 = 010       ; F3 0F 10 /r MOVSS xmm1, xmm2/m32
             add esi 2 | call MarkSSEdata SSE_1_R
             mov D$edi 'movs', W$edi+4 's ' | add edi 6
-            jmp Dis_xmm1__xmm2_m32F
+            jmp Dis_xmm1__xmm2_m32
         .Else_If B$esi+1 = 011       ; F3 0F 11 /r MOVSS xmm2/m32, xmm
             add esi 2 | call MarkSSEdata SSE_1_R
             mov D$edi 'movs', W$edi+4 's ' | add edi 6
-            jmp Dis_xmm2_m32F__xmm1
+            jmp Dis_xmm2_m32__xmm1
         .Else_If B$esi+1 = 012       ; F3,0F,12,/r MOVSLDUP xmm1, xmm2/m128
             add esi 2 | call MarkSSEdata SSE_4_F
             mov D$edi 'movs', D$edi+4 'ldup', B$edi+8 ' ' | add edi 9
@@ -6054,8 +6054,9 @@ EndWith.B.mem:
 ret
 
 EndWith.W.mem:
-    mov W$DisSizeMarker 'W$'
+    mov W$DisSizeMarker 'W$' | jmp EndWithModRm
 EndWith.D.mem:
+    mov W$DisSizeMarker 'D$'
 EndWithModRm:
     call WriteEffectiveAddressFromModRm
     mov B$DisFlag DISDONE+DISLINEOVER
@@ -7567,23 +7568,22 @@ ________________________________________________________________________________
 
 [Proc | &1=0 | &2=0 | &3= | #1 | push ebp | mov ebp esp]
 
-[Arguments | {#1 ebp+((#x*4)+4)} | #+1 | &1=(#N*4)]
+[Arguments | {#1 ebp+4+(#x*4))} | #+1 | &1=(#N*4)]
 
-[Local | {#1 ebp-(#x*4)} | #+1 | &2=(#N*4) | sub esp &2]
+[Local | {#1 ebp-(#x*4 +&2)} | #+1 | &2=(#N*4) | sub esp (#N*4)]
 
 [GetMember | {#3 ebp-(#F-#2)} | #+2]
-
 [Structure | {#1 ebp-(&2+#2+4)} | sub esp #2 | push esp | GetMember &2+#2 #L>3 | &2=&2+#2+4]
 
-[Uses | push #1>L | &3=pop #L>1]
+[Uses | &2=&2+(#N*4) | push #1>L | &3=pop #L>1]
 
 [Return | #If #N=1 | mov eax #1 | #EndIf | jmp P9>>]
 
 [ExitP | jmp P9>>]
 
-[EndP | P9: | &3 | mov esp ebp | pop ebp | ret &1]
+[EndP | P9: | &3 | leave | ret &1]
 
-[.EndP | P9: | &3 | mov esp ebp | pop ebp | ret &1]
+[.EndP | P9: | &3 | leave | ret &1]
 _____________________________________________________________________________________________
 
 ; little message routines for values tests (dWords only / text pointer) to be called with:

@@ -2248,7 +2248,7 @@ L2:      ifnot op2 'H', L2>
                  ;   01100110:00001111:11000110:11 xmmreg1 xmmreg2:imm8 (0/255)
                     ToOpcode 001100110 | mov op1 0011000110 | jmp XMMmemXMMimm3
 L6:              ifnot op6 'S', L6>                           ; SHUFPS
-                   mov op1 0011000110 | jmp XMMmemXMMimmFF
+                   mov op1 0011000110 | jmp XMMmemXMMimm8
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
@@ -2486,7 +2486,7 @@ L2:        ifnot op2 'S', L2>
                    End_If
                    ifnot op6 'L', L6>
                        ToOpcode 0011110010
-P0:                    mov op1 001110000 | jmp XmmMemXmmImm3
+P0:                    mov op1 001110000 | jmp XmmMemXmmImm8
 L3:          ifnot op3 'U', L3>
                ifnot op4 'B', L4>
                  ifnot op5 'U', L5>
@@ -4977,13 +4977,6 @@ ParmsAny 3
     On D$imm32 > 0011, BadOperandSize
         mov B$TrueSize ByteSize                 ; to ajust imm size to 8 bits storage
         jmp L0>
-
-XmmMemXmmImmFF:
-ParmsAny 3
-    On B$immInside = &FALSE, error D$EndingImmPtr
-        mov B$TrueSize ByteSize                 ; to ajust imm size to 8 bits storage
-        jmp L0>
-
 
 ;Xmmgg2:  gg_Value >>> now gg2 extended
 

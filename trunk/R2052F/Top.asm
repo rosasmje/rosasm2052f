@@ -272,13 +272,13 @@ ________________________________________________________________________________
 
 [GetMember | {#3 ebp-(#F-#2)} | #+2]
 [Structure | {#1 ebp-(&2+#2+4)} | sub esp #2 | push esp | GetMember &2+#2 #L>3 | &2=&2+#2+4]
-;[SZLocal | &2=&2+#1 | &4=&4+#1 | {#2 ebp-(&2)} | {SZ@#2 #1} | #+2 | sub esp &4 | &4= ]
+
 [Uses | &2=&2+(#N shl 2) | push #1>L | &3=pop #L>1]
 
 [EndP | P9: | &3 | leave | ret &1]
 ;;
 ;DEBUG VERSION PROC-MACROS
-[Proc  | &1=0 | &3= | &4= | #1 | push ebp | mov ebp esp
+[Proc  | &1=0 | &3= | #1 | push ebp | mov ebp esp
 push ebp | push ebp | mov D$esp esp | &2=8 ]
 
 [ExitP | jmp P9>>]
@@ -291,15 +291,12 @@ push ebp | push ebp | mov D$esp esp | &2=8 ]
 [GetMember | {#3 ebp-(#F-#2)} | #+2]
 [Structure | {#1 ebp-(&2+#2+4)} | sub esp #2 | push esp | GetMember &2+#2 #L>3 | &2=&2+#2+4 | mov D$ebp-8 esp ]
 
-;[SZLocal | &2=&2+#1 | &4=&4+#1 | {#2 ebp-(&2)} | {SZ@#2 #1} | #+2 | sub esp &4 | &4= | mov D$ebp-8 esp]
-
 [Uses | &2=&2+(#N shl 2) | push #1>L | &3=pop #L>1 | mov D$ebp-8 esp]
-;[StackSafe | #If &3<>0 | lea esp D$ebp-(&2) | #End_If]
+
 [EndP
-P9: cmp D$esp+(&2 -8) esp | je P8> | #If &3<>0 | int 3 | #End_If | jmp P7>
+P9: cmp D$esp+(&2 -8) esp | je P8> | int3
 P8: cmp D$esp+(&2 -4) ebp | je P8> | int3
-    lea ebp D$esp+ &2
-P7: cmp D$ebp-4 ebp | je P8> | int3
+    lea ebp D$esp+ &2 | cmp D$ebp-4 ebp | je P8> | int3
 P8: &3 | leave | ret &1]
 ;;
 ____________________________________________________________________________________________
@@ -467,22 +464,20 @@ proc DualBubbleSortDWORDs: ; << jE! >>
 
 PUSHAD
     mov ecx D@num | mov ebx D@array | dec ecx | jle L9>
-    lea ecx D$ebx+ecx*4 | lea edx D$ebx-4
+    lea ecx D$ebx+ecx*4 | lea edx D$ebx-4 | sub edi edi
 ALIGN 16
-
-B0: sub edi edi
+B0:
 B1: add edx 4 | cmp edx ecx | jae N1>
     mov esi D$edx | mov eax D$edx+4 | cmp esi eax | jbe B1<
     mov D$edx+4 esi | mov D$edx eax | or edi 1 |jmp B1<
 
-N1: sub ecx 4 | test edi edi | je L9>
+N1: sub ecx 4 | dec edi | jne L9>
 
-    sub edi edi
 B3: sub edx 4 | cmp edx ebx | jbe N2>
     mov esi D$edx-4 | mov eax D$edx | cmp esi eax | jbe B3<
     mov D$edx esi | mov D$edx-4 eax | or edi 1 | jmp B3<
 
-N2: add ebx 4 | test edi edi | jne B0<
+N2: add ebx 4 | dec edi | je B0<
 
 L9: POPAD
 EndP
