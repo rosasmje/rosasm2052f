@@ -375,7 +375,7 @@ DebugRsrcManagerThread:
     call DestroyBPAnteroom
 
     call 'Kernel32.CloseHandle' D$DebugThreadHandle
-    mov D$DebugThreadHandle 0
+    and D$DebugThreadHandle 0
 
   ; Cleanup
     VirtualFree D$ModuleList
@@ -383,8 +383,8 @@ DebugRsrcManagerThread:
     call 'KERNEL32.HeapDestroy' D$ModuleNameHeap
     VirtualFree D$ThreadIDHandleTable
 
-    call 'Kernel32.CloseHandle' D$PI.hThread
-    call 'Kernel32.CloseHandle' D$PI.hProcess
+    call 'Kernel32.CloseHandle' D$PI.hThread | and D$PI.hThread 0
+    call 'Kernel32.CloseHandle' D$PI.hProcess | and D$PI.hProcess 0
 
     call DestroyBPTable
 
@@ -392,13 +392,13 @@ DebugRsrcManagerThread:
     call 'User32.PostMessageA' D$DebugDialogHandle, &WM_CLOSE, &NULL, &NULL
 
     call 'Kernel32.CloseHandle' D$UserInputEvent
-    mov D$UserInputEvent 0
+    and D$UserInputEvent 0
 
   ; If the debuggee has called 'Kernel32.OutputDebugString' there is a file in which the
   ; output has been logged. Close the file now.
     If D$DebugLogFile <> 0
         call 'KERNEL32.CloseHandle' D$DebugLogFile
-        mov D$DebugLogFile 0
+        and D$DebugLogFile 0
     EndIf
 
   ; Clear data structures (safety)
@@ -688,7 +688,7 @@ ________________________________________________________________________________
 [DebugBaseOfCode: ?  DebugCodeSize: ?]
 
 Debugger_OnCreateProcess:
-    call 'KERNEL32.CloseHandle' D$CPDI.hFile
+    call 'KERNEL32.CloseHandle' D$CPDI.hFile | and D$CPDI.hFile 0
 
     mov D$DebugBaseOfCode 0, D$DebugCodeSize 0
 
@@ -1020,7 +1020,7 @@ ________________________________________________________________________________
 Proc Debugger_OnLoadDll:
     Arguments @BaseAddress
 
-        call 'Kernel32.CloseHandle' D$LoadDll.hFile
+        call 'Kernel32.CloseHandle' D$LoadDll.hFile | and D$LoadDll.hFile 0
 
         call ScanPEHeader D@BaseAddress
 
@@ -2395,8 +2395,8 @@ CloseProcess:
     call 'KERNEL32.GetExitCodeProcess' D$PI.hProcess, ExitCode
     call 'KERNEL32.TerminateProcess'  D$PI.hProcess, D$ExitCode
 
-    call 'KERNEL32.CloseHandle' D$PI.hThread       ; should be of
-    call 'KERNEL32.CloseHandle' D$PI.hProcess      ; no use.
+    call 'KERNEL32.CloseHandle' D$PI.hThread | and D$PI.hThread 0       ; should be of
+    call 'KERNEL32.CloseHandle' D$PI.hProcess | and D$PI.hProcess 0     ; no use.
 ret
 ____________________________________________________________________________________________
 
@@ -2522,7 +2522,7 @@ ________________________________________________________________________________
 ; Destroy mutex and clear data fields - called by resource manager thread.
 
 FreeWatchpointResources:
-    call 'KERNEL32.CloseHandle' D$WPSynchMutex
+    call 'KERNEL32.CloseHandle' D$WPSynchMutex | and D$WPSynchMutex 0
     mov eax 0
     mov D$WPSlot0 eax
     mov D$WPSlot1 eax
@@ -2896,7 +2896,7 @@ ret
 
 DestroyBPAnteroom:
     VirtualFree D$BPAnteroom
-    call 'KERNEL32.CloseHandle' D$BPSyncMutex
+    call 'KERNEL32.CloseHandle' D$BPSyncMutex | and D$BPSyncMutex 0
 
     ;call 'Kernel32.OutputDebugStringA' {'BP synch: Destroyed BP synch objects' 0}
 ret

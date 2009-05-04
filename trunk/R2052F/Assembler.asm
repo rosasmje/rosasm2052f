@@ -425,7 +425,7 @@ LoadSrc:
     call 'KERNEL32.ReadFile' D$SourceHandle eax,                ; eax = mem buffer start
                             D$SourceLen NumberOfReadBytes 0
 
-    call 'KERNEL32.CloseHandle' D$SourceHandle | mov D$SourceHandle 0
+    call 'KERNEL32.CloseHandle' D$SourceHandle | and D$SourceHandle 0
 
     mov edi D$CodeSource | add edi D$SourceLen | mov eax 0A0D0A0D, ecx 100 | rep stosd
     mov edi D$CodeSource, ecx 5 | sub edi 10 | rep stosw
@@ -513,7 +513,7 @@ IncludeSource:
     call ReMapSourceMemoryIfNeeded D$IncludeLen
 
     If eax = &IDNO
-        call 'KERNEL32.CloseHandle' D$SourceHandle | mov D$SourceHandle 0 | ret
+        call 'KERNEL32.CloseHandle' D$SourceHandle | and D$SourceHandle 0 | ret
     End_If
 
   ; Ensure the inclusion will not break an existing line in two parts:
@@ -534,7 +534,7 @@ IncludeSource:
 
     mov D$NumberOfReadBytes 0
     call 'KERNEL32.ReadFile' D$SourceHandle, D$BlockStartTextPtr, D$IncludeLen, NumberOfReadBytes, 0
-    call 'KERNEL32.CloseHandle' D$SourceHandle | mov D$SourceHandle 0
+    call 'KERNEL32.CloseHandle' D$SourceHandle | and D$SourceHandle 0
 
     mov edi D$CurrentWritingPos | add edi D$IncludeLen | mov W$edi CRLF
     mov D$BlockEndTextPtr edi | dec D$BlockEndTextPtr
@@ -573,7 +573,7 @@ L1:     call OpenSourceOnly | call LoadBookMarks
                 call 'KERNEL32.ReadFile' D$SourceHandle, D$CodeSource, D$SourceLen,
                                          NumberOfReadBytes 0
 
-                call 'KERNEL32.CloseHandle' D$SourceHandle | mov D$SourceHandle 0
+                call 'KERNEL32.CloseHandle' D$SourceHandle | and D$SourceHandle 0
 
                 call KillTabs | call KillTrailingSpaces
             End_If
@@ -910,7 +910,7 @@ SetBaseList:
         call 'KERNEL32.GetFileSize' eax, 0
         mov D$BaseListEnd Trash | add D$BaseListEnd eax
         call 'KERNEL32.ReadFile' D$BasesListHandle, Trash, eax, NumberOfReadBytes, 0
-        call 'KERNEL32.CloseHandle' D$BasesListHandle
+        call 'KERNEL32.CloseHandle' D$BasesListHandle | and D$BasesListHandle 0
 
         mov esi Trash
         .While esi < D$BaseListEnd
@@ -1243,8 +1243,8 @@ L1:
   ;  call 'KERNEL32.WriteFile' D$DestinationHandle, D$CodeSource, D$SourceLen,
   ;                            NumberOfReadBytes, 0
 
-    call 'KERNEL32.CloseHandle' D$DestinationHandle
-    call 'KERNEL32.FlushFileBuffers' D$DestinationHandle | mov D$DestinationHandle 0
+    call 'KERNEL32.FlushFileBuffers' D$DestinationHandle
+    call 'KERNEL32.CloseHandle' D$DestinationHandle | and D$DestinationHandle 0
 ret
 
 
@@ -1357,7 +1357,7 @@ LoadBookMarks:
                             NumberOfReadBytes 0
     call CreateTreeViewList | call SetTreeDialogPos
 
-    call 'KERNEL32.CloseHandle' D$BookMarksFileHandle
+    call 'KERNEL32.CloseHandle' D$BookMarksFileHandle | and D$BookMarksFileHandle 0
 ret
 
 
@@ -1440,7 +1440,7 @@ ReloadForDissassembler:
 
     call 'KERNEL32.ReadFile' D$SourceHandle, D$UserPeStart, D$UserPeLen, NumberOfReadBytes, 0
 
-    call 'KERNEL32.CloseHandle' D$SourceHandle | mov D$SourceHandle 0
+    call 'KERNEL32.CloseHandle' D$SourceHandle | and D$SourceHandle 0
 
     mov eax D$UserPeStart | On W$eax <> 'MZ', jmp ExitNotPeExe
 
@@ -2103,8 +2103,8 @@ L2: call OpenDestinationFile | mov D$NumberOfReadBytes 0
     call 'KERNEL32.WriteFile'  D$DestinationHandle, D$CodeSource, D$SourceLen,
                                NumberOfReadBytes, 0
 
-    call 'KERNEL32.CloseHandle' D$DestinationHandle
-    call 'KERNEL32.FlushFileBuffers' D$DestinationHandle | mov D$DestinationHandle 0
+    call 'KERNEL32.FlushFileBuffers' D$DestinationHandle
+    call 'KERNEL32.CloseHandle' D$DestinationHandle | and D$DestinationHandle 0
 ret
 
 
@@ -2314,8 +2314,8 @@ L1:
     call 'KERNEL32.WriteFile' D$DestinationHandle, D$CodeSource, D$SourceLen,
                               NumberOfReadBytes, 0
 
-    call 'KERNEL32.CloseHandle' D$DestinationHandle
-    call 'KERNEL32.FlushFileBuffers' D$DestinationHandle | mov D$DestinationHandle 0
+    call 'KERNEL32.FlushFileBuffers' D$DestinationHandle
+    call 'KERNEL32.CloseHandle' D$DestinationHandle | and D$DestinationHandle 0
 
     On D$SavingExtension = '.SYS', call WriteSysFile
 ret
@@ -2406,8 +2406,8 @@ L0:     repne scasb | cmp B$edi 0 | ja L0<
         call 'KERNEL32.WriteFile'  D$DestinationHandle, D$BookMarks, edi,
                                    NumberOfReadBytes, 0
 
-        call 'KERNEL32.CloseHandle' D$DestinationHandle
-        call 'KERNEL32.FlushFileBuffers' D$DestinationHandle | mov D$DestinationHandle 0
+        call 'KERNEL32.FlushFileBuffers' D$DestinationHandle
+        call 'KERNEL32.CloseHandle' D$DestinationHandle | and D$DestinationHandle 0
     pop edi, D$edi
 ret
 

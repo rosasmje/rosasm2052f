@@ -130,7 +130,7 @@ Proc OpenLibFile:
         call 'KERNEL32.ReadFile' D$LibFileHandle, D$LibFileMemory,
                                  D$LibFileLength, NumberOfReadBytes, 0
 
-        call 'KERNEL32.CloseHandle' D$LibFileHandle
+        call 'KERNEL32.CloseHandle' D$LibFileHandle | and D$LibFileHandle 0
 
         mov eax D$LibFileMemory | add eax D$LibFileLength | mov D$LibFileMemoryEnd eax
     End_If
@@ -16497,7 +16497,7 @@ Proc SaveLibFile:
     mov D$DestinationHandle eax, D$NumberOfReadBytes 0
 
     call 'KERNEL32.WriteFile' D$DestinationHandle, D@OutPut, D@OutPutSize, NumberOfReadBytes  0
-    call 'KERNEL32.CloseHandle' D$DestinationHandle | mov D$DestinationHandle 0
+    call 'KERNEL32.CloseHandle' D$DestinationHandle | and D$DestinationHandle 0
 
     popad
 

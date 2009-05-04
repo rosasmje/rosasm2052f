@@ -477,15 +477,15 @@ Proc LoadWizardAndPasteCode:
     End_If
 
     sub D$ProducedCode 4
-    call 'Kernel32.UnmapViewOfFile' D$ProducedCode
-    call 'Kernel32.CloseHandle' D$ProducedCodeHandle
+    call 'Kernel32.UnmapViewOfFile' D$ProducedCode | and D$ProducedCode 0
+    call 'Kernel32.CloseHandle' D$ProducedCodeHandle | and D$ProducedCodeHandle 0
     call 'Kernel32.OpenEventA' &EVENT_MODIFY_STATE &FALSE {'ProducedCode_Written',0}
     mov D$ProducedCode_Written eax
     call 'Kernel32.SetEvent' D$ProducedCode_Written
-    call 'Kernel32.CloseHandle' D$ProducedCode_Written
-    call 'Kernel32.CloseHandle' D$ProcessInfos+4
-    call 'Kernel32.CloseHandle' D$ProcessInfos
-L9: call 'Kernel32.CloseHandle' D$ProducedCode_BeginWrite
+    call 'Kernel32.CloseHandle' D$ProducedCode_Written | and D$ProducedCode_Written 0
+    call 'Kernel32.CloseHandle' D$ProcessInfos+4 | and D$ProcessInfos+4 0
+    call 'Kernel32.CloseHandle' D$ProcessInfos | and D$ProcessInfos 0
+L9: call 'Kernel32.CloseHandle' D$ProducedCode_BeginWrite | and D$ProducedCode_BeginWrite 0
 
 EndP
 ____________________________________________________________________________________________

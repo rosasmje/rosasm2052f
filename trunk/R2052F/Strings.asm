@@ -568,7 +568,7 @@ OpenStringsFile:
         call 'KERNEL32.ReadFile' D$RosAsmStringsFileHandle, D$RosAsmStringsMemory,
                                  D$RosAsmStringsFilelenght, NumberOfReadBytes, 0
 
-        call 'KERNEL32.CloseHandle' D$RosAsmStringsFileHandle
+        call 'KERNEL32.CloseHandle' D$RosAsmStringsFileHandle | and D$RosAsmStringsFileHandle 0
 
         mov esi D$RosAsmStringsMemory
         mov edx esi | add edx D$RosAsmStringsFilelenght

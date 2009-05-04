@@ -187,7 +187,7 @@ SaveRcData:
 
         call 'KERNEL32.WriteFile' D$DestinationHandle, esi, ecx, NumberOfReadBytes  0
 
-        call 'KERNEL32.CloseHandle' D$DestinationHandle | mov D$DestinationHandle 0
+        call 'KERNEL32.CloseHandle' D$DestinationHandle | and D$DestinationHandle 0
    .End_If
 
 L9: ret
@@ -306,7 +306,7 @@ DeleteWave:
         mov D$TempoWaveFileHandle eax
         mov esi D$WhatDialogListPtr
         call 'KERNEL32.WriteFile' D$TempoWaveFileHandle D$esi D$esi+4 NumberOfReadBytes &NULL
-        call 'Kernel32.CloseHandle' D$TempoWaveFileHandle
+        call 'Kernel32.CloseHandle' D$TempoWaveFileHandle | and D$TempoWaveFileHandle 0
         call 'WINMM.PlaySound' TempoWaveFile &NULL  &SND_ASYNC__&SND_FILENAME
         call SetNextChoiceID
         call 'User32.DialogBoxIndirectParamA' D$hinstance, ChoiceBar, D$hwnd, ChoiceDialogBoxProc, WaveList
@@ -462,7 +462,7 @@ ReadIcon:
     mov eax D$OtherFilePtr
     If D$eax+2 <> 010001
         call 'USER32.MessageBoxA' D$hwnd, BadIcoFile, Argh, &MB_OK+&MB_SYSTEMMODAL
-
+        call CloseOtherFilesRead
         VirtualFree D$OtherFilePtr | ret
 
     End_If
@@ -563,7 +563,7 @@ DeleteAviFile:
         mov D$TempoAviFileHandle eax
         mov esi D$WhatDialogListPtr | mov ecx D$esi+4
         call 'KERNEL32.WriteFile' D$TempoAviFileHandle D$esi ecx NumberOfReadBytes &NULL
-        call 'Kernel32.CloseHandle' D$TempoAviFileHandle
+        call 'Kernel32.CloseHandle' D$TempoAviFileHandle | and D$TempoAviFileHandle 0
         call 'USER32.SendMessageA' D$AnimateHandle &ACM_OPEN  &NULL TempoAviFile
         call SetNextChoiceID
         call 'User32.DialogBoxIndirectParamA' D$hinstance, ChoiceBar, D$hwnd, ChoiceDialogBoxProc, AviList
@@ -629,7 +629,7 @@ DeleteCursor:
         pop ecx, eax
         mov eax D$eax | add D$eax+14 4                     ; restore our 'how much'
         call 'KERNEL32.WriteFile' D$TempoCursorFileHandle esi ecx NumberOfReadBytes &NULL
-        call 'Kernel32.CloseHandle' D$TempoCursorFileHandle
+        call 'Kernel32.CloseHandle' D$TempoCursorFileHandle | and D$TempoCursorFileHandle 0
         call 'User32.LoadCursorFromFileA' TempoCursorFile
         If D$UserCursorHandle > 0
             pushad
@@ -721,7 +721,7 @@ DeleteIcon:
             mov esi D$WhatDialogListPtr
         pop ecx
         call 'KERNEL32.WriteFile' D$TempoCursorFileHandle D$esi D$esi+4 NumberOfReadBytes &NULL
-        call 'Kernel32.CloseHandle' D$TempoCursorFileHandle
+        call 'Kernel32.CloseHandle' D$TempoCursorFileHandle | and D$TempoCursorFileHandle 0
         call 'User32.LoadCursorFromFileA' TempoCursorFile
         If D$UserCursorHandle > 0
             pushad
@@ -784,7 +784,7 @@ ReadOtherFile:
 
   ; Loading the entire file in memory:
     On D$OtherSourceHandle > 0, call 'KERNEL32.CloseHandle' D$OtherSourceHandle
-    mov D$OtherSourceHandle 0
+    and D$OtherSourceHandle 0
 
     call 'KERNEL32.CreateFileA' OtherSaveFilter, &GENERIC_READ,
                                 &FILE_SHARE_READ, 0,
@@ -807,7 +807,7 @@ ret
 
 CloseOtherFilesRead:
     On D$OtherSourceHandle > 0, call 'KERNEL32.CloseHandle' D$OtherSourceHandle
-    mov D$OtherSourceHandle 0
+    and D$OtherSourceHandle 0
 ret
 
 

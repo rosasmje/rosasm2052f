@@ -1446,7 +1446,7 @@ GetExportScannerFile:
             call 'KERNEL32.ReadFile' D$SfFileHandle, D$SfFileMemory D$SfFileLen,
                                      NumberOfReadBytes, 0
 
-            call 'KERNEL32.CloseHandle' D$SfFileHandle
+            call 'KERNEL32.CloseHandle' D$SfFileHandle | and D$SfFileHandle 0
 
           ; Is it a PE?
             mov eax D$SfFileMemory | On W$eax <> 'MZ', jmp L7>
@@ -1752,7 +1752,7 @@ Proc InitGUIDsView:
         call 'KERNEL32.ReadFile' D$GUIDsFileHandle, D$GUIDsFileMemory,
                                  D$GUIDsFileLength, NumberOfReadBytes, 0
 
-        call 'KERNEL32.CloseHandle' D$GUIDsFileHandle
+        call 'KERNEL32.CloseHandle' D$GUIDsFileHandle | and D$GUIDsFileHandle 0
 
         mov esi D$GUIDsFileMemory, edx esi | add edx D$GUIDsFileLength
 

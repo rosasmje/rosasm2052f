@@ -92,7 +92,7 @@ ret
 
 
 WriteClipFile:
-    call 'KERNEL32.CloseHandle' D$ClipFileHandle
+    call 'KERNEL32.CloseHandle' D$ClipFileHandle | and D$ClipFileHandle 0
 
     call 'KERNEL32.CreateFileA' ClipName, &GENERIC_READ__&GENERIC_WRITE, 0, 0,
                                 &CREATE_ALWAYS, &FILE_ATTRIBUTE_NORMAL, &NULL
@@ -105,7 +105,7 @@ ret
 
 ReleaseClipFile:
     VirtualFree D$ClipFileMemoryPointer
-    call 'KERNEL32.CloseHandle' D$ClipFileHandle
+    call 'KERNEL32.CloseHandle' D$ClipFileHandle | and D$ClipFileHandle 0
 ret
 
 

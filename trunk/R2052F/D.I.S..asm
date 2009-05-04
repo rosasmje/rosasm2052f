@@ -35,7 +35,7 @@ LoadPeDisFile:
         call 'KERNEL32.ReadFile' D$PeDisFileHandle, D$PeDisFileMemory,
                                  D$PeDisFileLength, NumberOfReadBytes, 0
 
-        call 'KERNEL32.CloseHandle' D$PeDisFileHandle
+        call 'KERNEL32.CloseHandle' D$PeDisFileHandle | and D$PeDisFileHandle 0
 
         mov B$DisFileOk &TRUE
 
@@ -301,7 +301,7 @@ Proc LoadOneDisFile:
             call 'KERNEL32.ReadFile' D$PeDisFileHandle, D$PeDisFileMemory,
                                     D$PeDisFileLength, NumberOfReadBytes, 0
 
-            call 'KERNEL32.CloseHandle' D$PeDisFileHandle
+            call 'KERNEL32.CloseHandle' D$PeDisFileHandle | and D$PeDisFileHandle 0
 
             mov B$DisFileOk &TRUE
 

@@ -87,7 +87,7 @@ L3:         mov al B$esi | mov B$edx al
 
             call 'KERNEL32.ReadFile' D$bininc.filehandle, eax, D$bininc.filesize,
                                      NumberOfReadBytes 0
-            call 'KERNEL32.CloseHandle' D$bininc.filehandle
+            call 'KERNEL32.CloseHandle' D$bininc.filehandle | and D$bininc.filehandle 0
         popad
 
         push esi
@@ -165,7 +165,7 @@ L3:         mov al B$esi | mov B$edx al
 
             call 'KERNEL32.GetFileSize' eax, 0 | add D$InIncludeSize eax
 
-            call 'KERNEL32.CloseHandle' D$bininc.filehandle
+            call 'KERNEL32.CloseHandle' D$bininc.filehandle | and D$bininc.filehandle 0
         popad
 
 L8:     inc esi
