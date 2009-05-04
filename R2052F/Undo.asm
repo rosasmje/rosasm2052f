@@ -207,7 +207,7 @@ L0: call IncUndoFileName | mov eax UndoFile
     mov ecx D$BlockEndTextPtr | sub ecx D$BlockStartTextPtr | inc ecx
 
     call 'KERNEL32.WriteFile' D$UndoFileHandle, D$BlockStartTextPtr, ecx, NumberOfReadBytes, 0
-    call 'KERNEL32.CloseHandle' D$UndoFileHandle
+    call 'KERNEL32.CloseHandle' D$UndoFileHandle | and D$UndoFileHandle 0
 ret
 
 
@@ -224,7 +224,7 @@ L0: call IncUndoFileName | mov eax UndoFile
     call 'KERNEL32.WriteFile' D$UndoFileHandle, D$ClipBoardPtr, D$ClipBoardLen,
                               NumberOfReadBytes, 0
 
-    call 'KERNEL32.CloseHandle' D$UndoFileHandle
+    call 'KERNEL32.CloseHandle' D$UndoFileHandle | and D$UndoFileHandle 0
 ret
 
 
@@ -250,7 +250,7 @@ ReadUndoBlockFile: ; ControlX
         call 'KERNEL32.ReadFile' D$UndoFileHandle, D$CurrentWritingPos,
                                  D$UndoBlockLen, NumberOfReadBytes, 0
 
-        call 'KERNEL32.CloseHandle' D$UndoFileHandle
+        call 'KERNEL32.CloseHandle' D$UndoFileHandle | and D$UndoFileHandle 0
     .End_If
 ret
 

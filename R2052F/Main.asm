@@ -213,19 +213,19 @@ L1: call 'User32.GetMessageA' FirstMsg 0 0 0
 ____________________________________________________________________________________________
 
 ResetBackGroundColors:
-    On D$BackGroundBrushHandle <> 0, call 'KERNEL32.CloseHandle' D$BackGroundBrushHandle
+    On D$BackGroundBrushHandle <> 0, call 'GDI32.DeleteObject' D$BackGroundBrushHandle
     call 'GDI32.CreateSolidBrush' D$NormalBackColor
     mov D$BackGroundBrushHandle eax
 
-    On D$DialogsBackGroundBrushHandle, <> 0, call 'KERNEL32.CloseHandle' D$DialogsBackGroundBrushHandle
+    On D$DialogsBackGroundBrushHandle, <> 0, call 'GDI32.DeleteObject' D$DialogsBackGroundBrushHandle
     call 'GDI32.CreateSolidBrush' D$DialogsBackColor
     mov D$DialogsBackGroundBrushHandle eax
 
-    On D$CaretBrushHandle, <> 0, call 'KERNEL32.CloseHandle' D$CaretBrushHandle
+    On D$CaretBrushHandle, <> 0, call 'GDI32.DeleteObject' D$CaretBrushHandle
     call 'GDI32.CreateSolidBrush' D$StatementColor
     mov D$CaretBrushHandle eax
 
-    On D$RedBrushHandle, <> 0, call 'KERNEL32.CloseHandle' D$RedBrushHandle
+    On D$RedBrushHandle, <> 0, call 'GDI32.DeleteObject' D$RedBrushHandle
     call 'GDI32.CreateSolidBrush' D$BracketColor
     mov D$RedBrushHandle eax
 ret

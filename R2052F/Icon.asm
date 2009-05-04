@@ -700,7 +700,7 @@ OpenPeForReadingIcon:
   ; Loading the entire file in memory:
 
     On D$iSourceHandle > 0, call 'KERNEL32.CloseHandle' D$iSourceHandle
-
+    and D$iSourceHandle 0
     mov esi iSaveFilter
 
     call 'KERNEL32.CreateFileA' esi &GENERIC_READ, &FILE_SHARE_READ,
@@ -866,7 +866,7 @@ PeekIcon:
             mov esi eax | mov edi iIcon | rep movsb  ; Copying to ower buffer
         End_If
 
-        call 'KERNEL32.CloseHandle' D$iSourceHandle | mov D$iSourceHandle 0
+        call 'KERNEL32.CloseHandle' D$iSourceHandle | and D$iSourceHandle 0
 
         VirtualFree D$iExePtr
     .End_If
@@ -885,7 +885,7 @@ PokeIcon:
 
         .If B$PeIconFound = &TRUE
             mov edi eax | mov esi iIcon | rep movsb  ; Copying from ower buffer
-            call 'KERNEL32.CloseHandle' D$iSourceHandle | mov D$iSourceHandle 0
+            call 'KERNEL32.CloseHandle' D$iSourceHandle | and D$iSourceHandle 0
             call 'USER32.MessageBoxA' D$hwnd  PokeSure  NullTitle,
                                     &MB_YESNO+&MB_ICONEXCLAMATION +&MB_SYSTEMMODAL
             On eax = &IDNO, jmp L9>>
@@ -905,7 +905,7 @@ PokeIcon:
         .End_If
 
 L9:     VirtualFree D$iExePtr
-        call 'KERNEL32.CloseHandle' D$iDestinationHandle
+        call 'KERNEL32.CloseHandle' D$iDestinationHandle | and D$iDestinationHandle 0
     ..End_If
 ret
 
@@ -976,7 +976,7 @@ L1: On D$esi+8 <> 02E8, jmp BadFIsize
     mov esi D$esi, edi iIcon, ecx 02E8
     add esi D$IcoFilePtr | rep movsb                 ; Copying to ower buffer
 
-    call 'KERNEL32.CloseHandle' D$iSourceHandle
+    call 'KERNEL32.CloseHandle' D$iSourceHandle | and  D$iSourceHandle 0
 
     VirtualFree D$icoFilePtr
 ret
@@ -1003,7 +1003,7 @@ WriteIcoFile:
     mov D$NumberOfReadBytes  0
     call 'KERNEL32.WriteFile'   D$iDestinationHandle iIcoFileHeader 02FE,
                                NumberOfReadBytes  0
-    call 'KERNEL32.CloseHandle' D$iDestinationHandle
+    call 'KERNEL32.CloseHandle' D$iDestinationHandle | and D$iDestinationHandle 0
 ret
 
  ____________________________________________________________________________________

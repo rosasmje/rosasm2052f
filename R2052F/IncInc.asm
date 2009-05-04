@@ -514,7 +514,7 @@ ReadIncFile:
 
         call 'KERNEL32.ReadFile' D$bininc.filehandle, D$bininc.mem, D$bininc.filesize,
                                  NumberOfReadBytes, 0
-        call 'KERNEL32.CloseHandle' D$bininc.filehandle
+        call 'KERNEL32.CloseHandle' D$bininc.filehandle | and D$bininc.filehandle 0
     popad
 
     mov eax &TRUE

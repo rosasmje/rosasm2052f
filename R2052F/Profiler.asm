@@ -80,9 +80,9 @@ ReadMemoryMapFile:
 ret
 
 
-DeleteMemoryMapFile:
-    call 'KERNEL32.UnmapViewOfFile' D$OrigineOfTimingMap
-    call 'KERNEL32.CloseHandle' D$HandleOfTimingMapFile
+DeleteMemoryMapFile: jmp CloseMemoryMapFile
+;    call 'KERNEL32.UnmapViewOfFile' D$OrigineOfTimingMap | and D$OrigineOfTimingMap 0
+;    call 'KERNEL32.CloseHandle' D$HandleOfTimingMapFile | and D$HandleOfTimingMapFile 0
 ret
 
 
@@ -105,8 +105,8 @@ ret
 
 
 CloseMemoryMapFile:
-    call 'KERNEL32.UnmapViewOfFile' D$OrigineOfTimingMap
-    call 'KERNEL32.CloseHandle' D$HandleOfTimingMapFile
+    call 'KERNEL32.UnmapViewOfFile' D$OrigineOfTimingMap | and D$OrigineOfTimingMap 0
+    call 'KERNEL32.CloseHandle' D$HandleOfTimingMapFile | and D$HandleOfTimingMapFile 0
 ret
 
 ____________________________________________________________________________________________
@@ -275,8 +275,8 @@ L0:     call 'KERNEL32.WaitForDebugEvent' DEBUG_EVENT, &INFINITE
                                            &DBG_EXCEPTION_NOT_HANDLED
     .End_While
 
-L9: call 'Kernel32.CloseHandle' D$PI.hProcess
-    call 'Kernel32.CloseHandle' D$PI.hThread
+L9: call 'Kernel32.CloseHandle' D$PI.hProcess | and D$PI.hProcess 0
+    call 'Kernel32.CloseHandle' D$PI.hThread | and D$PI.hThread 0
 ret
 
 

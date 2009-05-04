@@ -206,7 +206,7 @@ L2:     mov ecx &MAX_PATH | add ecx MenuItemString | sub ecx edi
     call 'KERNEL32.ReadFile' D$StructuresFileHandle, D$WinStructures,
                              D$StructuresFileSize, NumberOfReadBytes, 0
 
-    call 'KERNEL32.CloseHandle' D$StructuresFileHandle
+    call 'KERNEL32.CloseHandle' D$StructuresFileHandle | and D$StructuresFileHandle 0
 ret
 
 ____________________________________________________________________________________________

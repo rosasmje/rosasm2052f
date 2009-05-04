@@ -6060,7 +6060,7 @@ SaveDialogToDisk:
     call 'KERNEL32.WriteFile' D$DestinationHandle, D$ClipTemplate, D$ClipTemplateLength,
                               NumberOfReadBytes  0
 
-    call 'KERNEL32.CloseHandle' D$DestinationHandle | mov D$DestinationHandle 0
+    call 'KERNEL32.CloseHandle' D$DestinationHandle | and D$DestinationHandle 0
 
 L9: VirtualFree D$ClipTemplate
     mov B$InsideText &FALSE
@@ -6126,7 +6126,7 @@ OpenDlgFile:
                                  D$ClipBoardLen NumberOfReadBytes 0
     End_If
 
-    call 'KERNEL32.CloseHandle' D$OtherSourceHandle
+    call 'KERNEL32.CloseHandle' D$OtherSourceHandle | and D$OtherSourceHandle 0
 ret
 ____________________________________________________________________________________________
 ____________________________________________________________________________________________
@@ -7108,7 +7108,7 @@ SaveToBinaryFile:
 
     call 'KERNEL32.WriteFile' D$DestinationHandle, esi, ecx, NumberOfReadBytes  0
 
-    call 'KERNEL32.CloseHandle' D$DestinationHandle | mov D$DestinationHandle 0
+    call 'KERNEL32.CloseHandle' D$DestinationHandle | and D$DestinationHandle 0
 ret
 
 
@@ -7150,7 +7150,7 @@ LoadFromBinaryFile:
         ret
     End_If
 
-    call 'KERNEL32.CloseHandle' D$OtherSourceHandle
+    call 'KERNEL32.CloseHandle' D$OtherSourceHandle | and D$OtherSourceHandle 0
 
     mov esi DialogList | While D$esi <> 0 | add esi 12 | End_While
     mov D$DialogListPtr esi
@@ -7207,7 +7207,7 @@ ReplaceFromBinaryFile:
         ret
     End_If
 
-    call 'KERNEL32.CloseHandle' D$OtherSourceHandle
+    call 'KERNEL32.CloseHandle' D$OtherSourceHandle | and D$OtherSourceHandle 0
 
     mov edi D$WhatDialogListPtr | sub edi 4
     VirtualFree D$edi+4

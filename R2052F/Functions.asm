@@ -6875,7 +6875,7 @@ L2:     mov D$edi 'Func', D$edi+4 'tion', D$edi+8 's.ap', B$edi+12 'i', B$edi+13
                                      D$ApiFileSize, NumberOfReadBytes, 0
             mov B$ApiFileOK &TRUE
 
-            call 'KERNEL32.CloseHandle' D$ApiFileHandle
+            call 'KERNEL32.CloseHandle' D$ApiFileHandle | and D$ApiFileHandle 0
         .End_If
     popad
 ret

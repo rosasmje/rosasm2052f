@@ -260,7 +260,7 @@ WriteMapFiles:
             call 'KERNEL32.WriteFile' D$MapFileHandle, D$SectionsMap, ecx,
                                       NumberOfReadBytes, 0
 
-            call 'KERNEL32.CloseHandle' D$MapFileHandle
+            call 'KERNEL32.CloseHandle' D$MapFileHandle | and D$MapFileHandle 0
         End_If
 
     pop edi
@@ -278,7 +278,7 @@ WriteMapFiles:
             call 'KERNEL32.WriteFile' D$MapFileHandle, D$SectionsMap, ecx,
                                       NumberOfReadBytes, 0
 
-            call 'KERNEL32.CloseHandle' D$MapFileHandle
+            call 'KERNEL32.CloseHandle' D$MapFileHandle | and D$MapFileHandle 0
         End_If
 
     pop edi
@@ -296,7 +296,7 @@ WriteMapFiles:
             call 'KERNEL32.WriteFile' D$MapFileHandle, D$SectionsMap, ecx,
                                       NumberOfReadBytes, 0
 
-            call 'KERNEL32.CloseHandle' D$MapFileHandle
+            call 'KERNEL32.CloseHandle' D$MapFileHandle | and D$MapFileHandle 0
         End_If
     pop edi
 
@@ -762,7 +762,7 @@ Proc ReadMapFileByte:
             call 'KERNEL32.ReadFile' D$DisassemblyMapHandle, D$DisassemblyMapPtr,
                                      D$DisassemblyMapLen, NumberOfReadBytes, 0
 
-            call 'KERNEL32.CloseHandle' D$DisassemblyMapHandle
+            call 'KERNEL32.CloseHandle' D$DisassemblyMapHandle | and D$DisassemblyMapHandle 0
 
             mov eax D@Ptr | sub eax D$DisImageBase | add eax D$DisassemblyMapPtr
             movzx eax B$eax
@@ -820,7 +820,7 @@ ReadForcedRecordsFile: ; WriteForcedRecordsFile
         call 'KERNEL32.ReadFile' D$DisassemblyMapHandle, D$ForcedRecordsTable,
                                  D$ForcedRecordsSize, NumberOfReadBytes, 0
 
-        call 'KERNEL32.CloseHandle' D$DisassemblyMapHandle
+        call 'KERNEL32.CloseHandle' D$DisassemblyMapHandle | and D$DisassemblyMapHandle 0
 
     Else
         mov D$ForcedRecordsTable 0
@@ -958,7 +958,7 @@ WriteForcedRecordsFile: ; ReadForcedRecordsFile
         call 'KERNEL32.WriteFile' D$DisassemblyMapHandle, D$ForcedRecordsTable,
                                   ecx, NumberOfReadBytes, 0
 
-        call 'KERNEL32.CloseHandle' D$DisassemblyMapHandle
+        call 'KERNEL32.CloseHandle' D$DisassemblyMapHandle | and D$DisassemblyMapHandle 0
     End_If
 ret
 ____________________________________________________________________________________________

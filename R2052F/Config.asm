@@ -1665,7 +1665,7 @@ L1:
     pop esi
     add esi 12 | cmp D$esi 0 | ja L1<
 
-    call 'KERNEL32.CloseHandle' D$ConfigFileHandle
+    call 'KERNEL32.CloseHandle' D$ConfigFileHandle | and D$ConfigFileHandle 0
 
     pop edi, esi
 ret
@@ -1695,7 +1695,7 @@ L1:
     pop esi
     add esi 12 | cmp D$esi 0 | ja L1<
 
-    call 'KERNEL32.CloseHandle' D$ConfigFileHandle
+    call 'KERNEL32.CloseHandle' D$ConfigFileHandle | and D$ConfigFileHandle 0
     pop esi
 ret
 ____________________________________________________________________________________________

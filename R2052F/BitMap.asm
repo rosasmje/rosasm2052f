@@ -44,7 +44,7 @@ LoadBitMap:
     mov edi BmSaveFilter, ecx 260, eax 0 | rep stosd
     call 'Comdlg32.GetOpenFileNameA' BmOpenStruc | On D$BmSaveFilter = 0,  ret
 
-    On D$BmFileHandle > 0, call 'KERNEL32.CloseHandle' D$BmFileHandle
+    On D$BmFileHandle > 0, call 'KERNEL32.CloseHandle' D$BmFileHandle | and D$BmFileHandle 0
 
     call 'KERNEL32.CreateFileA' BmSaveFilter, &GENERIC_READ,
                                 &FILE_SHARE_READ, 0, &OPEN_EXISTING,

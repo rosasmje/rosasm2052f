@@ -897,7 +897,7 @@ SaveMenuBinaryFile:
 
     call 'KERNEL32.WriteFile' D$DestinationHandle, esi, ecx, NumberOfReadBytes  0
 
-    call 'KERNEL32.CloseHandle' D$DestinationHandle | mov D$DestinationHandle 0
+    call 'KERNEL32.CloseHandle' D$DestinationHandle | and D$DestinationHandle 0
 ret
 
 
@@ -939,7 +939,7 @@ LoadMenuBinaryFile:
         ret
     End_If
 
-    call 'KERNEL32.CloseHandle' D$OtherSourceHandle
+    call 'KERNEL32.CloseHandle' D$OtherSourceHandle | and D$OtherSourceHandle 0
 
     mov esi MenuList | While D$esi <> 0 | add esi 12 | End_While
     mov eax D$esi-12 | add eax 1000 | mov D$esi eax
@@ -990,7 +990,7 @@ ReplaceMenuBinaryFile:
         ret
     End_If
 
-    call 'KERNEL32.CloseHandle' D$OtherSourceHandle
+    call 'KERNEL32.CloseHandle' D$OtherSourceHandle | and D$OtherSourceHandle 0
 
     mov esi D$MenuListPtr
     push esi
