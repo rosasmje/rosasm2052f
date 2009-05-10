@@ -937,7 +937,7 @@ FIDentriesTable: FIwidth: B$ 020   FIheight: 020    FIcolorCount: 010  0
 
 [BadFIsiz: 'No 36/36 icon in this file (or too much colors)', 0]
 
-BadFIsize: mov eax BadFIsiz | call MessageBox | ret
+BadFIsize: mov eax BadFIsiz | call MessageBox | jmp L2>>
 
 
 ReadIcoFile:
@@ -975,7 +975,7 @@ L1: On D$esi+8 <> 02E8, jmp BadFIsize
     add esi 12                                       ; ptr to ico data
     mov esi D$esi, edi iIcon, ecx 02E8
     add esi D$IcoFilePtr | rep movsb                 ; Copying to ower buffer
-
+L2:
     call 'KERNEL32.CloseHandle' D$iSourceHandle | and  D$iSourceHandle 0
 
     VirtualFree D$icoFilePtr

@@ -3809,10 +3809,12 @@ ret
 
 Proc tryFastMove:
   Arguments @dest, @src, @nbytes
-  USES ecx, esi, edi
+  USES ecx, edx, esi, edi
 
 mov edi D@Dest, esi D@src, ecx D@nbytes
-cmp ecx 028000 | jb D0> | cmp B$isSSE &TRUE | je @XMMMOVE | cmp B$isMMX &TRUE | je @MMXMOVE
+cmp ecx 030000 | jb D0>
+;cmp B$isSSE &TRUE | je @XMMMOVE
+cmp B$isMMX &TRUE | je @MMXMOVE
 D0:
 shr ecx 2 | rep movsd | mov ecx D@nbytes | and ecx 3 | rep movsb | jmp P9>>
 
@@ -3824,12 +3826,12 @@ L0:
 movq mm4 Q$esi+020 | movq mm5 Q$esi+028 | movq mm6 Q$esi+030 | movq mm7 Q$esi+038
     movntq Q$edi mm0 | movntq Q$edi+08 mm1  | movntq Q$edi+010 mm2 | movntq Q$edi+018 mm3
 movntq Q$edi+020 mm4 | movntq Q$edi+028 mm5 | movntq Q$edi+030 mm6 | movntq Q$edi+038 mm7
-add esi 040 | add edi 040
-L1:
-sub ecx 040 | jae L0< | SFENCE | emms | add ecx 040 | jne D0<< | jmp P9>>
-
+    add esi 040 | add edi 040 | dec edx | je L1>
+L2: sub ecx 040 | jae L0< | SFENCE | emms | add ecx 040 | jne D0<< | jmp P9>>
+L1: SFENCE | mov edx 07FF | jmp L2<
+;;
 @XMMMOVE:
-test edi 0F | je L1> | push eax | mov eax edi | mov ecx 010 | and eax 0F | sub ecx eax
+test edi 0F | je L1>> | push eax | mov eax edi | mov ecx 010 | and eax 0F | sub ecx eax
 sub D@nbytes ecx | rep movsb | mov ecx D@nbytes | pop eax | jmp L1>
 ALIGN 16
 L0:
@@ -3837,9 +3839,10 @@ L0:
 MOVUPS xmm4 X$esi+040 | MOVUPS xmm5 X$esi+050 | MOVUPS xmm6 X$esi+060 | MOVUPS xmm7 X$esi+070
     MOVNTPS X$edi xmm0 | MOVNTPS X$edi+010 xmm1 | MOVNTPS X$edi+020 xmm2 | MOVNTPS X$edi+030 xmm3
 MOVNTPS X$edi+040 xmm4 | MOVNTPS X$edi+050 xmm5 | MOVNTPS X$edi+060 xmm6 | MOVNTPS X$edi+070 xmm7
-add esi 080 | add edi 080
-L1:
-sub ecx 080 | jae L0< | SFENCE | add ecx 080 | jne D0<<
+    add esi 080 | add edi 080 | dec edx | je L1>
+L2: sub ecx 080 | jae L0< | SFENCE | add ecx 080 | jne D0<< | jmp P9>
+L1: SFENCE | mov edx 03FF | jmp L2<
+;;
 EndP
 
 

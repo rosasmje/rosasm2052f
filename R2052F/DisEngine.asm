@@ -5470,13 +5470,14 @@ ret
 Dis_r8_rm8:
     mov W$DisSizeMarker 'B$'
     movzx ebx B$esi | inc esi
-    call WriteByteRegsFromRegBits | mov B$edi ' ' | inc edi | jmp EndWithModRm ;EndWith.D.mem
+    call WriteByteRegsFromRegBits | mov B$edi ' ' | inc edi | jmp EndWithModRm
 ret
 
 Dis_r32_r16__rm32_rm16:
-    On  B$OperandSizeOverride = &TRUE, mov W$DisSizeMarker 'W$'
     movzx ebx B$esi | inc esi
-    call WritedWordRegsFromRegBits | mov B$edi ' ' | inc edi | jmp EndWith.D.mem
+    call WritedWordRegsFromRegBits | mov B$edi ' ' | inc edi
+    On  B$OperandSizeOverride = &TRUE, jmp EndWith.W.mem
+    jmp EndWith.D.mem
 ret
 
 Dis_r32_r16__rm32_rm16_orNone__SignedImm8:

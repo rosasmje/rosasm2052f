@@ -348,10 +348,16 @@ it also can be used as safe macro, because can mostly restore ESP or EBP.
 .updated also Disasm-macros-set
 
 .correcture fixes
-at every API- CloseHandle added 'AND D$HANDLE 0' for null handle.
-uppss, my added FlushFilesBuffers was after CloseHandle.. corrected
-on Brush-handles was CloseHandle; replaced by DeleteObject
-in ReadIcon opened ICON handle was not closed on bad-case. added "Call CloseOtherFilesRead"
+.at every API- CloseHandle added 'AND D$HANDLE 0' for null handle.
+.uppss, my added FlushFilesBuffers was after CloseHandle.. corrected
+.on Brush-handles was CloseHandle; replaced by DeleteObject
+.in ReadIcon opened ICON handle was not closed on bad-case. added "Call CloseOtherFilesRead"
+
+_10
+.in ReadIcoFile on Bad-case CloseHandle was not called. corrected.
+.prev Disasm fix causes change in Dis_r32_r16__rm32_rm16. done
+.upgraded TryFastMove - more SFENCEs. XMMMove discarded, MMXMove is faster.
+
 
 ; this bad taped> [ B|uildCommentedCodeReference:: 32 ] infinite_loop in macros-jobs!!!
 ; if ESC OpenFileName, then prev exe-name lost
