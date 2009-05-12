@@ -1111,8 +1111,8 @@ ReadCheckSum:
     pushad
       ; If a real PE CheckSum has been written, it must be zeroed, before calculation
       ; because it was stored after 'MyCheckSum':
-        mov esi D$UserPeStart | add esi CheckSum | sub esi DosHeader
-        mov D$esi 0
+        mov esi D$UserPeStart | add esi D$esi+03C
+        and D$esi+OptionalHeader.CheckSumDis 0
 
       ; 'MyCheckSum' must not be considered:
         mov esi D$UserPeStart | add esi MyCheckSum | sub esi DosHeader
@@ -1149,6 +1149,11 @@ L0:     If D$RelocSectionSize => 8 ;jE!
 L0:         lodsb | add ebx eax | loop L0<
         End_If
     .End_If
+
+    If D$uRsrcList > 0
+            mov esi D$RsrcSectionOrigine, ecx D$ResourcesTrueSize
+L0:         lodsb | add ebx eax | loop L0<
+    End_If
 
     mov esi D$CodeSource, ecx D$SourceLen
 L0: lodsb | add ebx eax | loop L0<
@@ -1240,8 +1245,10 @@ L1:
         End_If
     End_If
 
-  ;  call 'KERNEL32.WriteFile' D$DestinationHandle, D$CodeSource, D$SourceLen,
-  ;                            NumberOfReadBytes, 0
+    If D$uRsrcList > 0
+        call 'KERNEL32.WriteFile' D$DestinationHandle, D$RsrcSectionOrigine, D$URsrcSize,
+                                  NumberOfReadBytes, 0
+    End_If
 
     call 'KERNEL32.FlushFileBuffers' D$DestinationHandle
     call 'KERNEL32.CloseHandle' D$DestinationHandle | and D$DestinationHandle 0
@@ -1283,7 +1290,16 @@ L0:     adc ax W$esi+ecx*2-2 | dec ecx | jnz L0<
         shr ecx 1
         clc
 L0:     adc ax W$esi+ecx*2-2 | dec ecx | jnz L0<
-       ; adc ax 0
+        adc ax 0
+    End_If
+
+    If D$uRsrcList > 0
+        mov esi D$RsrcSectionOrigine, ecx D$URsrcSize
+        add ebx ecx
+        shr ecx 1
+        clc
+L0:     adc ax W$esi+ecx*2-2 | dec ecx | jnz L0<
+;        adc ax 0
     End_If
 ;;
     mov esi D$CodeSource, ecx D$SourceLen
@@ -1360,6 +1376,54 @@ LoadBookMarks:
     call 'KERNEL32.CloseHandle' D$BookMarksFileHandle | and D$BookMarksFileHandle 0
 ret
 
+
+Proc isValidRosaMZPE:
+  ARGUMENTS @PeStart @PeSize
+  Local @PEend @psects @nsects @szimgraw @szovrl; @szimgvirt
+  Uses EBX ESI EDI
+
+    mov ebx D@PeStart | mov eax D@PeSize | add eax ebx | mov D@PEend eax
+    cmp W$ebx 'MZ' | jne @invalidPE
+    mov esi D$ebx+03C | cmp D@PeSize esi | jbe @invalidPE
+    lea eax D$esi+0108 | cmp D@PeSize eax | jbe @invalidPE
+    add esi ebx | cmp D$esi 'PE' | jne @invalidPE
+    cmp W$esi+FileHeader.MachineDis 014C | jne @invalidPE
+    cmp W$esi+OptionalHeader.MagicDis 010B | jne @notRosaMZPE
+    movzx eax W$esi+FileHeader.SizeOfOptionalHeaderDis | cmp eax 0E0 | jne @notRosaMZPE
+    mov ebx D$esi+OptionalHeader.NumberOfRvaAndSizesDis | shl ebx 3 | add ebx 060 | cmp eax ebx | jne @invalidPE
+    lea edi D$esi+ebx+018 | mov D@psects edi | mov eax D$esi+OptionalHeader.SizeOfHeadersDis
+    cmp D@PeSize eax | jb @invalidPE | sub edi D@PeStart | sub eax edi | jle @invalidPE
+    sub edx edx | mov ecx 028 | div ecx
+    movzx ecx W$esi+FileHeader.NumberOfSectionsDis | mov D@nsects ecx | cmp ecx eax | ja @invalidPE
+    cmp ecx 16 | ja @notRosaMZPE
+    mov edx ecx | shl ecx 5 | shl edx 3 | add edx ecx | add edx esi | sub edx D@PeStart
+    lea edx D$edx+ebx+018 | mov eax D$esi+OptionalHeader.SizeOfHeadersDis | cmp eax edx | jb @invalidPE
+    cmp D@PeSize eax | jb @invalidPE
+    mov ecx D@nsects | mov edi D@psects
+L0: add eax D$edi+SizeOfRawDataDis | add edi 028 | loop L0< | cmp D@PeSize eax | jb @invalidPE
+    move D@szovrl D@PeSize | mov D@szimgraw eax | sub D@szovrl eax
+    mov ecx D@nsects | mov edi D@psects
+    mov eax D$esi+OptionalHeader.SizeOfHeadersDis | mov ebx D$esi+OptionalHeader.SectionAlignmentDis
+L2: sub edx edx | div ebx | test edx edx | je L1> | inc eax
+L1: mul ebx | cmp D$edi+MiscVirtualSizeDis 0 | jne L4> | add eax D$edi+SizeOfRawDataDis | jmp L5>
+L4: add eax D$edi+MiscVirtualSizeDis
+L5: add edi 028 | loop L2<
+    cmp D$esi+OptionalHeader.SizeOfImageDis eax | je L0>
+    sub edx edx | div ebx | test edx edx | je L1> | inc eax
+L1: mul ebx | cmp D$esi+OptionalHeader.SizeOfImageDis eax | jb @invalidPE
+L0: lea eax D$edi+028 | sub eax D@PeStart | cmp D$esi+OptionalHeader.SizeOfHeadersDis eax | jb @notRosaMZPE
+    cmp D$edi '.src' | je L3> | add edi 028 | jmp L0<
+L3: mov edx D$edi+MiscVirtualSizeDis | cmp D@szovrl edx | jne @damagedRosaMZPE
+    mov eax D$edi+PointerToRawDataDis | cmp D@szimgraw eax | je P9>
+    mov eax D@PeSize | sub eax edx | cmp D@szimgraw eax | je P9> | jmp @damagedRosaMZPE
+
+@invalidPE:
+    mov eax 0-1 | jmp P9>
+@notRosaMZPE:
+    mov eax 0-2 | jmp P9>
+@damagedRosaMZPE:
+    mov eax 0-3 | jmp P9>
+EndP
 
 
 [EndOfSourceMemory: ?    OldSourceReady: ?]
@@ -1442,36 +1506,24 @@ ReloadForDissassembler:
 
     call 'KERNEL32.CloseHandle' D$SourceHandle | and D$SourceHandle 0
 
-    mov eax D$UserPeStart | On W$eax <> 'MZ', jmp ExitNotPeExe
+    call isValidRosaMZPE D$UserPeStart D$UserPeLen
+    cmp eax 0-1 | je ExitNotPeExe | cmp eax 0-2 | je TryDisassembly | cmp eax 0-3 | je ExitDamagedRosaPe
+    mov ecx D$UserPeStart | add ecx D$ecx+03C
+    cmp D$ecx+OptionalHeader.DataDirectoryBaseRelocationDis 0 | setne B$RelocsWanted
+    jmp L1>
 
-    mov eax D$UserPeStart | sub eax DosHeader | add eax PeHeaderPointer
-    mov ebx D$eax, eax D$UserPeStart | add eax ebx
-    On eax >= D$UserPeEnd, jmp ExitNotPeExe
-    On D$eax <> 'PE', jmp ExitNotPeExe
-    cmp D$eax+0A0 0 | setne B$RelocsWanted; jE! RelocsWanted
-    mov B$ThisSourceIsDisassembled &FALSE
-
-    mov eax D$UserPeStart | add eax 0178 | mov esi eax     ; +0178 > first section header
-    add eax 400 | mov D$EndOfSectionSearch eax             ; +(10*40) bytes per section
-
-L0: lodsd | cmp eax '.src' | je L1>
-        add esi 36 | cmp esi D$EndOfSectionSearch | jb L0<
-            jmp TryDisassembly
-
+ExitDamagedRosaPe:
+    mov eax D$DamagedRosasmPEPtr | jmp L2>
 ExitNotPeExe:
-    mov eax D$NotPeExePtr | call MessageBox | call AutoNew | jmp StartNewFile
+    mov eax D$NotPeExePtr
+L2: call MessageBox | call AutoNew | jmp StartNewFile
 
-
-L1: lodsd | lodsd | mov D$SourceLen eax
-    lodsd | lodsd | lodsd
-  ; eax = 0 based pointer to source
+L1: mov D$SourceLen edx | add eax D$UserPeStart | mov D$CodeSource eax
 
   ; 'MessageBox' messages could send a WM_PAINT before complete initializations:
     mov D$TiTleTable 0, D$ActualTitle 0
 
     call ReadCheckSum | call ReadHeaderFormat
-
-    add eax D$UserPeStart | mov D$CodeSource eax
 
     mov edi D$CodeSource | add edi D$SourceLen | mov eax 0A0D0A0D, ecx 100
 
@@ -1642,10 +1694,11 @@ ________________________________________________________________________________
 
 ReadHeaderFormat:
     pushad
-        mov eax D$UserPeStart | add eax 0178 | mov esi eax     ; +0178 > first section header
-        add eax 400 | mov D$EndOfSectionSearch eax             ; +(10*40) bytes per section
-
+        mov ebx D$UserPeStart | add ebx D$ebx+03C | movzx ecx W$ebx+06
+        lea esi D$ebx+0F8 ; first section header
+        mov eax 028 | mul ecx | add eax esi | mov D$EndOfSectionSearch eax
       ; Data Characteristics:
+        mov D$DataCharacteristics 0C0000040
         push esi
 L0:         lodsd | cmp eax '.dat' | je L1>
                 add esi 36 | cmp esi D$EndOfSectionSearch | jb L0<
@@ -1653,24 +1706,20 @@ L0:         lodsd | cmp eax '.dat' | je L1>
 L1:         add esi 32
             lodsd | mov D$DataCharacteristics eax
 L0:     pop esi
-
       ; Code Characteristics:
+        mov D$CodeCharacteristics 060000020
 L0:     lodsd | cmp eax '.tex' | je L1>
             add esi 36 | cmp esi D$EndOfSectionSearch | jb L0<
-            mov eax D$NotPEPtr | call MessageBox | ret
+            jmp L0>
 L1:     add esi 32
         lodsd | mov D$CodeCharacteristics eax
-
+L0:
       ; SubSystem, DLL_characteristcs:
-        mov esi PeHeader | sub esi DosHeader
-        add esi D$UserPeStart                   ; >>> 'PE' 0 0
-        add esi 52                              ; >>>> ImageBase
+        lea esi D$ebx+OptionalHeader.ImageBaseDis
 
         mov eax D$esi, D$ImageBase eax, D$LinkerDllDefault eax
-
-        mov edi SubSystem | add esi 40          ; >>> SubSystem // DLL characteristcs
-        mov ax W$esi, W$DllAttachDetach ax
-
+        mov ax W$ebx+OptionalHeader.DllCharacteristicsDis, W$DllAttachDetach ax
+        mov edi SubSystem | lea esi D$ebx+OptionalHeader.SubsystemDis
         movsd
         movsd   ; AppStackMax
         movsd   ; AppStackMin
@@ -2230,14 +2279,17 @@ PrepareDllVariables:
     add eax D$AppTrueCodeSize | Align_On 0200 eax | mov D$AppStartOfExp eax
     add eax D$ExportSectionLen | Align_On 0200 eax
 
-    If D$RelocSectionSize => 8 ;jE!
-        mov D$AppStartOfReloc eax | add eax D$RelocSectionSize | Align_On 0200 eax
+    If D$SavingExtension = '.SYS'
+        jmp L1>
+    Else_If D$RelocsWanted = &TRUE
+L1:     mov D$AppStartOfReloc eax | add eax D$RelocSectionSize | Align_On 0200 eax
     Else
         mov D$AppStartOfSrc eax | dec W$NumberOfSections
     End_If
+
     sub eax D$AppStartOfExp | add D$AppAllDataSize eax
 
-    move eax D$ExportSectionLen , D$AppExpTrueSize eax
+    mov eax D$ExportSectionLen, D$AppExpTrueSize eax
     Align_On 0200 eax | mov D$AppExpAlignedSize eax
 
     mov eax D$AppCodeRVAoffset
@@ -2252,6 +2304,7 @@ PrepareDllVariables:
     mov eax D$AppBaseOfExp | sub eax D$ExportListBPtr | mov D$ExportAjust eax
 
     mov eax D$ExportSectionLen | Align_On 0200 eax | mov D$FileAlignedExportSectionLen eax
+    Align_On 01000 eax | add D$uImageSize eax
 ret
 
 ;;
@@ -2309,6 +2362,11 @@ L1:
                                    D$Relocation, D$FileAlignedRelocationSize,
                                    NumberOfReadBytes, 0
         End_If
+    End_If
+
+    If D$uRsrcList > 0
+        call 'KERNEL32.WriteFile' D$DestinationHandle, D$RsrcSectionOrigine, D$URsrcSize,
+                                  NumberOfReadBytes, 0
     End_If
 
     call 'KERNEL32.WriteFile' D$DestinationHandle, D$CodeSource, D$SourceLen,
@@ -6539,7 +6597,7 @@ BuildImport:
     call SearchForApis      ; copy all api calls in ApiListA (> edi > end of ApiListA).
 
     If edi = D$ApiListA     ; case of DLL with no api call
-        mov D$uBaseOfRsrc 01000, D$uImportSize 0 | ret
+        mov D$uBaseOfData 01000, D$uImportSize 0 | ret
     End_If
 
     call FullfillApiList   ; FullFill each Function in the 'MODULE.ext.Function' Form.
@@ -6557,7 +6615,7 @@ BuildImport:
     mov D$CodeListPtr eax
 
     sub eax D$CodeList | sub eax 0400 | add eax 01000 | Align_on 01000 eax
-    mov D$uBaseOfRsrc eax
+    mov D$uBaseOfData eax
     mov eax edi | sub eax 0400 | sub eax D$CodeList | mov D$uImportSize eax
 
   ; Release all the loaded Modules not belonging to RosAsm Process:
@@ -6862,6 +6920,71 @@ E0: mov D$ErrorLevel 0 | mov ecx D$StatementsPtr | mov D$ecx edi
 
  __________________________________________________________________________________________
  __________________________________________________________________________________________
+[SignatureDis 0
+ FileHeader.MachineDis 4
+ FileHeader.NumberOfSectionsDis 6
+ FileHeader.TimeDateStampDis 8
+ FileHeader.PointerToSymbolTableDis 12
+ FileHeader.NumberOfSymbolsDis 16
+ FileHeader.SizeOfOptionalHeaderDis 20
+ FileHeader.CharacteristicsDis 22
+ OptionalHeader.MagicDis 24
+ OptionalHeader.MajorLinkerVersionDis 26
+ OptionalHeader.MinorLinkerVersionDis 27
+ OptionalHeader.SizeOfCodeDis 28
+ OptionalHeader.SizeOfInitializedDataDis 32
+ OptionalHeader.SizeOfUninitializedDataDis 36
+ OptionalHeader.AddressOfEntryPointDis 40
+ OptionalHeader.BaseOfCodeDis 44
+ OptionalHeader.BaseOfDataDis 48
+ OptionalHeader.ImageBaseDis 52
+ OptionalHeader.SectionAlignmentDis 56
+ OptionalHeader.FileAlignmentDis 60
+ OptionalHeader.MajorOperatingSystemVersionDis 64
+ OptionalHeader.MinorOperatingSystemVersionDis 66
+ OptionalHeader.MajorImageVersionDis 68
+ OptionalHeader.MinorImageVersionDis 70
+ OptionalHeader.MajorSubsystemVersionDis 72
+ OptionalHeader.MinorSubsystemVersionDis 74
+ OptionalHeader.Win32VersionValueDis 76
+ OptionalHeader.SizeOfImageDis 80
+ OptionalHeader.SizeOfHeadersDis 84
+ OptionalHeader.CheckSumDis 88
+ OptionalHeader.SubsystemDis 92
+ OptionalHeader.DllCharacteristicsDis 94
+ OptionalHeader.SizeOfStackReserveDis 96
+ OptionalHeader.SizeOfStackCommitDis 100
+ OptionalHeader.SizeOfHeapReserveDis 104
+ OptionalHeader.SizeOfHeapCommitDis 108
+ OptionalHeader.LoaderFlagsDis 112
+ OptionalHeader.NumberOfRvaAndSizesDis 116
+ OptionalHeader.DataDirectoryDis 120
+ OptionalHeader.DataDirectoryExportDis 120
+ OptionalHeader.DataDirectoryImportDis 128
+ OptionalHeader.DataDirectoryResourceDis 136
+ OptionalHeader.DataDirectoryExceptionDis 144
+ OptionalHeader.DataDirectoryCertificateDis 152
+ OptionalHeader.DataDirectoryBaseRelocationDis 160
+ OptionalHeader.DataDirectoryDebugDis 168
+ OptionalHeader.DataDirectoryArchitectureDis 176
+ OptionalHeader.DataDirectoryGlobalPtrDis 184
+ OptionalHeader.DataDirectoryTLSDis 192
+ OptionalHeader.DataDirectoryLoadConfigDis 200
+ OptionalHeader.DataDirectoryBoundImportDis 208
+ OptionalHeader.DataDirectoryIATDis 216
+ OptionalHeader.DataDirectoryDelayImportDescriptorDis 224
+ OptionalHeader.DataDirectoryCOMRuntimeHeaderDis 232
+ OptionalHeader.DataDirectoryReservedDis 240]
+[Name1Dis 0
+ MiscVirtualSizeDis 8
+ VirtualAddressDis 12
+ SizeOfRawDataDis 16
+ PointerToRawDataDis 20
+ PointerToRelocationsDis 24
+ PointerToLinenumbersDis 28
+ NumberOfRelocationsDis 32
+ NumberOfLinenumbersDis 34
+ CharacteristicsDis 36]
 ;;
  these 2 following stubs are used to create new PE. only 'Labelled' values are
  modified according with source values. Main filling work is done by the 'Build...'
@@ -6991,7 +7114,7 @@ AppBaseOfImports: D$ 0      ; RVA
 AppImportAlignedSize: D$ 0  ; 200h+ImportExt (Physical File Size)
 AppStartOfImport: D$ 0      ; idata ptr
 D$ 0,0,0
-D$ 0_C0000040               ; readable, writable, initialised data
+D$ 0_40000040               ; readable, writable, initialised data
 
 
 ResourceSectionHeader:
@@ -7045,7 +7168,7 @@ AppRelocTrueSize: 0
 AppBaseOfReloc: 0
 AppRelocAlignedSize: 0
 AppStartOfReloc: 0   0 0 0
-D$ 0_40000040               ; readable initialised data
+D$ 0_42000040               ; readable initialised data
 
 D$ 0 0   0 0 0 0   0 0 0 0  ; just ensure to stop win search of sections.
 
@@ -7106,32 +7229,27 @@ ret
 
 UserMainData:
     move D$ImportTrueSize D$uImportSize,
-         D$ResourcesTrueSize D$uRsrcSize,
          D$DataTrueSize D$uDataSize
 
     mov eax D$uImportSize | Align_on 0200 eax
 
     mov D$uImportSize eax | mov ecx eax
-    mov eax D$uRsrcSize | Align_on 0200 eax
-    mov D$uRsrcSize eax | add ecx, eax
     move D$TrueUserDataSize D$uDataSize    ; preserve for the whole (with virtual size) Align
     mov eax D$uDataSize | Align_on 0200 eax
-    mov D$uDataSize eax | add ecx, eax
-    mov eax D$CodelistPtr | sub eax D$CodeList | sub eax 0400 | sub eax, ecx
+    mov D$uDataSize eax | add ecx eax
+    mov eax D$CodelistPtr | sub eax D$CodeList | sub eax 0400 | sub eax ecx
     move D$CodeTrueSize eax
     mov D$AppTrueCodeSize eax
     Align_on 0200 eax | mov D$uCodeSize eax
 
     mov eax 0400 | mov D$uStartOfImport eax
-        add eax D$uImportSize | mov D$uStartOfRsrc eax
-        add eax, D$URsrcSize | mov D$uStartOfData eax
+        add eax D$uImportSize
+        mov D$uStartOfData eax
         add eax D$uDataSize | mov D$uStartOfCode eax
         add eax D$uCodeSize | mov D$uEndOfFile eax
 
     mov eax 01000 | mov D$uBaseOfImport eax
         add eax D$UImportSize | Align_on 01000 eax
-        mov D$uBaseOfRsrc eax
-        add eax D$uRsrcSize | Align_on 01000 eax
         mov D$uBaseOfData eax
         add eax D$TrueUserDataSize | add eax D$uVirtualDataSize | Align_on 01000 eax
         mov D$uBaseOfCode eax
@@ -7165,10 +7283,6 @@ PreparePeHeader:
 ;           D$uBaseOfCode
 
   move D$AppBaseOfImport D$uBaseOfImport
-
-  move D$AppBaseOfRsrc D$uBaseOfRsrc
-  move D$AppRsrcSize D$uRsrcSize       ; should be unaligned size of the section
-
 __________________
 
   move D$AppCodeRVAoffset D$uBaseOfCode
@@ -7186,11 +7300,6 @@ __________________
   move D$AppBaseOfImports D$uBaseOfImport
   move D$AppImportAlignedSize D$uImportSize
   move D$AppStartOfImport D$uStartOfImport
-
-  move D$AppRsrcTrueSize D$ResourcesTrueSize
-  move D$AppBaseOfRsrcs D$uBaseOfRsrc
-  move D$AppRsrcAlignedSize D$uRsrcSize
-  move D$AppStartOfRsrc D$uStartOfRsrc
 
 ; Store source values in .Src section:
   move D$AppSrcTrueSize D$SourceLen
@@ -7244,10 +7353,11 @@ L1:     On D$RelocSectionSize => 8, inc eax      ;jE! If Reloc Section wanted.
     If D$SavingExtension = '.DLL'
         or eax &IMAGE_FILE_DLL
         On D$RelocSectionSize < 8, or eax &IMAGE_FILE_RELOCS_STRIPPED ;jE!
+        ON D$RelocsWanted = &FALSE, or eax &IMAGE_FILE_RELOCS_STRIPPED ;jE!
     Else_If D$SavingExtension = '.SYS'
         On D$RelocSectionSize < 8, or eax &IMAGE_FILE_RELOCS_STRIPPED ;jE!
     Else
-        or eax &IMAGE_FILE_RELOCS_STRIPPED
+        ON D$RelocsWanted = &FALSE, or eax &IMAGE_FILE_RELOCS_STRIPPED ;jE!
     End_If
 
 
@@ -7338,7 +7448,7 @@ L1:     On D$RelocSectionSize => 8, inc eax      ;jE! If Reloc Section wanted.
 
     If D$uRsrcList > 0
         mov eax D$uBaseOfRsrc | stosd
-        mov eax D$uRsrcSize | stosd
+        mov eax D$ResourcesTrueSize | stosd
     Else
         add edi 8
     End_If
@@ -7370,12 +7480,7 @@ L1:     If D$RelocSectionSize => 8 ;jE!
 
     If D$uImportSize > 0
         call WriteOneSectionHeader '.ida', 'ta', D$ImportTrueSize,
-            &IMAGE_SCN_CNT_INITIALIZED_DATA__&IMAGE_SCN_MEM_READ__&IMAGE_SCN_MEM_WRITE
-    End_If
-
-    If D$uRsrcList > 0
-        call WriteOneSectionHeader '.rsr', 'c', D$ResourcesTrueSize,
-            &IMAGE_SCN_CNT_INITIALIZED_DATA__&IMAGE_SCN_MEM_READ
+            &IMAGE_SCN_CNT_INITIALIZED_DATA__&IMAGE_SCN_MEM_READ;__&IMAGE_SCN_MEM_WRITE
     End_If
 
     If D$uDataSize > 0
@@ -7411,9 +7516,14 @@ L1:     If D$RelocSectionSize => 8 ;jE!
             mov ebx D$FinalAppBaseOfReloc, eax D$NextSectionHeaderRVA, D$ebx eax
 
             call WriteOneSectionHeader '.rel', 'oc', D$RelocSectionSize,
-                &IMAGE_SCN_CNT_INITIALIZED_DATA__&IMAGE_SCN_MEM_READ
+                &IMAGE_SCN_CNT_INITIALIZED_DATA__&IMAGE_SCN_MEM_READ__&IMAGE_SCN_MEM_DISCARDABLE
         End_If
     .End_If
+
+    If D$uRsrcList > 0
+        call WriteOneSectionHeader '.rsr', 'c', D$ResourcesTrueSize,
+            &IMAGE_SCN_CNT_INITIALIZED_DATA__&IMAGE_SCN_MEM_READ
+    End_If
 
     mov ebx D$FinalImageSize, eax D$NextSectionHeaderRVA, D$ebx eax
 
@@ -11212,12 +11322,8 @@ InitRelocationForData:
 
         mov edi D$RelocationPtr
 
-        mov eax D$uBaseOfImport | add eax D$ImportTrueSize | Align_On 01000 eax
-
-        If B$NoResources = &FALSE
-            add eax D$uRsrcSize | Align_On 01000 eax
-        End_If
-
+        ;mov eax D$uBaseOfImport | add eax D$ImportTrueSize | Align_On 01000 eax
+        mov eax D$uBaseOfData
         mov D$RelocPage eax | stosd
 
         mov eax 0 | stosd
@@ -11231,11 +11337,7 @@ InitRelocationForCode:
     push edi eax
         mov edi D$RelocationPtr
 
-        mov eax D$uBaseOfImport | add eax D$ImportTrueSize | Align_On 01000 eax
-
-        If B$NoResources = &FALSE
-            add eax D$uRsrcSize | Align_On 01000 eax
-        End_If
+;        mov eax D$uBaseOfImport | add eax D$ImportTrueSize | Align_On 01000 eax
 
         ;add eax D$uDataSize | Align_On 01000 eax
         mov eax D$uBaseOfCode
@@ -11315,6 +11417,11 @@ BuildRelocationAndFillSymbols:                      ; >>> StoreReloc <<<
   ; Reuse 'RelocSectionSize' to hold what it says, as a whole for headers values:
     mov eax D$RelocationPtr | sub eax D$Relocation | mov D$RelocSectionSize eax
     Align_On 0200 eax | mov D$FileAlignedRelocationSize eax
+    If D$SavingExtension = '.SYS'
+        jmp L1>
+    Else_If D$RelocsWanted = &TRUE
+L1:     Align_On 01000 eax | add D$uImageSize eax
+    End_If
 ret
 
 

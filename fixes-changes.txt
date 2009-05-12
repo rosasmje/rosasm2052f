@@ -359,5 +359,15 @@ _10
 .upgraded TryFastMove - more SFENCEs. XMMMove discarded, MMXMove is faster.
 
 
+!! RosAsm2052G_00
+. RESOURCE section will last section!! (before SRC)
+because RSRC section was before other sections, editing RSRC by other editors was mostly impossible.
+Resource Editors don't&can't relocate any code-data & thusly damage image, if RSRC-section will require enlarging.
+Now this is in past..
+Note: seems, this modification is backward-compatible.
+.Added proc isValidRosaMZPE; does many checks in PE-header. discovers Source pointer&size; (if changed by RSRC-editor)
+added Error-string DamagedRosasmPE. added PE-header Equates.
+
+
 ; this bad taped> [ B|uildCommentedCodeReference:: 32 ] infinite_loop in macros-jobs!!!
 ; if ESC OpenFileName, then prev exe-name lost

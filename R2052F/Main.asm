@@ -16,7 +16,7 @@ TITLE Main
 [RosAsmMutexName: B$ 'RosAsmIsRuning', 0   MultiInstance: &FALSE]
 
 [ClassName: B$ 'RosAsmWindowClass' 0   EditClassName: 'EDIT' 0
- AppName: '  RosAsm, The Bottom-Up Assembler for ReactOS -V.2.052f-' 0]
+ AppName: '  RosAsm, The Bottom-Up Assembler for ReactOS -V.2.052G-' 0]
 
 
 [WndClassEx:

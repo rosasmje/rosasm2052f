@@ -561,7 +561,8 @@ ________________________________________________________________________________
 
 NewBuildResourceTree:
   ; Initialisation of tree pointers:
-    mov eax D$CodeListPtr, D$RsrcHeadPtr eax, D$RsrcTypePtr eax,
+    mov eax D$CodeListPtr | ALIGN_ON 0200 eax
+    mov D$CodeListPtr eax, D$RsrcHeadPtr eax, D$RsrcTypePtr eax,
       D$RsrcLangPtr eax, D$RsrcPtrPtr eax, D$RsrcSectionPtr eax,
       D$RsrcSectionOrigine eax
 
@@ -872,21 +873,33 @@ BuildRsrc:
         mov B$NoMainIcon &TRUE
     .End_If
 
-
   ; THIS LINE SHOULD BE COMMENTED FOR TESTING WITH RsrcSTUB:
     call NewTemporaryFillRsrcList
 
   ; THIS LINE SHOULD BE UNCOMMENTED FOR TESTING WITH RsrcSTUB:
   ;  mov esi RsrcStub, edi uRsrcList, ecx D$RsrcStubLen | rep movsd | sub edi 4 | mov D$uRsrcListPtr edi
 
-
     If D$uRsrcList = 0
         mov B$NoResources &TRUE
     Else
+        mov eax D$uImageSize | Align_on 01000 eax | mov D$uBaseOfRsrc eax
         call NewBuildResourceTree
+        call FixHeadersForRsrc
     End_If
 ret
 
+FixHeadersForRsrc:
+    move D$ResourcesTrueSize D$uRsrcSize
+    Align_on 0200 D$URsrcSize
+    mov eax D$uEndOfFile | Align_on 0200 eax | mov D$uStartOfRsrc eax | add eax D$URsrcSize | mov D$uEndOfFile eax
+    mov eax D$uImageSize | Align_on 01000 eax | add eax D$URsrcSize | Align_on 01000 eax | mov D$uImageSize eax
+    move D$AppBaseOfRsrc D$uBaseOfRsrc
+    move D$AppRsrcSize D$ResourcesTrueSize
+    move D$AppRsrcTrueSize D$ResourcesTrueSize
+    move D$AppBaseOfRsrcs D$uBaseOfRsrc
+    move D$AppRsrcAlignedSize D$uRsrcSize
+    move D$AppStartOfRsrc D$uStartOfRsrc
+ret
 
 ; TESTING STUB
 ; This will serve until we create a Resources menu item to add Custom Type Resources
