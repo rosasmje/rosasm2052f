@@ -166,10 +166,6 @@ L2: call ExtendLocalSymbols
 
 ;jmp L7>>
     call InitIndex3
-    call BarProgress
-    call 'User32.SendMessageA' D$hwndForBar, &WM_SETTEXT, 0, BuildingRsrc
-
-    call BuildRsrc
 
     call 'KERNEL32.GetTickCount' | mov D$Time2 eax
     call BarProgress
@@ -211,6 +207,11 @@ L2: call ExtendLocalSymbols
     If B$ExportsectionWanted = &TRUE
         call PrepareDllVariables | call FillExportSection
     End_If
+
+    call BarProgress
+    call 'User32.SendMessageA' D$hwndForBar, &WM_SETTEXT, 0, BuildingRsrc
+
+    call BuildRsrc
 
     call WritePeHeaders
 

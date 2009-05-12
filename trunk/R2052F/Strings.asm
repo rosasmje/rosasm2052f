@@ -253,6 +253,7 @@ TITLE Strings
   NeedSpaceAfterColon: 'Need SPACE or new Line after COLON', 0
   BadExportOrdinal: '"ORD" reserved for Exports. Ordinal must be between 1 and 65535', 0
   SameExportOrdinal: 'Two Exported-Ordinals with same index found', 0
+  DamagedRosasmPE: 'Damaged Rosasm PE file! Recover Source and Resource manualy', 0
 ]
 
 
@@ -437,6 +438,7 @@ TITLE Strings
  173 NeedSpaceAfterColonPtr: NeedSpaceAfterColon
  174 BadExportOrdinalPtr: BadExportOrdinal
  175 SameExportOrdinalPtr: SameExportOrdinal
+ 176 DamagedRosasmPEPtr: DamagedRosasmPE
 ____________________________________________________________________________________________
 ; Debugger strings
 
