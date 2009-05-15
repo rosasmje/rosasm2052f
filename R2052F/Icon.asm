@@ -733,7 +733,7 @@ ReadRosAsmPeIcon:                     ; reused by general purpose RosAsm PE open
 
     mov esi D$iExePtr | add esi eax
     If D$esi <> 'PE'
-        mov esi D$iExePtr | add esi 03C | lodsd | add eax D$iExePtr | mov esi eax
+        mov esi D$iExePtr | add esi D$esi+03C
         cmp D$esi 'PE' | jne PeNotFound
     End_If
 

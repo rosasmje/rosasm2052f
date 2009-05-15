@@ -254,6 +254,7 @@ TITLE Strings
   BadExportOrdinal: '"ORD" reserved for Exports. Ordinal must be between 1 and 65535', 0
   SameExportOrdinal: 'Two Exported-Ordinals with same index found', 0
   DamagedRosasmPE: 'Damaged Rosasm PE file! Recover Source and Resource manualy', 0
+  PEstructError: 'PE-structure has Errors! Try to fix..', 0
 ]
 
 
@@ -439,6 +440,7 @@ TITLE Strings
  174 BadExportOrdinalPtr: BadExportOrdinal
  175 SameExportOrdinalPtr: SameExportOrdinal
  176 DamagedRosasmPEPtr: DamagedRosasmPE
+ 177 PEstructErrorPtr: PEstructError
 ____________________________________________________________________________________________
 ; Debugger strings
 
