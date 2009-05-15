@@ -1048,41 +1048,34 @@ ret
 [UserPEStartOfResources: ?    ResourcesSize: ?]
 
 SearchPEstartOfResource:
-    mov B$NoResourcesPE &FALSE
+    mov B$NoResourcesPE &TRUE
     mov esi D$UserPeStart, D$UserPEStartOfResources 0
-    movzx eax W$esi+8
-   ; mov eax 0 | add esi 8 | lodsw    ; parag. size of dos header end >PE header adress
-    shl eax 4 | sub eax 4
-    mov esi D$UserPeStart | add esi eax | lodsd      ; eax = PE header
-
-    mov esi D$UserPeStart | add esi eax
-    cmp D$esi 'PE' | jne L9>
+    add esi D$esi+03C
+    ON D$esi <> 'PE', ret
  ______________________________________
 
 ; read data in PeHeader:
 
-L0: mov ecx 0 | mov cx w$esi+6            ; word record of section number
-    add esi 136 | lodsd | mov ebx eax     ; RVA of resources from "Image Data Dir..."
-    mov D$ResourcesRVA eax
-    move D$ResourcesSize D$esi
+    ON D$esi+OptionalHeader.DataDirectoryResourceDis = 0, ret
+    move D$ResourcesRVA D$esi+OptionalHeader.DataDirectoryResourceDis,
+         D$ResourcesSize D$esi+OptionalHeader.DataDirectoryResourceDis+4
 
-                     ; jmp over general purpose headers and reach PE sections headers:
-    add esi 120                           ; esi points to RVA of first section header
-    If eax = 0
-        mov B$NoResourcesPE &TRUE | ret
-    End_If
+    movzx ecx W$esi+FileHeader.NumberOfSectionsDis
+    movzx eax W$esi+FileHeader.SizeOfOptionalHeaderDis
+    lea esi D$esi+eax+018 | mov eax D$ResourcesRVA
 
-L0: lodsd | cmp eax ebx | je L1>
-        add esi 36 | loop L0<
-          jmp L9>
+L0: cmp D$esi+VirtualAddressDis eax | je L1>
+        add esi 028 | loop L0<
+        ret
  ______________________________________
 
   ; if here, '.rsrc' section found:
 
-L1:
-    add esi 4 | lodsd                            ; > app ptr to resources
+L1: ON D$esi <> '.rsr', ret
+    mov B$NoResourcesPE &FALSE
+    mov eax D$esi+PointerToRawDataDis
     add eax D$UserPeStart | mov D$UserPEStartOfResources eax
-L9: ret
+    ret
 
 
 [EndOfSectionSearch: ?]
@@ -1377,54 +1370,101 @@ LoadBookMarks:
 ret
 
 
-Proc isValidRosaMZPE:
+Proc isValidMZPE:
   ARGUMENTS @PeStart @PeSize
-  Local @PEend @psects @nsects @szimgraw @szovrl; @szimgvirt
+  Local @PEend @psects @nsects @szimgraw @szovrl @ImageVsz
   Uses EBX ESI EDI
 
     mov ebx D@PeStart | mov eax D@PeSize | add eax ebx | mov D@PEend eax
-    cmp W$ebx 'MZ' | jne @invalidPE
-    mov esi D$ebx+03C | cmp D@PeSize esi | jbe @invalidPE
-    lea eax D$esi+0108 | cmp D@PeSize eax | jbe @invalidPE
+    cmp W$ebx 'MZ' | jne @invalidPE | mov esi D$ebx+03C | test esi esi | je @invalidPE
+    cmp D@PeSize esi | jbe @invalidPE | lea eax D$esi+078 | cmp D@PeSize eax | jbe @invalidPE
     add esi ebx | cmp D$esi 'PE' | jne @invalidPE
     cmp W$esi+FileHeader.MachineDis 014C | jne @invalidPE
-    cmp W$esi+OptionalHeader.MagicDis 010B | jne @notRosaMZPE
-    movzx eax W$esi+FileHeader.SizeOfOptionalHeaderDis | cmp eax 0E0 | jne @notRosaMZPE
-    mov ebx D$esi+OptionalHeader.NumberOfRvaAndSizesDis | shl ebx 3 | add ebx 060 | cmp eax ebx | jne @invalidPE
-    lea edi D$esi+ebx+018 | mov D@psects edi | mov eax D$esi+OptionalHeader.SizeOfHeadersDis
+    cmp W$esi+OptionalHeader.MagicDis 010B | jne @invalidPE
+    cmp W$esi+OptionalHeader.SubsystemDis 3 | ja @invalidPE
+    movzx eax W$esi+FileHeader.SizeOfOptionalHeaderDis
+    mov ebx D$esi+OptionalHeader.NumberOfRvaAndSizesDis
+    shl ebx 3 | add ebx 060 | cmp eax ebx | jne @invalidPE
+
+    lea edi D$esi+ebx+018 | mov D@psects edi | cmp D@PEend edi | jbe @invalidPE
+    mov eax D$esi+OptionalHeader.SizeOfHeadersDis
     cmp D@PeSize eax | jb @invalidPE | sub edi D@PeStart | sub eax edi | jle @invalidPE
     sub edx edx | mov ecx 028 | div ecx
     movzx ecx W$esi+FileHeader.NumberOfSectionsDis | mov D@nsects ecx | cmp ecx eax | ja @invalidPE
-    cmp ecx 16 | ja @notRosaMZPE
-    mov edx ecx | shl ecx 5 | shl edx 3 | add edx ecx | add edx esi | sub edx D@PeStart
-    lea edx D$edx+ebx+018 | mov eax D$esi+OptionalHeader.SizeOfHeadersDis | cmp eax edx | jb @invalidPE
-    cmp D@PeSize eax | jb @invalidPE
+
+    imul ecx ecx 028 | add ecx D@psects | cmp D@PEend ecx | jbe @invalidPE
+    sub ecx D@PeStart | mov eax D$esi+OptionalHeader.SizeOfHeadersDis
+    cmp eax ecx | jb @invalidPE
+
     mov ecx D@nsects | mov edi D@psects
 L0: add eax D$edi+SizeOfRawDataDis | add edi 028 | loop L0< | cmp D@PeSize eax | jb @invalidPE
     move D@szovrl D@PeSize | mov D@szimgraw eax | sub D@szovrl eax
+
+    mov ebx D$esi+OptionalHeader.FileAlignmentDis
     mov ecx D@nsects | mov edi D@psects
-    mov eax D$esi+OptionalHeader.SizeOfHeadersDis | mov ebx D$esi+OptionalHeader.SectionAlignmentDis
+    jmp L2>
+L0: mov eax D$edi+SizeOfRawDataDis | add edi 028
+    sub edx edx | div ebx | test edx edx | jne @invalidPE
+L2: dec ecx | jg L0<
+
+    mov ecx D@nsects | mov edi D@psects
+L0: mov eax D$edi+PointerToRawDataDis | add edi 028
+    sub edx edx | div ebx | test edx edx | jne @invalidPE
+    dec ecx | jg L0<
+
+    mov ebx D$esi+OptionalHeader.SectionAlignmentDis
+    mov eax D$esi+OptionalHeader.SizeOfImageDis
+    sub edx edx | div ebx | test edx edx | je L0> | inc eax
+L0: mul ebx | mov D@ImageVsz eax
+
+    mov ecx D@nsects | mov edi D@psects
+L0: mov eax D$edi+VirtualAddressDis | add edi 028 | cmp D@ImageVsz eax | jb @invalidPE
+    sub edx edx | div ebx | test edx edx | jne @invalidPE
+    dec ecx | jg L0<
+
+    mov ecx D@nsects | mov edi D@psects | mov eax D$esi+OptionalHeader.SizeOfHeadersDis
 L2: sub edx edx | div ebx | test edx edx | je L1> | inc eax
 L1: mul ebx | cmp D$edi+MiscVirtualSizeDis 0 | jne L4> | add eax D$edi+SizeOfRawDataDis | jmp L5>
 L4: add eax D$edi+MiscVirtualSizeDis
 L5: add edi 028 | loop L2<
-    cmp D$esi+OptionalHeader.SizeOfImageDis eax | je L0>
+
     sub edx edx | div ebx | test edx edx | je L1> | inc eax
-L1: mul ebx | cmp D$esi+OptionalHeader.SizeOfImageDis eax | jb @invalidPE
+L1: mul ebx | cmp D@ImageVsz eax | jne @invalidPE
+
+    sub eax eax | jmp P9>
+@invalidPE:
+    or eax 0-1
+EndP
+
+
+Proc isValidRosaMZPE:
+  ARGUMENTS @PeStart @PeSize
+  Local @PEend @psects @nsects @szimgraw @szovrl
+  Uses EBX ESI EDI
+
+    mov esi D@PeStart | mov eax D@PeSize | add eax esi | mov D@PEend eax
+    add esi D$esi+03C
+    movzx edi W$esi+FileHeader.SizeOfOptionalHeaderDis | cmp edi 0E0 | jne @notRosaMZPE
+    lea edi D$esi+edi+018 | mov D@psects edi
+
+    movzx ecx W$esi+FileHeader.NumberOfSectionsDis | mov D@nsects ecx
+    cmp ecx 6 | ja @notRosaMZPE
+
+    mov eax D$esi+OptionalHeader.SizeOfHeadersDis
+L0: add eax D$edi+SizeOfRawDataDis | add edi 028 | loop L0<
+    move D@szovrl D@PeSize | mov D@szimgraw eax | sub D@szovrl eax
+
 L0: lea eax D$edi+028 | sub eax D@PeStart | cmp D$esi+OptionalHeader.SizeOfHeadersDis eax | jb @notRosaMZPE
     cmp D$edi '.src' | je L3> | add edi 028 | jmp L0<
 L3: mov edx D$edi+MiscVirtualSizeDis | cmp D@szovrl edx | jne @damagedRosaMZPE
     mov eax D$edi+PointerToRawDataDis | cmp D@szimgraw eax | je P9>
-    mov eax D@PeSize | sub eax edx | cmp D@szimgraw eax | je P9> | jmp @damagedRosaMZPE
+    mov eax D@PeSize | sub eax edx | cmp D@szimgraw eax | je P9>
 
-@invalidPE:
-    mov eax 0-1 | jmp P9>
 @notRosaMZPE:
     mov eax 0-2 | jmp P9>
 @damagedRosaMZPE:
-    mov eax 0-3 | jmp P9>
+    mov eax 0-3
 EndP
-
 
 [EndOfSourceMemory: ?    OldSourceReady: ?]
 
@@ -1505,13 +1545,15 @@ ReloadForDissassembler:
     call 'KERNEL32.ReadFile' D$SourceHandle, D$UserPeStart, D$UserPeLen, NumberOfReadBytes, 0
 
     call 'KERNEL32.CloseHandle' D$SourceHandle | and D$SourceHandle 0
-
+    call isValidMZPE D$UserPeStart D$UserPeLen | test eax eax | jne ExitDamagedPe
     call isValidRosaMZPE D$UserPeStart D$UserPeLen
-    cmp eax 0-1 | je ExitNotPeExe | cmp eax 0-2 | je TryDisassembly | cmp eax 0-3 | je ExitDamagedRosaPe
+    cmp eax 0-2 | je TryDisassembly | cmp eax 0-3 | je ExitDamagedRosaPe
     mov ecx D$UserPeStart | add ecx D$ecx+03C
     cmp D$ecx+OptionalHeader.DataDirectoryBaseRelocationDis 0 | setne B$RelocsWanted
     jmp L1>
 
+ExitDamagedPe:
+    mov eax D$PEstructErrorPtr | jmp L2>
 ExitDamagedRosaPe:
     mov eax D$DamagedRosasmPEPtr | jmp L2>
 ExitNotPeExe:
@@ -1694,8 +1736,10 @@ ________________________________________________________________________________
 
 ReadHeaderFormat:
     pushad
-        mov ebx D$UserPeStart | add ebx D$ebx+03C | movzx ecx W$ebx+06
-        lea esi D$ebx+0F8 ; first section header
+        mov ebx D$UserPeStart | add ebx D$ebx+03C
+        movzx ecx W$ebx+FileHeader.NumberOfSectionsDis
+        movzx esi W$ebx+FileHeader.SizeOfOptionalHeaderDis
+        lea esi D$ebx+esi+018 ; first section header
         mov eax 028 | mul ecx | add eax esi | mov D$EndOfSectionSearch eax
       ; Data Characteristics:
         mov D$DataCharacteristics 0C0000040
@@ -6997,7 +7041,7 @@ E0: mov D$ErrorLevel 0 | mov ecx D$StatementsPtr | mov D$ecx edi
 ;;
 
 [DosHeader:
-B$ 'MZ'  ; dos exe signature
+W$ 'MZ'  ; dos exe signature
 D$ 030090; Size of file (I don't understand what it means...)
 W$ 00    ; Number of reloc. adresses
 W$ 04    ; this dos header size (16*4)
@@ -7045,7 +7089,7 @@ W$ 00100001111          ; characteristics
  ; bit 2 > 1 > no line number for debug
 ; bit 3 > 1 > no bebug symbol
 ; others : unknown
-B$ 0B,01                ; referred as 'magic'...
+W$ 010B                 ; referred as 'magic'...
 W$ 03                   ; linker version
 AppCodeSize: D$ 0       ; size of code (.text section)
 AppAllDataSize: D$ 0    ; size of initialized data (.data + .rsrc+... + .reloc)
@@ -7114,7 +7158,7 @@ AppBaseOfImports: D$ 0      ; RVA
 AppImportAlignedSize: D$ 0  ; 200h+ImportExt (Physical File Size)
 AppStartOfImport: D$ 0      ; idata ptr
 D$ 0,0,0
-D$ 0_40000040               ; readable, writable, initialised data
+D$ 0_40000040               ; readable, initialised data
 
 
 ResourceSectionHeader:
@@ -7168,7 +7212,7 @@ AppRelocTrueSize: 0
 AppBaseOfReloc: 0
 AppRelocAlignedSize: 0
 AppStartOfReloc: 0   0 0 0
-D$ 0_42000040               ; readable initialised data
+D$ 0_42000040               ; readable initialised discardable data
 
 D$ 0 0   0 0 0 0   0 0 0 0  ; just ensure to stop win search of sections.
 

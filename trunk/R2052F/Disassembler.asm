@@ -2096,7 +2096,16 @@ ________________________________________________________________________________
 FixMzParagraphsNumber:
     mov D$DisPeTagPointer 0
 
-  ; Standard manner: parag. size of dos header end > PE header address:
+  ; Standard method: e_lfanew
+    mov esi D$UserPeStart | mov eax D$esi+03C
+    cmp D$UserPeLen eax | jbe L0>
+    test eax eax | je L0>
+    add eax esi
+    If D$eax = 'PE'
+        mov D$DisPeTagPointer eax | ret
+    End_If
+L0:
+  ; method: parag. size of dos header end > PE header address:
     mov esi D$UserPeStart | movzx eax W$esi+8 | shl eax 4 | sub eax 4
     If eax < D$UserPeLen
         add esi D$esi+eax
@@ -5888,7 +5897,7 @@ L0: lodsd | lea ecx D$edx-1 | mov edi esi | repne scasd | je B0> | dec edx | jne
         add esi 3 | inc ebx
 L2:     inc esi
     End_While
-
+    test ebx ebx | je P9>> ; no pointers!
     lea eax D$ebx*4+010 | lea edx D@memRelp
     VirtualAlloc edx, eax
 
