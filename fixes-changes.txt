@@ -376,5 +376,13 @@ _01
 . PEstructError string added
 .proc SearchPEstartOfResource fixed to e_lfanew-method, SizeOfOptionalHeader , '.rsr' name
 
+_04
+.GUGA added new RightClick Dialog for numbers and ASCII conversions
+_04A
+.in CheckImport DisFail if first DLL-name is null; if FIRSTTHUNK is null
+.in BuildTitleTable:    ON D$CodeSource = 0, ret
+.in ReplaceSourceOnly: If B$AllOrPart = 0-1 | mov ... D$ActualTitle 0 <<
+
+
 ; this bad taped> [ B|uildCommentedCodeReference:: 32 ] infinite_loop in macros-jobs!!!
 ; if ESC OpenFileName, then prev exe-name lost
