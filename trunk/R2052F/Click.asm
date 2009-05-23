@@ -137,6 +137,7 @@ L0:     lodsb | call WordEdge | cmp B$Edge &TRUE | jne L0<
     cld
     inc esi
 
+
   ; Special case for Numbers:
     ..If B$esi+1 >= '0'
         .If B$esi+1 <= '9'
@@ -761,20 +762,58 @@ L0:         lodsb | call WordEdge | cmp B$Edge &TRUE | jne L0<
         pop esi
         call IsItaNumber
     pop D$BlockEndTextPtr, D$BlockStartTextPtr
-    If eax <> 0
+    If eax <> &FALSE
         call ViewClickedNumber
     End_If
 ret
 
+[ClickedNumberValue:
+ ClickedNumberValue.Conv32Bit: D$ 0
+ ClickedNumberValue.Conv64Bit: D$ 0
+ ClickedNumberValue.Conv96Bit: D$ 0]
 
-[ClickedNumberValue: ?    HexaInBlock: ?    BinaryInBlock: ?]
+[HexaInBlock: ?    BinaryInBlock: ?]
 
 [NumberCopy: ? #25]
 
-IsItaNumber:
-    mov eax 0, esi D$BlockStartTextPtr, bl B$esi
-    mov B$HexaInBlock &FALSE, B$BinaryInBlock &TRUE
+[BlockPtrNegativeNumber: B$ 0]
 
+[BlockPtrFloatingPoint: B$ 0]
+
+IsItaNumber:
+
+    call ClearBuffer NumberCopy, 25
+    mov eax 0, esi D$BlockStartTextPtr
+    mov B$HexaInBlock &FALSE, B$BinaryInBlock &TRUE
+    mov B$BlockPtrNegativeNumber &FALSE
+    mov B$BlockPtrFloatingPoint &FALSE
+
+    mov D$ClickedNumberValue.Conv32Bit 0
+    mov D$ClickedNumberValue.Conv64Bit 0
+    mov D$ClickedNumberValue.Conv96Bit 0
+
+    If B$esi-1 = '-' ; if the user clicked upon a negative number
+        dec esi     ; emulate selection
+    End_If
+
+    While esi <= D$BlockEndTextPtr
+        .If B$esi <> ' '
+
+            If B$esi = '-' ; if the user selected a negative number
+                inc B$BlockPtrNegativeNumber
+            Else_If B$BlockPtrNegativeNumber > 1 ; invalid number format. Ex.: - - - 123456
+                mov eax 0 | jmp L9>>
+            Else
+                jmp L1>
+            End_If
+        .End_If
+        inc esi
+    End_While
+
+L1:
+    mov edi esi ; update the ptr
+
+    mov bl B$esi
     cmp bl '0' | jb L9>>
         cmp bl '9' | ja L9>>
 
@@ -786,50 +825,102 @@ L0: inc esi
     cmp B$esi '9' | ja L2>
 L1: jmp L0<
 
-L2: mov ecx esi | sub ecx D$BlockStartTextPtr
+L2: mov ecx esi | sub ecx edi
     If ecx > 50
         mov eax 0 | jmp L9>>
     End_If
-    mov esi D$BlockStartTextPtr, edi NumberCopy
 
-    While esi <= D$BlockEndTextPtr
+    mov esi edi, edi NumberCopy
+
+    .While esi <= D$BlockEndTextPtr
 L3:     lodsb
+        If al = '-' ; negative value found
+            inc B$BlockPtrNegativeNumber
+            dec edi
+            jmp L3<
+        End_If
         If al >= 'a'
             On al <= 'f', sub al 32
         End_If
 
         If al = '_'
             jmp L3<
+        Else_If al = '.'
+            inc B$BlockPtrFloatingPoint
         Else_If al > 'F'
             mov eax 0 | jmp L9>>
         Else_If al < '0'
             mov eax 0 | jmp L9>>
         End_If
 
+        If B$BlockPtrFloatingPoint > 1
+            mov eax 0 | jmp L9>> ; invalid FloatingPointer
+        End_If
+
         On al > '9',  mov B$HexaInBlock &TRUE
         On al > '1', mov B$BinaryInBlock &FALSE
 
         On al <> '_', stosb
-    End_While
+    .End_While
+; see if it is not 0-100; 0-101;0-111 etc
+; 0-0100
+   .If B$BlockPtrNegativeNumber <> 0 ; we can´t have negative hexadecimal or binary values
+        xor eax eax
+        If B$BinaryInBlock = &TRUE ; possible binary format found
+            mov B$BinaryInBlock &FALSE
+            mov esi NumberCopy
+            Do
+                On B$esi = '_', jmp L9>> ; we can´t have negative numbers in binary format
+                inc esi
+            Loop_Until B$esi = 0
+        End_If
+        On B$HexaInBlock = &TRUE, jmp L9>> ; we can´t have negative numbers in hexadecimal format
+   .End_If
 
-    mov D$OldStackPointer esp, D$OldStackEBP ebp
+    If B$BlockPtrFloatingPoint = &TRUE
+        On B$HexaInBlock = &TRUE, jmp L9>> ; we can´t have Floating Point in hexadecimal value
+        mov B$BinaryInBlock &FALSE ; if we are in binary value, the binary wil be treated as float. Ex: 1.0 0.1 1000.1
+    End_If
+
+    mov D$OldStackPointer esp
     mov B$edi 0
     mov esi NumberCopy
-    .If W$esi = '00'
+    ...If W$esi = '00'
         If B$BinaryInBlock = &TRUE
             call ClickBinary
         Else
             mov eax 0
         End_If
-    .Else_If B$esi = '0'
-        call ClickHexa
-    .Else
-        If B$HexaInBlock = &FALSE
-            call ClickDecimal
-        Else
+    ...Else_If B$esi = '0'
+        movzx eax B$BlockPtrNegativeNumber
+        On eax <> 0, mov eax &TRUE
+        call AsciiBase80 esi, ClickedNumberValue, eax, BASE_HEX
+        ret
+    ...Else
+        ..If B$HexaInBlock = &FALSE
+
+            .If B$BlockPtrFloatingPoint = &TRUE
+                If B$BlockPtrNegativeNumber = &TRUE
+                    mov B$esi-1 subsign
+                    dec esi
+                End_If
+                call atof
+                fstp T$ClickedNumberValue
+                ret
+            .Else
+                ;atoi64
+                call ClickDecimal ; replace with atoi64 C:\masm32\qwordtests\gugaatoi64\Debug\Mygugaatoi64_New.EXE
+                If eax = &FALSE
+                    mov D$OldStackEBP ebp
+                    mov B$Errorlevel 13
+                    mov eax D$OutOfRangePtr | jmp OutOnError
+                End_If
+                ret
+            .End_If
+        ..Else
             mov eax 0
-        End_If
-    .End_If
+        ..End_If
+    ...End_If
 
   ; eax = Number if any (or 0):
 L9: mov D$ClickedNumberValue eax
@@ -867,41 +958,22 @@ L8: mov ecx HexType | jmp BadClickFormat
 L9: mov eax ebx
 ret
 
+;;
+guga note
+
+check BadNumberFormat and TranslateDecimal
+
+[teste: B$ 1234564564654654]
+
+mov eax 5
+push 0
+call 'KERNEL32.ExitProcess'
+;;
 
 ClickDecimal:
-    mov eax 0, ecx 0
-
-L2: mov cl B$esi | inc esi                        ; (eax used for result > no lodsb)
-    cmp cl LowSigns | jbe  L9>
-
-      mov edx 10 | mul edx | jo L3>               ; loaded part * 10
-                                                  ; Overflow >>> Qword
-        sub  ecx '0' | jc L7>
-        cmp  ecx 9   | ja L7>
-
-          add  eax ecx | jnc  L2<
-            jmp  L4>                              ; carry >>> Qword
-
-                                                  ; if greater than 0FFFF_FFFF:
-L3: sub ecx '0' | jc L7>
-    cmp ecx 9   | ja L7>
-
-      add eax ecx
-
-L4:   adc edx 0
-      mov cl B$esi | inc  esi
-      cmp cl LowSigns | jbe L9>
-
-        mov ebx eax, eax edx, edx 10 | mul edx    ; high part * 10
-          jo L6>                                  ; Qword overflow
-            xchg eax ebx | mov edx 10 | mul edx   ; low part * 10
-            add  edx ebx
-            jnc   L3<                             ; carry >>> overflow
-L6:           mov eax 0 | ret
-
-L7: mov ecx D$DezimalTypePtr | jmp BadNumberFormat
-L9: ret                                           ; >>> number in EDX:EAX
-
+    movzx eax B$BlockPtrNegativeNumber
+    call Asciito80 esi, ClickedNumberValue, eax
+    ret
 
 BadClickFormat:
     dec esi
@@ -957,6 +1029,365 @@ L7:     While B$esi > LowSigns | inc esi | End_While | dec esi | lodsb
     End_If
 ____________________________________________________________________________________________
 
+____________________________________________________________________________________________
+
+[IDD_NUMBERBASE 32510]
+[IDC_BASEDECIMAL 10]
+[IDC_BASEHEXADECIMAL 11]
+[IDC_BASEBINARY 12]
+[IDC_BASEDECIMALSIGNED 13]
+[IDC_BASEFLOAT32 14]
+[IDC_BASEFLOAT64 15]
+[IDC_BASEFLOAT80 16]
+[IDC_SINGLE_EQUATES 17]
+[IDC_COMBINED_EQUATES 18]
+[IDC_SINGLE_EQUATES_COUNT 19]
+[IDC_COMBINED_EQUATES_COUNT 20]
+
+ViewClickedNumber:
+    call 'USER32.DialogBoxParamA' D$hinstance, IDD_NUMBERBASE, D$hwnd, DlgClickedNumber, &NULL
+ret
+
+
+Proc DlgClickedNumber:
+    Arguments @Adressee, @Message, @wParam, @lParam
+    pushad
+
+    ...If D@Message = &WM_COMMAND                  ; User action
+
+    ...Else_If D@Message = &WM_INITDIALOG
+
+        mov eax D$EquatesIncFileSize
+        inc eax
+       ; VirtualAlloc BinFormEquateTextBuffer, eax
+
+       call 'USER32.LoadIconA' D$hInstance 1
+       call 'USER32.SendMessageA' D@adressee &WM_SETICON &ICON_BIG eax
+
+       call BinFormDisplayValues D@adressee, ClickedNumberValue, IDC_BASEDECIMAL
+       call BinFormDisplayValues D@adressee, ClickedNumberValue, IDC_BASEDECIMALSIGNED
+       call BinFormDisplayValues D@adressee, ClickedNumberValue, IDC_BASEHEXADECIMAL
+       call BinFormDisplayValues D@adressee, ClickedNumberValue, IDC_BASEBINARY
+       call BinFormDisplayValues D@adressee, ClickedNumberValue, IDC_BASEFLOAT32
+       call BinFormDisplayValues D@adressee, ClickedNumberValue, IDC_BASEFLOAT64
+       call BinFormDisplayValues D@adressee, ClickedNumberValue, IDC_BASEFLOAT80
+       call BinFormDisplayValues D@adressee, ClickedNumberValue, IDC_SINGLE_EQUATES
+       call BinFormDisplayValues D@adressee, ClickedNumberValue, IDC_COMBINED_EQUATES
+
+        ;VirtualFree D$BinFormEquateTextBuffer
+    ...Else_If D@Message = &WM_CLOSE
+
+        call 'user32.EndDialog' D@Adressee &NULL
+
+    ...Else
+        popad | mov eax &FALSE |  ExitP
+
+    ...End_If
+
+L9: popad | mov eax &TRUE
+EndP
+
+
+[Size_Of_TextBuffer 256]
+[BinFormTextBuffer: B$ 0 #256]
+
+[BinFormEquateTextBuffer: D$ ?]
+[EquCount: D$ 0]
+
+
+Proc BinFormDisplayValues:
+    Arguments @Adressee, @value, @ControlID
+    Local @Result, @TmpValue;, @EquCount
+    uses edx, esi, edi
+
+
+    call clearbuffer BinFormTextBuffer, 256
+    mov edi BinFormTextBuffer
+    mov esi D@value
+
+    ..If D@ControlID = IDC_BASEDECIMAL
+
+        If D$esi+8 <> 0 ; Is it a TeraByte ?
+            call Dword80toAscii esi, edi, Size_Of_TextBuffer, &FALSE
+        Else_If D$esi+4 <> 0 ; only for qwords
+            call Dword64toAscii esi, edi, Size_Of_TextBuffer, &FALSE
+        Else
+            call Dword32toAscii esi, edi, Size_Of_TextBuffer, &FALSE
+        End_If
+
+        If eax = 0
+            mov edi BinFormTextBuffer
+            push edi | push esi | zcopy {"The number exceeds 80bit limit to be displayed", 0} | mov B$edi 0 | pop esi | pop edi
+        Else
+            mov edi eax
+        End_If
+
+    ..Else_If D@ControlID = IDC_BASEDECIMALSIGNED
+
+        If D$esi+8 <> 0
+            call Dword80toAscii esi, edi, Size_Of_TextBuffer, &TRUE
+        Else_If D$esi+4 <> 0
+            call Dword64toAscii esi, edi, Size_Of_TextBuffer, &TRUE
+        Else
+            call Dword32toAscii esi, edi, Size_Of_TextBuffer, &TRUE
+        End_If
+
+        If eax = 0
+            mov edi BinFormTextBuffer
+            push edi | push esi | zcopy {"The number exceeds 80bit limit to be displayed", 0} | mov B$edi 0 | pop esi | pop edi
+        Else
+            mov edi eax
+        End_If
+
+    ..Else_If D@ControlID = IDC_BASEHEXADECIMAL
+
+    ;mov edi HexaDecimalBuffer
+    ;DwordToHex D$LvOffsetCOFF
+    ;mov B$edi 0
+        mov eax esi
+
+        ; just to restore later
+        push edi
+        .If_and D$eax = 0, D$eax+4 = 0, D$eax+8 = 0
+            mov B$edi '0' | inc edi
+        .Else_If_And D$eax+4 = 0, D$eax+8 = 0 ; last array = 0
+            mov eax D$eax
+            call WriteEax
+        .Else_If D$eax+8 <> 0
+            mov eax D$eax+8
+            call WriteEax
+            mov eax esi ; restore eax
+            mov W$edi '__' | inc edi | inc edi
+
+            DwordToHex D$eax+4
+            mov W$edi '__' | inc edi | inc edi
+            mov eax esi ; restore eax
+
+            DwordToHex D$eax
+
+        .Else_If D$eax+4 <> 0
+            mov eax D$eax+4
+            call WriteEax
+            mov eax esi ; restore eax
+            mov W$edi '__' | inc edi | inc edi
+
+            mov eax esi ; restore eax
+            DwordToHex D$eax
+        .Else
+            mov eax D$eax
+            call WriteEax
+            mov eax esi ; restore eax
+        .End_If
+
+        mov B$edi 0
+        pop edi ; restore edi pointer
+
+    ..Else_If D@ControlID = IDC_BASEBINARY
+
+        call HextoBinaryString esi, 80, edi, Size_Of_TextBuffer
+
+    ..Else_If D@ControlID = IDC_BASEFLOAT32
+        ;finit
+
+        ;fild F$esi
+        ;call ST0ToAscii edi, 32
+
+        mov ecx 4 | call toFloat
+
+    ..Else_If D@ControlID = IDC_BASEFLOAT64
+        mov ecx 8 | call toDouble
+        ;finit
+        ;fild R$esi
+        ;call ST0ToAscii edi, 32
+
+    ..Else_If D@ControlID = IDC_BASEFLOAT80
+        mov ecx 10 | call toExtended
+        ;finit
+        ;fld T$esi
+        ;call ST0ToAscii edi, 32
+    ..Else_If D@ControlID = IDC_SINGLE_EQUATES
+
+        mov D$EquCount 0
+        move D@TmpValue D$esi
+        mov esi D$EquateIncMemory, edx esi | add edx D$EquatesIncFileSize
+L0:     mov edi esi
+        While B$edi > ' ' | inc edi | End_While
+        pushad
+            call NewGetEquates
+            mov D@Result eax
+        popad
+        .If B$EquateFound = &TRUE
+            mov eax D@Result
+                If eax = D@TmpValue ; copy the founded value to proper buffer
+                    inc D$EquCount
+                    push edx, esi D$edi, edi
+                    mov B$edi 0
+                    call 'USER32.SendDlgItemMessageA' D@Adressee, D@ControlID, &LB_ADDSTRING, 0, esi
+                    pop edi, D$edi, esi, edx
+                End_If
+        .End_If
+        mov esi edi |  While B$esi-1 <> LF | inc esi | End_While
+        On esi < edx, jmp L0<
+
+        mov edi BinFormTextBuffer
+        zcopy {"Found ", 0}
+        mov edx edi
+        mov esi EquCount, ecx 4
+        call toUDword
+        mov esi edi
+        mov edi edx
+        Do | movsb | LoopUntil B$esi = 0
+        zcopy {" Single Equates ", 0}
+        mov B$edi 0
+
+        call 'USER32.SendDlgItemMessageA' D@Adressee IDC_SINGLE_EQUATES_COUNT &WM_SETTEXT 0 BinFormTextBuffer
+        call 'USER32.SendDlgItemMessageA' D@Adressee IDC_SINGLE_EQUATES_COUNT &WM_GETTEXT 0 BinFormTextBuffer
+
+    ..Else_If D@ControlID = IDC_COMBINED_EQUATES
+
+        mov D$EquCount 0
+        move D@TmpValue D$esi
+        mov esi D$EquateIncMemory, edx esi | add edx D$EquatesIncFileSize
+L0:     mov edi esi
+        While B$edi > ' ' | inc edi | End_While
+        pushad
+            call NewGetEquates
+            mov D@Result eax
+        popad
+        .If B$EquateFound = &TRUE
+            mov eax D@Result
+            If eax <= D@TmpValue
+            On eax = 0, jmp L1>
+                Test_If D@TmpValue eax; copy the founded value to proper buffer
+L1:                 inc D$EquCount
+                    push edx, esi D$edi, edi
+                    mov B$edi 0
+                    call 'USER32.SendDlgItemMessageA' D@Adressee, D@ControlID, &LB_ADDSTRING, 0, esi
+                    pop edi, D$edi, esi, edx
+                Test_End
+            End_If
+        .End_If
+        mov esi edi |  While B$esi-1 <> LF | inc esi | End_While
+        On esi < edx, jmp L0<
+
+        mov edi BinFormTextBuffer
+        zcopy {"Found ", 0}
+        mov edx edi
+        mov esi EquCount, ecx 4
+        call toUDword
+        mov esi edi
+        mov edi edx
+        Do | movsb | LoopUntil B$esi = 0
+        zcopy {" Combined Equates ", 0}
+        mov B$edi 0
+
+        call 'USER32.SendDlgItemMessageA' D@Adressee IDC_COMBINED_EQUATES_COUNT &WM_SETTEXT 0 BinFormTextBuffer
+        call 'USER32.SendDlgItemMessageA' D@Adressee IDC_COMBINED_EQUATES_COUNT &WM_GETTEXT 0 BinFormTextBuffer
+    ..End_If
+
+L2:
+    call 'USER32.SendDlgItemMessageA' D@Adressee D@ControlID &WM_SETTEXT 0 edi
+    call 'USER32.SendDlgItemMessageA' D@Adressee D@ControlID &WM_GETTEXT 0 edi
+
+EndP
+
+
+Proc PrintRadixUnsigned:
+    Arguments @InputedValue, @BufferLen, @TextBuffer, @IsSigned
+
+    mov edi D@TextBuffer
+    add edi D@BufferLen
+    mov eax D@InputedValue
+    mov ecx D$eax
+    mov ebx D$eax+4
+
+    If D@IsSigned = &TRUE
+    ;test ebx ebx | jns L1>
+        ;mov D@Signed 1
+        neg ebx
+        neg ecx
+        sbb ebx 0
+    End_If
+
+    mov esi 10
+
+ ; If the high dword of the number is larger than the divisor, we
+ ; have to do a 'long division' to prevent overflow.
+
+    cmp ebx esi | jb @smallDiv
+
+@longDiv:
+
+    .Do
+
+        ; Note that this is a 'long division' algorithm. It can easily be expanded to
+        ; be able to divide any number by 32 bits. I only use it for 64 bits here to
+        ; keep the CPU from getting an exception on overflow when the input is larger
+        ; than ((2^32)-1)*divisor, so that printing any 64 bit number with any radix
+        ; is possible.
+
+        ; Divide high dword by divisor.
+        mov eax ebx
+        xor edx edx
+        div esi
+
+        ; Put remainder as high dword of the original dividend.
+        mov ebx eax
+        mov eax ecx
+        div esi
+
+        ; Convert the remainder to an ASCII char.
+        add dl '0'
+        dec edi | mov B$edi dl
+
+        mov ecx eax
+
+        If eax = 0
+            If ebx = 0
+                jmp @longDiv
+            End_If
+        End_If
+
+    .Loop_Until ebx < esi
+
+@smallDiv:
+
+    ; Set EBX::ECX to EDX::EAX for a normal 64->32 division.
+    mov edx ebx
+    mov eax ecx
+
+    Do
+        div esi
+        ; Convert the remainder to an ASCII char.
+        add dl '0'
+        dec edi | mov B$edi dl
+
+        ; Clean out high dword for next division.
+        xor edx edx
+    Loop_Until eax = 0
+
+
+    If D@IsSigned = &TRUE
+        dec edi | dec edi
+        mov W$edi '0-'
+        ;dec edi
+    End_If
+EndP
+
+
+Proc PrintRadixSigned:
+    Arguments @InputedValue, @BufferLen, @TextBuffer
+    ;test ebx ebx | jns A0<  ; PrintRadixUnsigned
+
+    mov B$edi '-'
+    inc edi
+    neg ebx
+    neg ecx
+    sbb ebx 0
+    call PrintRadixUnsigned
+    inc eax
+
+EndP
 
 
 [ClickedNumberText: ClickedHexa: "
@@ -974,57 +1405,6 @@ ________________________________________________________________________________
 ClickedNumberTitle: 'Bases forms', 0]
 
 
-ViewClickedNumber:
-    mov eax D$ClickedNumberValue | lea edi D$ClickedHexa+8
-
-  ; Write Hexa form:
-    call WriteEax
-    mov al ' '
-    While B$edi <> CR
-        stosb
-    End_While
-    add edi 8
-
-  ; Write Decimal form:
-    mov eax D$ClickedNumberValue
-    mov dl 0FF | push edx                       ; Push stack end mark
-    mov ecx 10
-L0: mov edx 0
-    div ecx | push edx | cmp eax 0 | ja L0<     ; Push remainders
-L2: pop eax                                     ; Retrieve Backward
-    cmp al 0FF | je L9>                         ; Over?
-       add al '0' | stosb | jmp L2<             ; Write
-L9:
-    mov al ' '
-    While B$edi <> CR
-        stosb
-    End_While
-    add edi 8
-
-  ; Write Binary form:
-    mov D$edi '00_ ' | add edi 3
-    mov ebx D$ClickedNumberValue, ecx 4
-L0: shl ebx 1 | mov al '0' | adc al 0 | stosb | loop L0<
-    mov al '_' | stosb | mov ecx 4
-L0: shl ebx 1 | mov al '0' | adc al 0 | stosb | loop L0<
-    mov al '_' | stosb | mov ecx 4
-L0: shl ebx 1 | mov al '0' | adc al 0 | stosb | loop L0<
-    mov al '_' | stosb | mov ecx 4
-L0: shl ebx 1 | mov al '0' | adc al 0 | stosb | loop L0<
-    mov al '_' | stosb | mov ecx 4
-
-    mov al '_' | stosb | stosb
-
-L0: shl ebx 1 | mov al '0' | adc al 0 | stosb | loop L0<
-    mov al '_' | stosb | mov ecx 4
-L0: shl ebx 1 | mov al '0' | adc al 0 | stosb | loop L0<
-    mov al '_' | stosb | mov ecx 4
-L0: shl ebx 1 | mov al '0' | adc al 0 | stosb | loop L0<
-    mov al '_' | stosb | mov ecx 4
-L0: shl ebx 1 | mov al '0' | adc al 0 | stosb | loop L0<
-
-    call 'USER32.MessageBoxA' D$hwnd, ClickedNumberText, ClickedNumberTitle, &MB_SYSTEMMODAL
-ret
 ____________________________________________________________________________________________
 ____________________________________________________________________________________________
 

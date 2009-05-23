@@ -192,6 +192,7 @@ ret
 [NumberOfTitles: ?   PreviousNumberOfTitles: ?]
 
 BuildTitleTable:
+    ON D$CodeSource = 0, ret
     mov edi D$CodeSource, ecx D$SourceLen, ebx TitleTable
     mov B$edi-1 LF
 

@@ -562,7 +562,7 @@ L1:     call OpenSourceOnly | call LoadBookMarks
         mov B$OpeningSourceOnly &FALSE
 
         .If B$AllOrPart = 0-1
-            call RestoreRealSource | mov D$TiTleTable 0 | jmp L1<
+            call RestoreRealSource | mov D$TiTleTable 0, D$ActualTitle 0 | jmp L1<
 
         .Else_If B$AllOrPart = 1   ; 'OpenSourceOnly'
             call ClearSaveFilter | call 'Comdlg32.GetOpenFileNameA' OpenSourceStruc
@@ -8186,43 +8186,9 @@ ret
 
 
 TranslateDecimal:
-    mov eax 0, ecx 0
-
-L2: mov cl B$esi | inc esi                        ; (eax used for result > no lodsb)
-    cmp cl LowSigns | jbe  L9>
-
-      mov edx 10 | mul edx | jo L3>               ; loaded part * 10
-                                                  ; Overflow >>> Qword
-        sub  ecx '0' | jc L7>
-        cmp  ecx 9   | ja L7>
-
-          add  eax ecx | jnc  L2<
-            jmp  L4>                              ; carry >>> Qword
-
-                                                  ; if greater than 0FFFF_FFFF:
-L3: sub ecx '0' | jc L7>
-    cmp ecx 9   | ja L7>
-
-      add eax ecx
-
-L4:   adc edx 0
-      mov cl B$esi | inc  esi
-      cmp cl LowSigns | jbe L9>
-
-        mov ebx eax, eax edx, edx 10 | mul edx    ; high part * 10
-          jo L6>                                  ; Qword overflow
-            xchg eax ebx | mov edx 10 | mul edx   ; low part * 10
-            add  edx ebx
-            jnc   L3<                             ; carry >>> overflow
-
-L6:           On B$esi < '0', error D$OverFlowPtr
-              If B$esi <= '9'
-                  inc esi | jmp L6<
-              End_If
-
-L7: mov ecx D$DezimalTypePtr | jmp BadNumberFormat
-L9: ret                                           ; >>> number in EDX:EAX
-
+    call atoi64, esi
+    inc esi
+    ret
 
 TranslateAny:
     If W$esi = '00'

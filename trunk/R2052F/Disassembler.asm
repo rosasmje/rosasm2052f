@@ -2397,13 +2397,10 @@ CheckImport:
   we fill the one by the other, in order to save from no end Checking:
 ;;
     mov eax edx
-
+    ON D$eax+(4*3) = 0, jmp DisFail
     While D$eax+(4*3) <> 0          ; At least 'Name RVA' should be there ;)
-        If D$eax = 0
-            move D$eax D$eax+(4*4)
-        Else_If D$eax+(4*4) = 0
-            move D$eax+(4*4) D$eax
-        End_If
+        ON D$eax+(4*4) = 0, jmp DisFail
+        ON D$eax = 0, move D$eax D$eax+(4*4)
         add eax (5*4)
     End_While
 

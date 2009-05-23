@@ -18743,24 +18743,6 @@ EndP
 
 [szBuff0: B$ ? #256]
 
-[BASE_HEX 16, BASE_DEC 10, BASE_OCT 8, BASE_FOUR 4, BASE_BIN 2]
-
-Proc AsciiBase:
-    Arguments @String, @Base
-    Uses esi, ebx, edx
-
-        mov esi D@String, eax 0, ebx 0
-
-        While B$esi <> 0
-            mov eax ebx | mul D@Base | mov ebx eax, eax 0
-            mov al B$esi | sub al '0'
-          ; Cases of Hexa Notation:
-            On al > 9, sub al 7
-            add ebx eax | inc esi
-        End_While
-
-        mov eax ebx
-EndP
 
 ;;
     Strcpy

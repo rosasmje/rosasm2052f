@@ -8089,27 +8089,6 @@ Proc FpuRounding:
 EndP
 
 
-Proc qWordToAscii:
-    Arguments @qWordPointer, @StringPointer
-    local @Divisor, @Remainder
-
-        call FpuRounding FpModeTroncated
-
-        push 0-1 ; End mark on the Stack.
-
-        mov D@Divisor 10 | fild D@Divisor
-        mov ebx D@qWordPointer
-        fild Q$ebx
-L0:     fprem | fistp D@Remainder | push D@Remainder
-        fild Q$ebx | fdiv
-        fld ST0 | fistp Q$ebx
-        mov eax D$ebx | or eax D$ebx+4 | cmp eax 0 | jne L0<
-
-        mov edi D@StringPointer
-L0:     pop eax | cmp eax 0-1 | je L7>
-            add al '0' | stosb | jmp L0<
-L7:     mov al 0 | stosb
-EndP
 ____________________________________________________________________________________________
 
 NextDataDisLine:
