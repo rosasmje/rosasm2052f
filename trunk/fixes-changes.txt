@@ -383,6 +383,10 @@ _04A
 .in BuildTitleTable:    ON D$CodeSource = 0, ret
 .in ReplaceSourceOnly: If B$AllOrPart = 0-1 | mov ... D$ActualTitle 0 <<
 
+_05
+.changes in LoadDisResources: rewritten SearchDisPEstartOfResource;
+it will accept resource if it is not section aligned & without '.rsrc' section-name
+.changed also ReadRosAsmPeIcon; and little fixes in title Icon
 
 ; this bad taped> [ B|uildCommentedCodeReference:: 32 ] infinite_loop in macros-jobs!!!
 ; if ESC OpenFileName, then prev exe-name lost

@@ -895,62 +895,56 @@ ________________________________________________________________________________
 [MenuInside: ?]
 
 LoadDisResources:
-    __________________________________________________________________________
-  ; Next Lines are the same as the ones in 'OpenRosAsmPE' after having read the
-  ; included Source:
 
     mov B$MenuInside &FALSE
 
     call SearchDisPEstartOfResource | On B$NoResourcesPE = &TRUE, jmp L9>>
 
-  ; Here, 'UserPEStartOfResources' is the IMAGE_OPTIONAL_HEADER Sections aligned Pointer
-  ; to Header.
-    mov eax D$UserPEStartOfResources, ebx 0 | On eax = 0, jmp L9>>
+    move D$iExePtr D$UserPeStart
 
-L0: shl ebx 1 | or ebx 1 | test eax ebx | jz L0<
-    shr ebx 1 | and eax ebx
+    mov eax D$UserPEStartOfResources, D$iStartOfResources eax, ebx D$ResourcesRVA
+    call DisReadMainIcon
 
-    push eax
-        call SearchPEstartOfResource
-      ; Here 'UserPEStartOfResources' is the Sections Header File Aligned Section Pointer.
-      ; We need this one but with the eventual Dis to Header (header not necessary at
-      ; first Section Byte.
-    pop eax
+    If B$PeIconFound = &TRUE
+       mov esi eax | mov edi iIcon | rep movsb ; Copying to icon editor buffer
+       call StoreIcon                          ; and copy it to 'compilable' image
+    End_If
 
-    .If D$UserPEStartOfResources <> 0
-        or D$UserPEStartOfResources eax
+    call ReadRosAsmResources
 
-        move D$iExePtr D$UserPeStart
+    If D$MenuList+4 <> 0
+       call ForceMenusExType | mov B$MenuInside &TRUE
+    End_If
 
-        mov eax D$UserPEStartOfResources, D$iStartOfResources eax
-        call DisReadMainIcon
-
-        If B$PeIconFound = &TRUE
-            mov esi eax | mov edi iIcon | rep movsb ; Copying to icon editor buffer
-            call StoreIcon                          ; and copy it to 'compilable' image
-        End_If
-
-        call ReadRosAsmResources
-
-        If D$MenuList+4 <> 0
-            call ForceMenusExType | mov B$MenuInside &TRUE
-        End_If
-    .End_If
 L9: ret
 
 
 SearchDisPEstartOfResource:
+
     mov B$NoResourcesPE &TRUE, D$UserPEStartOfResources 0
     mov esi D$DisPeTagPointer | On esi = 0, ret
 
-  ; RVA of resources from "Image Data Dir...":
-    add esi 136 | lodsd
-    If eax <> 0
-        add eax D$UserPeStart | mov D$UserPEStartOfResources eax
-        move D$ResourcesSize D$esi
-        mov B$NoResourcesPE &FALSE
-    End_If
-ret
+    ON D$esi+OptionalHeader.DataDirectoryResourceDis = 0, ret
+    move D$ResourcesRVA D$esi+OptionalHeader.DataDirectoryResourceDis,
+         D$ResourcesSize D$esi+OptionalHeader.DataDirectoryResourceDis+4
+
+    movzx ecx W$esi+FileHeader.NumberOfSectionsDis
+    movzx eax W$esi+FileHeader.SizeOfOptionalHeaderDis
+    lea esi D$esi+eax+018 | mov ebx D$ResourcesRVA
+
+L0: mov eax D$esi+VirtualAddressDis | cmp ebx eax | je L1> | jb L2>
+    mov edx D$esi+MiscVirtualSizeDis | test edx edx | jne L3>
+    mov edx D$esi+SizeOfRawDataDis
+L3: add edx eax | cmp ebx edx | jb L1>
+L2: add esi 028 | loop L0<
+    ret
+L1: sub ebx eax
+;    ON D$esi <> '.rsr', ret
+    mov B$NoResourcesPE &FALSE
+    mov eax D$esi+PointerToRawDataDis | add eax ebx
+    add eax D$UserPeStart | mov D$UserPEStartOfResources eax
+    ret
+
 ____________________________________________________________________________________________
 
 ; There are 2 types of Win Menus: Menu and MenuEx. RosAsm work only with MenuEx Type.

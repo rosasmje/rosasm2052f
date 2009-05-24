@@ -706,8 +706,7 @@ OpenPeForReadingIcon:
     call 'KERNEL32.CreateFileA' esi &GENERIC_READ, &FILE_SHARE_READ,
                                 0, &OPEN_EXISTING, &FILE_ATTRIBUTE_NORMAL, 0
     If eax = &INVALID_HANDLE_VALUE
-        mov eax D$BusyFilePtr | call MessageBox ;;;;| pop eax | ret  ; return to caller of caller
-        mov D$iSourceHandle 0
+        mov eax D$BusyFilePtr | call MessageBox
     Else
         mov D$iSourceHandle eax
 
@@ -725,43 +724,30 @@ ReadRosAsmPeIcon:                     ; reused by general purpose RosAsm PE open
     mov B$PeIconFound &FALSE
 
   ; read dos header:
-    mov esi D$iExePtr
-    mov eax 0 | add esi 8 | lodsw    ; parag. size of dos header end >PE header adress
-
-    shl eax 4 | sub eax 4
-    mov esi D$iExePtr | add esi eax | lodsd      ; eax = PE header
-
-    mov esi D$iExePtr | add esi eax
-    If D$esi <> 'PE'
-        mov esi D$iExePtr | add esi D$esi+03C
-        cmp D$esi 'PE' | jne PeNotFound
-    End_If
-
+    mov esi D$iExePtr | add esi D$esi+03C
+    cmp D$esi 'PE' | jne PeNotFound
  ______________________________________
 
   ; read data in PE header:
+    mov ebx D$esi+OptionalHeader.DataDirectoryResourceDis
+    ON ebx = 0, jmp SectNotFound
 
-    movzx ecx w$esi+6                     ; word record of section number
-    add esi 136 | lodsd | mov ebx eax     ; RVA of resources from "Image Data Dir..."
-    mov D$ResourcesRVA eax  ; jmp over general purpose headers and reach PE sections headers:
+    movzx ecx W$esi+FileHeader.NumberOfSectionsDis
+    movzx eax W$esi+FileHeader.SizeOfOptionalHeaderDis
+    lea esi D$esi+eax+018
 
-    add esi 120                           ; esi points to RVA of first section header
+L0: cmp D$esi+VirtualAddressDis ebx | je L1>
+        add esi 028 | loop L0<
+        jmp SectNotFound
 
-L0: lodsd | cmp eax ebx | je L1>
-        add esi 36 | loop L0<
-        On ebx = 0, jmp AbortIconSearch
-          jmp SectNotFound
-
-L1: On D$esi-16 <> '.rsr', jmp AbortIconSearch
-
- ______________________________________
+L1: On D$esi <> '.rsr', jmp SectNotFound
 
   ; if here, '.rsrc' section found:
-
-L1: add esi 4 | lodsd                            ; > app ptr to resources
-
+    mov eax D$esi+PointerToRawDataDis
     add eax D$iExePtr | mov D$iStartOfResources eax
+ ______________________________________
 
+; eax-pResource, ebx-RVA_Resource
 DisReadMainIcon:
     mov B$PeIconFound &FALSE
 
@@ -777,7 +763,7 @@ L0: lodsd | cmp eax RT_ICON | je L1>
       jmp AbortIconSearch                        ; no icon found (possible naked PE)
 
 L1: lodsd                   ; icon found "Level2Rt_Icon-StartOfRsrc+NodeFlag" in eax
-    and eax 0FFFFFFF        ; strip node flag (0_80000000)
+    and eax 07FFFFFFF       ; strip node flag (0_80000000)
     add eax D$iStartOfResources
 
     add eax 14 | mov esi eax, edx 0, dx W$esi | sub  esi 2
@@ -792,7 +778,7 @@ NextiRecord:
     push esi
 
     lodsd                              ; "Level3Rt_Icon-StartOfRsrc+NodeFlag" in eax
-    and eax 0FFFFFFF
+    and eax 07FFFFFFF
     add eax D$iStartOfResources
     add eax 20 | mov esi eax
 
@@ -821,15 +807,15 @@ NextiRecord:
 
 SectNotFound:    mov eax SectionNotFound | jmp L9>
 AbortIconSearch:
-
+;;
     If D$SavingExtension = '.DLL'
         jmp L7>
     Else_If D$SavingExtension = '.SYS'
         jmp L7>
     End_If
-
-                    mov eax NoIcon       | jmp L9>
-BadIcoSize:      mov eax BadIconSize     | jmp L9>
+;;
+                 mov eax NoIcon      | jmp L9>
+BadIcoSize:      mov eax BadIconSize | jmp L9>
 PeNotFound:      mov eax NoPE
 
 L9: ;If B$Disassembling = &TRUE
@@ -838,8 +824,8 @@ L9: ;If B$Disassembling = &TRUE
     call MessageBox ;;;;| call IconSearchOut ;| pop eax |
     ret     ;;;; return to caller of caller
 
-L7: mov B$NoResourcesPE &TRUE ;;;;| call IconSearchOut |
-    ret
+;L7: mov B$NoResourcesPE &TRUE ;;;;| call IconSearchOut |
+;    ret
 
 
 ;IconSearchOut:
@@ -860,13 +846,12 @@ PeekIcon:
     call OpenPeForReadingIcon
 
     .If D$iSourceHandle <> 0
-        call ReadRosAsmPeIcon                        ; eax > start of icon data
+        call 'KERNEL32.CloseHandle' D$iSourceHandle | and D$iSourceHandle 0
 
+        call ReadRosAsmPeIcon                        ; eax > start of icon data
         If B$PeIconFound = &TRUE
             mov esi eax | mov edi iIcon | rep movsb  ; Copying to ower buffer
         End_If
-
-        call 'KERNEL32.CloseHandle' D$iSourceHandle | and D$iSourceHandle 0
 
         VirtualFree D$iExePtr
     .End_If
@@ -881,11 +866,10 @@ PokeIcon:
     call OpenPeForReadingIcon                        ; eax > start of icon data
 
     ..If D$iSourceHandle <> 0
+        call 'KERNEL32.CloseHandle' D$iSourceHandle | and D$iSourceHandle 0
         call ReadRosAsmPeIcon                        ; eax > start of icon data
-
         .If B$PeIconFound = &TRUE
             mov edi eax | mov esi iIcon | rep movsb  ; Copying from ower buffer
-            call 'KERNEL32.CloseHandle' D$iSourceHandle | and D$iSourceHandle 0
             call 'USER32.MessageBoxA' D$hwnd  PokeSure  NullTitle,
                                     &MB_YESNO+&MB_ICONEXCLAMATION +&MB_SYSTEMMODAL
             On eax = &IDNO, jmp L9>>
@@ -894,7 +878,7 @@ PokeIcon:
                                         &FILE_SHARE_READ, 0,
                                         &CREATE_ALWAYS, &FILE_ATTRIBUTE_NORMAL, 0
             If eax = &INVALID_HANDLE_VALUE
-                mov eax D$BusyFilePtr | call MessageBox | ret
+                mov eax D$BusyFilePtr | call MessageBox | jmp L9>;ret
             Else
                 mov D$iDestinationHandle eax
             End_If
@@ -902,10 +886,10 @@ PokeIcon:
             mov D$NumberOfReadBytes  0
             call 'KERNEL32.WriteFile'   D$iDestinationHandle D$iExePtr D$iExeLen,
                                         NumberOfReadBytes  0
+            call 'KERNEL32.CloseHandle' D$iDestinationHandle | and D$iDestinationHandle 0
         .End_If
 
 L9:     VirtualFree D$iExePtr
-        call 'KERNEL32.CloseHandle' D$iDestinationHandle | and D$iDestinationHandle 0
     ..End_If
 ret
 
@@ -948,7 +932,8 @@ ReadIcoFile:
       On D$iSaveFilter = 0,  ret
 
   ; Loading the entire file in memory:
-
+    On D$iSourceHandle > 0, call 'KERNEL32.CloseHandle' D$iSourceHandle
+    and D$iSourceHandle 0
     call 'KERNEL32.CreateFileA' iSaveFilter &GENERIC_READ, &FILE_SHARE_READ,
                                 0, &OPEN_EXISTING, &FILE_ATTRIBUTE_NORMAL, 0
                                               ; hTemplateFile
@@ -965,6 +950,7 @@ ReadIcoFile:
 
     call 'KERNEL32.ReadFile' D$iSourceHandle D$icoFilePtr,
                             D$icoFileLen NumberOfReadBytes 0
+    call 'KERNEL32.CloseHandle' D$iSourceHandle | and D$iSourceHandle 0
 
     mov esi D$IcoFilePtr | add esi 4
     lodsw | movzx ecx ax                             ; icons number in ecx
@@ -976,8 +962,6 @@ L1: On D$esi+8 <> 02E8, jmp BadFIsize
     mov esi D$esi, edi iIcon, ecx 02E8
     add esi D$IcoFilePtr | rep movsb                 ; Copying to ower buffer
 L2:
-    call 'KERNEL32.CloseHandle' D$iSourceHandle | and  D$iSourceHandle 0
-
     VirtualFree D$icoFilePtr
 ret
 
