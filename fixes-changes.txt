@@ -388,5 +388,19 @@ _05
 it will accept resource if it is not section aligned & without '.rsrc' section-name
 .changed also ReadRosAsmPeIcon; and little fixes in title Icon
 
+_06
+.compilable PE-header now is easy-movable, (for custom MZ-string in header)
+.added variable DisSectionsHeaders,  wich replaces "GetPeHeader SectionsHeaders" occurences,
+because OptionalHeader can be other than E0.
+.in CheckImport: DisFail if any DLL's first think is null
+added possibility of very short DLL-name
+.in ReAlignPE: SECTION_RVASIZE will replaced with SECTION_FILESIZE, only if Null (not if bigger)
+.added Header-disassembly option, from 3d byte  {mov D$FirstSection 2}
+for this added var DisasmHeader, upgraded DisassembleProc, added CheckBox in Dialog-resource
+.for more security, in PE-file opening places (OpenPeForReadingIcon, GetExportScannerFile) added call to isValidMZPE
+
+;isValidMZPE should more enhanced & ErrorStrings needs to add.
+;UPX-packer puts Header-Size 01000 while true is 0400.. bad..
+
 ; this bad taped> [ B|uildCommentedCodeReference:: 32 ] infinite_loop in macros-jobs!!!
 ; if ESC OpenFileName, then prev exe-name lost

@@ -444,7 +444,7 @@ ________________________________________________________________________________
 ____________________________________________________________________________________________
 
 MarkRosAsmPeSections:
-    GetPeHeader SectionsHeaders | mov esi eax
+    mov esi D$DisSectionsHeaders
 
     mov ecx D$DisNumberOfSections
 
@@ -2157,7 +2157,7 @@ L0: inc esi | On D$esi <> 'PE', loop L0<
 ret
 ____________________________________________________________________________________________
 
-[DisNumberOfSections: ?
+[DisNumberOfSections: ?  DisSectionsHeaders: ?
  DisDataMin: ?   DisDataMax: ?
  DisVirtualMin: ?   DisVirtualMax: ?
  DisCodeMin: ?   DisCodeMax: ?
@@ -2185,12 +2185,12 @@ ________________________________________________________________________________
 StartNewDisFile:
     mov D$DisPeOrigine 0 | GetPeHeader PeHeaderPointer
 
-    mov eax D$eax | sub eax 080 | mov D$DisPeOrigine eax
-  ; (080 is the RosAsm Data 'PeHeaderPointer')
+    mov eax D$eax | sub eax D$PeHeaderPointer | mov D$DisPeOrigine eax
 
-    GetPeHeader PeHeader | mov eax D$eax | On eax <> D$PeHeader, jmp DisFail
+    GetPeHeader PeHeader | On D$eax <> 'PE', jmp DisFail
   ; Pe Header found.
-
+    movzx ecx W$eax+FileHeader.SizeOfOptionalHeaderDis | lea ecx D$eax+ecx+018
+    mov D$DisSectionsHeaders ecx
   ; Like in 'ReadHeaderFormat'.
   ; Copy / SubSystem / DllCharacteristics / AppStackMax / .... :
     GetPeHeader SubSystem | mov esi eax, edi SubSystem, ecx 5 | rep movsd
@@ -2228,8 +2228,8 @@ ReAlignPE:
     mov eax D$UserPeStart | sub D$UserPEStartOfResources eax ; Gona switch...
 
     mov ecx D$DisNumberOfSections, D$FirstSection 0-1, D$EndOfLastSection 0
-    GetPeHeader SectionsHeaders
-
+    mov eax D$DisSectionsHeaders
+    ON B$DisasmHeader = &TRUE, mov D$FirstSection 2
   ; Search for the First Section RVA:
 L0: mov ebx D$eax+SECTION_RVA
     On ebx < D$FirstSection, mov D$FirstSection ebx
@@ -2237,12 +2237,12 @@ L0: mov ebx D$eax+SECTION_RVA
     push ecx
         mov ecx D$eax+SECTION_RVASIZE
       ; Some compiler (Watcom-C) may set the RVA to zero. So... :
-        If ecx < D$eax+SECTION_FILESIZE
+        If ecx = 0 ;< D$eax+SECTION_FILESIZE
             mov ecx D$eax+SECTION_FILESIZE
+        End_If
             Align_On_Variable D$DisRvaSectionAlignment ecx
           ; Fix it (just in case this would be needed later...):
             mov D$eax+SECTION_RVASIZE ecx
-        End_If
 
         On ebx > D$EndOfLastSection, mov D$EndOfLastSection ebx, edx ecx
     pop ecx
@@ -2253,9 +2253,11 @@ L0: mov ebx D$eax+SECTION_RVA
     VirtualAlloc TempoUserPeStart edx ;D$UserPeLen
 
     mov esi D$UserPeStart, edi D$TempoUserPeStart
-
+    mov ecx D$esi+03C | add ecx esi | mov ecx D$ecx+OptionalHeader.SizeOfHeadersDis
+    rep movsb
+;;
   ; Copy the PE headers down to (including) 'SectionsHeaders':
-    GetPeHeader SectionsHeaders
+    mov eax D$DisSectionsHeaders
     mov ecx eax | sub ecx D$UserPeStart | rep movsb
 
     mov ecx D$DisNumberOfSections
@@ -2264,11 +2266,11 @@ L0: push ecx
         mov ecx SECTIONHEADERSIZE | rep movsb
     pop ecx
     loop L0<
-
+;;
   ; Want to skip 'RelocSectionTable', if any:
     GetPeHeader RelocSectionTable | move D$DisRelocPointer D$eax
   ; Copy all Sections with Memory alignment:
-    GetPeHeader SectionsHeaders | mov edx D$DisNumberOfSections
+    mov eax D$DisSectionsHeaders | mov edx D$DisNumberOfSections
 
     While D$eax+SECTION_RVA <> 0
         mov esi D$eax+SECTION_FILEPOINTER | add esi D$UserPeStart
@@ -2280,6 +2282,8 @@ L1:     add eax SECTIONHEADERSIZE | dec edx | jz L2>
 
 L2: Exchange D$UserPeStart D$TempoUserPeStart
     mov eax D$UserPeStart | add eax D$UserPeLen | mov D$UserPeEnd eax
+    mov eax D$DisSectionsHeaders | sub eax D$TempoUserPeStart | add eax D$UserPeStart
+    mov D$DisSectionsHeaders eax
     VirtualFree D$TempoUserPeStart
 ret
 
@@ -2409,6 +2413,7 @@ CheckImport:
             sub edi D$UserPeStart | add edi D$SectionsMap | rep stosd
           ; Flag the LookUp Table (dWords):
             mov edi D$edx, ebx edi | add edi D$SectionsMap | add ebx D$UserPeStart
+            ON B$ebx = 0, jmp DisFail ;first must be!
             While D$ebx <> 0
                 ;call FlagImportCalls ebx
                 stosd | add ebx 4
@@ -2526,12 +2531,12 @@ L0: mov ebx D$edx+(3*4) | add ebx D$UserPeStart    ; Pointer to DLL Name.
         mov B$edi "'" | inc edi
         push ebx
 L1:         mov al B$ebx | stosb | inc ebx | cmp al 0 | jne L1<   ; 'DllName.
-        pop ebx
+        lea eax D$ebx-1 | pop ebx | sub eax ebx | cmp eax 5 | jb L3> ; if too little name
         mov eax D$edi-5 | or eax 020202020
         If eax = '.dll'
             sub edi 4
         Else
-            mov B$edi-1 "."
+L3:         mov B$edi-1 "."
         End_If
 
         lodsd | test eax 08000_0000 | jz L1>
@@ -2949,7 +2954,7 @@ ________________________________________________________________________________
 [VirtualIsRunable: ?]
 
 CheckVirtualData:
-    GetPeHeader SectionsHeaders | mov ecx D$DisNumberOfSections
+    mov eax D$DisSectionsHeaders | mov ecx D$DisNumberOfSections
 
 L0: test D$eax+SECTION_FLAG &IMAGE_SCN_CNT_UNINITIALIZED_DATA | jz L3>
         test D$eax+SECTION_FLAG &IMAGE_SCN_MEM_READ | jz L3>
@@ -2973,7 +2978,7 @@ ret
 
 
 CheckExtendedVirtual:
-    GetPeHeader SectionsHeaders | mov ecx D$DisNumberOfSections
+    mov eax D$DisSectionsHeaders | mov ecx D$DisNumberOfSections
     push ecx ;jE! fixing incorrect loop; bcoz if header is dirty, then will bad..
 L0: mov ecx D$eax+SECTION_RVASIZE, ebx D$eax+SECTION_FILESIZE
     Align_On_Variable D$DisRvaSectionAlignment ecx
@@ -3156,6 +3161,7 @@ ________________________________________________________________________________
 ;;
 
 KillPeHeader:
+    ON B$DisasmHeader = &TRUE, ret
     mov edi D$SectionsMap, ecx D$FirstSection, al KILLFLAG
     rep stosb
 ret
@@ -3218,7 +3224,7 @@ EndP
 
 
 KillSectionsExtensions:
-    GetPeHeader SectionsHeaders | mov esi eax
+    mov esi D$DisSectionsHeaders
 
     mov ecx D$DisNumberOfSections
 
@@ -5622,7 +5628,7 @@ ________________________________________________________________________________
 OldFlagTrueDataSection:
     mov ecx D$DisNumberOfSections
 
-    GetPeHeader SectionsHeaders
+    mov eax D$DisSectionsHeaders
 
 L0: mov ebx D$eax+SECTION_FLAG
     test ebx &IMAGE_SCN_MEM_EXECUTE | jnz L1>>
@@ -5679,7 +5685,7 @@ ret
 FlagTrueDataSection:
     mov ecx D$DisNumberOfSections
 
-    GetPeHeader SectionsHeaders
+    mov eax D$DisSectionsHeaders
 
 L0: mov ebx D$eax+SECTION_FLAG | test ebx &IMAGE_SCN_MEM_EXECUTE | jnz L8>>
 
