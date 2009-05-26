@@ -705,18 +705,22 @@ OpenPeForReadingIcon:
 
     call 'KERNEL32.CreateFileA' esi &GENERIC_READ, &FILE_SHARE_READ,
                                 0, &OPEN_EXISTING, &FILE_ATTRIBUTE_NORMAL, 0
-    If eax = &INVALID_HANDLE_VALUE
+    .If eax = &INVALID_HANDLE_VALUE
         mov eax D$BusyFilePtr | call MessageBox
-    Else
+    .Else
         mov D$iSourceHandle eax
 
         call 'KERNEL32.GetFileSize'  eax 0
         mov D$iExeLen eax | VirtualAlloc iExePtr eax
 
-        mov D$NumberOfReadBytes 0
+        and D$NumberOfReadBytes 0
         call 'KERNEL32.ReadFile' D$iSourceHandle D$iExePtr,
                                 D$iExeLen NumberOfReadBytes 0      ; load headers
-    End_If
+        call isValidMZPE D$iExePtr D$iExeLen | test eax eax | je L0>
+        call 'KERNEL32.CloseHandle' D$iSourceHandle | and D$iSourceHandle 0
+        VirtualFree D$iExePtr
+L0:
+    .End_If
 ret
 
 

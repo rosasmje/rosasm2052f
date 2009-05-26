@@ -1341,35 +1341,19 @@ StartScan:
     mov edi FirstDisVirtualData, eax 0
     mov ecx LastDisVirtualData | sub ecx edi | shr ecx 2 | repe stosd
     mov D$DisPeOrigine 0 | GetPeHeader PeHeaderPointer
-    mov eax D$eax | sub eax 080 | mov D$DisPeOrigine eax
-  ; (080 is the RosAsm Data 'PeHeaderPointer')
-
+    mov eax D$eax | sub eax D$PeHeaderPointer | mov D$DisPeOrigine eax
+; checks done in GetExportScannerFile
     GetPeHeader PeHeader
 
-    ..If eax < D$SfFileMemory
-        mov eax 0
+    movzx ecx W$eax+FileHeader.SizeOfOptionalHeaderDis | lea ecx D$eax+ecx+018
+    mov D$DisSectionsHeaders ecx
+    GetPeHeader NumberOfSections | movzx eax W$eax
 
-    ..Else_If eax > D$SfFileMemoryEnd
-        mov eax 0
-
-    ..Else
-        mov eax D$eax
-
-        .If eax = D$PeHeader
-            GetPeHeader NumberOfSections | movzx eax W$eax
-
-            If eax <> 0
-                mov D$DisNumberOfSections eax
-                GetPeHeader ImageBase | mov ebx D$eax, D$DisImageBase ebx
-                move D$DisRvaSectionAlignment D$eax+4, D$DisFileSectionAlignment D$eax+8
-            End_If
-
-        .Else
-            mov eax 0
-
-        .End_If
-
-    ..End_If
+    If eax <> 0
+        mov D$DisNumberOfSections eax
+        GetPeHeader ImageBase | mov ebx D$eax, D$DisImageBase ebx
+        move D$DisRvaSectionAlignment D$eax+4, D$DisFileSectionAlignment D$eax+8
+    End_If
 ret
 
 
@@ -1383,7 +1367,7 @@ GetExportDirPointer:
     If edx <> 0
         mov ecx D$DisNumberOfSections
 
-        GetPeHeader SectionsHeaders
+        mov eax D$DisSectionsHeaders
 
 L0:     mov ebx D$eax+SECTION_RVA |  cmp edx ebx | jb L1>
             add ebx D$eax+SECTION_FILESIZE | cmp edx ebx | jb L2>
@@ -1448,13 +1432,7 @@ GetExportScannerFile:
 
             call 'KERNEL32.CloseHandle' D$SfFileHandle | and D$SfFileHandle 0
 
-          ; Is it a PE?
-            mov eax D$SfFileMemory | On W$eax <> 'MZ', jmp L7>
-            add eax D$eax+03C | lea ecx D$eax+078
-            On ecx > D$SfFileMemoryEnd, jmp L7>
-            On ecx < D$SfFileMemory, jmp L7>
-            On D$eax <> 'PE', jmp L7>
-
+            call isValidMZPE D$SfFileMemory D$SfFileLen | test eax eax | jne L7>
         .End_If
     ..End_If
 ret

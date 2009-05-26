@@ -1656,7 +1656,7 @@ L9:     call AutoNew | jmp StartNewFile
 
 ____________________________________________________________________________________________
 
-[WithCommentedHexa: &FALSE   WithForcedMapFile: &TRUE  WithMacros: &TRUE]
+[WithCommentedHexa: &FALSE  WithForcedMapFile: &TRUE  WithMacros: &TRUE  DisasmHeader: &FALSE]
 
 ; Tag Dialog 27000
 
@@ -1684,8 +1684,8 @@ Proc DisassembleProc:
                 mov B$WithCommentedHexa &FALSE
             Else_If eax = 11
                 mov B$WithCommentedHexa &TRUE
-            Else_If eax = 12
-                mov B$WithCommentedHexa &FALSE
+            Else_If eax = 13
+                xor B$DisasmHeader &TRUE
             Else_If eax = 14
                 xor B$WithForcedMapFile &TRUE
             Else_If eax = 15
@@ -1699,8 +1699,6 @@ Proc DisassembleProc:
     ...Else_If D@Message = &WM_INITDIALOG          ; Win ready to build the Dialog
         If B$WithCommentedHexa = &TRUE
             call 'USER32.CheckDlgButton' D@Adressee, 11, &TRUE
-        Else_If B$WithMacros = &TRUE
-            call 'USER32.CheckDlgButton' D@Adressee, 15, &TRUE
         Else
             call 'USER32.CheckDlgButton' D@Adressee, 10, &TRUE
         End_If
@@ -1715,10 +1713,12 @@ Proc DisassembleProc:
             call Disable D@Adressee, 14
         .End_If
 
+        call 'USER32.CheckDlgButton' D@Adressee, 15, D$WithMacros
+        call 'USER32.CheckDlgButton' D@Adressee, 13, D$DisasmHeader
+
         If B$AMDassumed = &TRUE
             call 'USER32.CheckDlgButton' D@Adressee, 16, &TRUE
         End_If
-
 
   ;  ...Else_If D$Message = &WM_CTLCOLOREDIT        ; Win ready to paint the Dialog
   ;      ; Control of output
@@ -7040,7 +7040,7 @@ E0: mov D$ErrorLevel 0 | mov ecx D$StatementsPtr | mov D$ecx edi
 00000000: Dos exe file header stub:
 ;;
 
-[DosHeader:
+[<16 DosHeader:
 W$ 'MZ'  ; dos exe signature
 D$ 030090; Size of file (I don't understand what it means...)
 W$ 00    ; Number of reloc. adresses
@@ -7061,18 +7061,15 @@ W$ 0,0,0,0, 0,0,0,0     ; reserved words
 W$ 0,0,0,0
 MyCheckSum: D$ 0  ; 30
 PeHeaderPointer:
-D$ 080   ; File adress of win header
+D$ PeHeader-DosHeader ;File adress of win header
 
 B$   0E, 01F, 0BA, 0E, 00, 0B4, 09, 0CD, 021, 0B8, 01, 04C, 0CD, 021
 ; push cs // pop ds // mov dx 0E // mov ah 09 // int 021 // mov ax 4C01 // int 021
 ; 18
 B$ ;'Spindoz 32 spit PEfile made wiz RosAsm Assembler.$'
-   'This program cannot be run in DOS mode', CR, LF, '$', 0, 0, 0, 0, 0, 0, 0, 0, 0
-
-; 50+18+30 = 98
-; if you modify upper string you must absolutely keep the same lenght.
-
-PeHeader:
+   'This program cannot be run in DOS mode', CR, LF, '$', 0, 0
+] ; for Align-8 in docs (can be 4)
+[<8 PeHeader:
 
 B$ 'PE',0,0             ; signature
 W$ 014C                 ; 386 and more
@@ -7106,7 +7103,7 @@ W$ 01,00                ; image version
 W$ 04,00                ; sub system version
 B$ 00,00,00,00          ; reserved
 AppRVAimageSize: D$ 0   ; RVA image size
-D$ 0400                 ; headers size
+AppHeadersSize: D$ 0400 ; headers size
 CheckSum:
 D$ 0                    ; checksum (works when zero)
 SubSystem:
@@ -7161,17 +7158,6 @@ D$ 0,0,0
 D$ 0_40000040               ; readable, initialised data
 
 
-ResourceSectionHeader:
-
-B$ '.rsrc',0,0,0
-AppRsrcTrueSize: D$ 0       ; EndOfResource-StartOfResource  true size
-AppBaseOfRsrcs: D$ 0        ; RVA
-AppRsrcAlignedSize: D$ 0    ; 200h+ResourceExt
-AppStartOfRsrc: D$  0
-D$ 0,0,0
-D$ 0_40000040               ; readable initialised data
-
-
 DataSectionHeader:
 
 B$ '.data',0,0,0
@@ -7199,24 +7185,31 @@ CodeCharacteristics:
 D$   0_60000020             ; characteristics (readable, runable, code)
 
 ExportSectionHeader:        ;, if any:
-D$ 0 0
-AppExpTrueSize: 0
+B$ '.edata',0,0
+AppExpTrueSize: D$ 0
 AppBaseOfExp: 0
 AppExpAlignedSize: 0
 AppStartOfExp: 0   0 0 0
 D$ 0_40000040               ; readable initialised data
 
 RelocSectionHeader:         ;, if Export:
-D$ 0 0
-AppRelocTrueSize: 0
+B$ '.reloc',0,0
+AppRelocTrueSize: D$ 0
 AppBaseOfReloc: 0
 AppRelocAlignedSize: 0
 AppStartOfReloc: 0   0 0 0
 D$ 0_42000040               ; readable initialised discardable data
 
-D$ 0 0   0 0 0 0   0 0 0 0  ; just ensure to stop win search of sections.
+ResourceSectionHeader:
+B$ '.rsrc',0,0,0
+AppRsrcTrueSize: D$ 0       ; EndOfResource-StartOfResource  true size
+AppBaseOfRsrcs: D$ 0        ; RVA
+AppRsrcAlignedSize: D$ 0    ; 200h+ResourceExt
+AppStartOfRsrc: D$  0
+D$ 0,0,0
+D$ 0_40000040               ; readable initialised data
 
-D$ 0 0   0 0 0 0   0 0 0 0
+D$ 0 0   0 0 0 0   0 0 0 0  ; just ensure to stop win search of sections.
 
 SourceSectionHeader:
 B$ '.src',0,0,0,0           ; Used by RosAsm only (not by loader: 4 sections, not 5)
@@ -7355,7 +7348,7 @@ __________________
 
 ; Copy:
   mov esi DosHeader | mov edi D$CodeList
-  mov ecx 080 | rep movsb                                   ; store Dos header
+  mov ecx D$PeHeaderPointer | rep movsb                     ; store Dos header
   mov ecx D$PeHeaderSize | mov esi PeHeader | rep movsb     ; room for PE header
 ret
 
@@ -7367,7 +7360,7 @@ WritePeHeaders:
 
     mov esi DosHeader, edi D$CodeList
 
-    mov ecx PeHeader | sub ecx esi | shr ecx 2 | rep movsd
+    mov ecx PeHeader | sub ecx esi | rep movsb
 
     mov D$edi 'PE'; W$edi+2 0                   ; signature
     add edi 4 | mov W$edi 014C                  ; 386 and more
