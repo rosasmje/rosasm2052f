@@ -62,7 +62,7 @@ ________________________________________________________________________________
 
 InitMacroWithIf:
   ; '#IF' found. Take a work Copy into Trash1:
-    mov D$Trash1 0, D$Trash2 0
+    mov D$Trash1 0, D$Trash2 0, D$Trash1-4 0 ; jE!
     mov D$Trash1ptr, Trash1, D$Trash2Ptr Trash2
     mov esi D$CmStart, edi D$Trash1ptr, ecx D$UserMacroLength
     rep movsb | mov D$edi 0

@@ -9,7 +9,7 @@ TITLE Progress
 [ProgressClassName: 'msctls_progress32' 0 ; ProgressName: 'Compiling...' 0
  PWindowX: 10 PWindowY: 5 PWindowW: 300 PWindowH: 10
  PBarWindow: PBarWindowX: 0   PBarWindowY: 0   PBarWindowW: 340  PBarWindowH: 45
- ProgressInst: 0   hwndForBar: 0]
+ ProgressInst: 0   hwndForBar: 0 ]; ProgressTick: 0]
 
  call 'Comctl32.InitCommonControls'
 
@@ -53,7 +53,7 @@ _____________________________
     call 'USER32.CreateWindowExA' 0, ProgressClassName, 0, &WS_CHILD__&WS_VISIBLE,
                                   D$PWindowX, D$PWindowY, D$PWindowW, D$PWindowH,
                                   D$hwndForBar, 0, D$hInstance, 0
-    mov D$ProgressInst eax
+    mov D$ProgressInst eax; | call 'KERNEL32.GetTickCount' | mov D$ProgressTick eax
 ret
 
 
@@ -68,11 +68,11 @@ EndP
 
 BarProgress:
     On B$WeAreUnfolding = &TRUE, ret
-
     pushad
-    call 'USER32.SendMessageA' D$ProgressInst &PBM_STEPIT 0 0
-    popad
     call RemoveMSGs
+    ;call 'KERNEL32.GetTickCount' | sub eax D$ProgressTick | cmp eax 30 | jb L0> | add D$ProgressTick eax
+    call 'USER32.SendMessageA' D$ProgressInst &PBM_STEPIT 0 0
+L0: popad
 ret
 
 
@@ -83,8 +83,10 @@ L0: call 'User32.DispatchMessageA' esi
 L1: call 'User32.PeekMessageA' esi 0 0 0 &PM_REMOVE
     test eax eax | jne L0<
     add esp 020
-    popad
+    popad | cmp D$hwndForBar 0 |  je E3>
 ret
+
+E3: add esp 4 | cmp B$Disassembling &TRUE | jne QuickOut | jmp DisFail; for Dis/Asm termination
 
 [CompileInfos: ]
 ;;

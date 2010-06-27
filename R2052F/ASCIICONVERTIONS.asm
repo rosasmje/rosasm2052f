@@ -3762,10 +3762,10 @@ EndP
  eax = lowpart
  edx = hipart
 ;;
-Proc atoi64:
-    Arguments @String
+atoi64:
+    ;jE! Argument in ESI;
 
-    mov ebx D@String
+    mov ebx esi
 
     xor esi esi ; HiQword
     xor ecx ecx ; LowQWord
@@ -3775,8 +3775,8 @@ Proc atoi64:
         mov ecx eax
         mov esi edx
 
-        movsx eax B$ebx
-        sub eax '0' | jc L7>
+        movzx eax B$ebx
+        sub eax '0' ;| jc L7>
         cmp eax 9 | ja L7>
         cdq
         add ecx eax
@@ -3797,11 +3797,11 @@ L6:
 L7:
    mov ecx D$DezimalTypePtr
    mov esi ebx
-   jmp BadNumberFormat
+   jmp BadNumberFormat ; will try retranslate!; ERROR was on: 30H
 
 L8:
 
-EndP
+ret ;EndP
 
 ;;
 Multiply a Qword unsigned integer by 10

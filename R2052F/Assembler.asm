@@ -2321,6 +2321,16 @@ ________________________________________________________________________________
 PrepareDllVariables:
     mov eax D$AppStartOfCode
     add eax D$AppTrueCodeSize | Align_On 0200 eax | mov D$AppStartOfExp eax
+
+    mov eax D$AppCodeRVAoffset
+    add eax D$AppFileSizeOfCode | Align_On 01000 eax | mov D$AppBaseOfExp eax
+
+  ; For ease of 'FillExportSection' job:
+    mov eax D$AppBaseOfExp | sub eax D$ExportListBPtr | mov D$ExportAjust eax
+ret
+
+FinishDllVariables:
+    mov eax D$AppStartOfExp
     add eax D$ExportSectionLen | Align_On 0200 eax
 
     If D$SavingExtension = '.SYS'
@@ -2336,21 +2346,12 @@ L1:     mov D$AppStartOfReloc eax | add eax D$RelocSectionSize | Align_On 0200 e
     mov eax D$ExportSectionLen, D$AppExpTrueSize eax
     Align_On 0200 eax | mov D$AppExpAlignedSize eax
 
-    mov eax D$AppCodeRVAoffset
-    add eax D$AppFileSizeOfCode | Align_On 01000 eax | mov D$AppBaseOfExp eax
-
-    add eax D$AppExpAlignedSize | Align_On 01000 eax
-
     move D$SectionTable D$AppBaseOfExp
     move D$SectionTable+4 D$AppExpAlignedSize
-
-  ; For ease of 'FillExportSection' job:
-    mov eax D$AppBaseOfExp | sub eax D$ExportListBPtr | mov D$ExportAjust eax
 
     mov eax D$ExportSectionLen | Align_On 0200 eax | mov D$FileAlignedExportSectionLen eax
     Align_On 01000 eax | add D$uImageSize eax
 ret
-
 ;;
  Same for Resources (DLL cases, too).
 
@@ -5400,7 +5401,7 @@ L0: inc B$UnfoldingRotations | On B$UnfoldingRotations = 0FF, error D$InfiniteLo
         mov ecx edi | sub ecx D$InstructionA
 
       ; If D$InstructionA = EOI, EOI (Cases of empty outputs - impossible actually -):
-L2:     If ecx <= 2
+        If ecx <= 2
             mov edi D$InstructionA, B$edi EOI, D$edi+1 'NOPE', B$edi+5 EOI
             mov D$StripLen 6 | ret
         End_If
@@ -6739,11 +6740,11 @@ L1: call StoreExportAdresse | call StoreExportNamePtr
     dec D$NumberOfExportedFunctions | jnz L1<
     call RemoveMSGs
 ; sort Names & adjaust Ordinals to Base
-    mov ebx D$ExportListBPtr | mov ecx D$ebx+EXPNumberOfNames | mov eax D$ebx+EXPnBase
-    mov edi D$ebx+EXPAddressOfNameOrdinals | sub edi D$ExportAjust
+    mov ebx D$ExportListBPtr | mov ecx D$ebx+EXPNumberOfNames | test ecx ecx | jle L1>
+    mov eax D$ebx+EXPnBase | mov edi D$ebx+EXPAddressOfNameOrdinals | sub edi D$ExportAjust
     call DualBubbleSortExportNamesPointersAndOrdinals | call RemoveMSGs
 L0: sub W$edi ax | add edi 2 | loop L0<
-
+L1:
     mov ebx D$ExportListBPtr | add ebx EXPnName
     mov edi D$FunctionNamesPtr
     mov D$ebx edi                       ; write DLName pointer.
@@ -6751,7 +6752,11 @@ L0: sub W$edi ax | add edi 2 | loop L0<
     mov esi ChoosenFile
 
 L0: lodsb | stosb | cmp B$esi '.' | ja L0<
-
+    cmp D$SavingExtension '.SYS' | jne L0>
+    cmp W$edi-6 'So' | jne L0> | cmp D$edi-4 'urce' | jne L0>
+    lea eax D$esi-6 | sub eax ChoosenFile | jle L0>
+    mov B$edi-1 0 | sub edi 6
+L0:
     mov eax D$SavingExtension | or eax 020202000 | xor eax 020202000 | stosd
     mov al 0 | stosb
     sub edi D$ExportListBPtr
@@ -8179,7 +8184,7 @@ ret
 
 
 TranslateDecimal:
-    call atoi64, esi
+    call atoi64 ; esi
     inc esi
     ret
 
@@ -9471,7 +9476,9 @@ E7:             error D$WhatIsThisPtr
         .If D$esi-9 = 'LOOP'
             If B$LocalSize = 0
                 ; OK.
-            Else_If B$LocalSize <> 1
+            Else_If B$LocalSize = UpShort
+            Else_If B$LocalSize = DownShort
+            Else
                 error D$LongLoopPtr
             End_If
         .End_If
@@ -10328,21 +10335,20 @@ ret
 StoreDBcode:
 L0: If B$esi = TextSign
       ; Cases of Text:
-        inc esi | While B$esi <> TextSign | movsb | End_While | inc esi
+        inc esi
+        While B$esi <> TextSign
+            movsb
+        End_While
+        inc esi
         On B$esi > Space, error D$MissingSeparatorPtr
+        inc esi
     Else
       ; Cases of Numbers:
         call GetFlatInteger | On eax > 0FF, error D$OverBytePtr
         stosb
     End_If
 
-    On B$esi+2 = memMarker, ret
-
-    If B$esi+3 = Space
-        On B$esi+1 = 'D', ret
-    End_If
-
-    On B$esi-1 = Space, jmp L0<
+cmp B$esi-1 Space | je L0<
 ret
 
 
@@ -10353,22 +10359,20 @@ ret
 
 
 StoreDUcode:
-    .If B$esi = TextSign
+L0: If B$esi = TextSign
         inc esi
         While B$esi <> TextSign
             movsb | mov B$edi 0 | inc edi
         End_While
         inc esi
-        On B$esi > Space, error D$MissingSeparator
-        On B$esi+2 = memMarker, ret
-        If B$esi+3 = Space
-            On B$esi+1 = 'D', ret
-        End_If
-    .End_If
+        On B$esi > Space, error D$MissingSeparatorPtr
+        inc esi
+    Else
+        call GetFlatInteger | On eax > 0FFFF, error D$OverWordPtr
+        stosw
+    End_If
 
-    call GetFlatInteger | On eax > 0FFFF, error D$OverWordPtr
-
-    stosw | cmp B$esi-1 Space | je L0<
+cmp B$esi-1 Space | je L0<
 ret
 
 

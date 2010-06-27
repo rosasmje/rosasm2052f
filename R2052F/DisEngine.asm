@@ -54,7 +54,7 @@ ________________________________________________________________________________
 
 Op00:
     On D$esi-5 = 0, add D$UnLikelyCode 4
-    On D$esi-1 = 0, add D$UnLikelyCode 1 ; ???...
+    On B$esi-1 = 0, add D$UnLikelyCode 1 ; ???...
 
 ; This hangs here, because a valid "add reg8 reg8" is found somewhere and
 ; produces something wrong in the Sections recognitions...
@@ -161,7 +161,7 @@ Op03:
 
 
 Op04: ; add al imm8
-    If D$esi-1 = 4
+    If B$esi-1 = 4
         inc D$UnlikelyCode
     Else
         inc D$LikelyCode
@@ -804,7 +804,7 @@ Op2C: ; CVTTPD2PI mm, xmm/m128
         End_If
 
     .Else       ; 2C ib SUB AL,imm8
-        If D$esi-1 = 02C
+        If B$esi-1 = 02C
             inc D$UnlikelyCode
         Else
             inc D$LikelyCode
@@ -4882,7 +4882,7 @@ OpF2:
             add esi 2 | mov D$edi 'lddq', D$edi+4 'u ' | add edi 6
             jmp Dis_xmm1__xmm2_m128  ; Xmm2 is dummy, here.
         .Else
-            inc D$UnLikelyCode | ret
+            inc D$UnLikelyCode | mov B$DisFlag DISDONE | ret
         .End_If
 
     ..Else_If B$esi = 0A6   ; F2 A6 REPNE CMPS m8, m8
@@ -4902,7 +4902,7 @@ OpF2:
           ; 0F F2 /r PSLLD mm, mm/m64   ;  66 0F F2 /r PSLLD xmm1, xmm2/m128
             mov D$edi 'psll', W$edi+4 'd ' | add edi 6 | jmp Dis_xmmx1__xmmx2_m64_128
         .Else
-            inc D$UnLikelyCode | ret
+            inc D$UnLikelyCode | mov B$DisFlag DISDONE | ret
         .End_If
     ..End_If
 
@@ -5004,7 +5004,7 @@ OpF3:
             add esi 2 | mov D$edi 'movd', D$edi+4 'qu  ' | add edi 7
             jmp Dis_xmm2_m128__xmm1
         .Else
-            ret
+            mov B$DisFlag DISDONE | ret
         .End_If
 
     ..Else_If B$esi = 090   ; F3 90 PAUSE
@@ -5071,7 +5071,7 @@ OpF3:
             mov D$edi 'psll', W$edi+4 'q ' | add edi 6
             jmp Dis_xmmx1__xmmx2_m64_128
         Else
-            ret
+            mov B$DisFlag DISDONE | ret
         End_If
     ..End_If
     mov B$DisFlag DISDONE+DISLINEOVER

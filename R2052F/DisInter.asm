@@ -178,7 +178,7 @@ Proc ForcedFlagsProc:
         .End_If
 
     ..Else_If D@Message = &WM_CTLCOLOREDIT
-        call 'USER32.SendMessageA' D@lParam, &EM_SETSEL, 0-1, 0
+;        call 'USER32.SendMessageA' D@lParam, &EM_SETSEL, 0-1, 0 ; this fails to stack overflow
         call 'GDI32.SetBkColor' D@wParam D$DialogsBackColor
         mov eax D$DialogsBackGroundBrushHandle | ExitP
 

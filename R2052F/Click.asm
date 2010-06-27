@@ -1072,7 +1072,7 @@ Proc DlgClickedNumber:
        call BinFormDisplayValues D@adressee, ClickedNumberValue, IDC_BASEFLOAT64
        call BinFormDisplayValues D@adressee, ClickedNumberValue, IDC_BASEFLOAT80
        call BinFormDisplayValues D@adressee, ClickedNumberValue, IDC_SINGLE_EQUATES
-       call BinFormDisplayValues D@adressee, ClickedNumberValue, IDC_COMBINED_EQUATES
+       ;call BinFormDisplayValues D@adressee, ClickedNumberValue, IDC_COMBINED_EQUATES
 
         ;VirtualFree D$BinFormEquateTextBuffer
     ...Else_If D@Message = &WM_CLOSE
