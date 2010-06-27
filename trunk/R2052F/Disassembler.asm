@@ -621,8 +621,8 @@ DisMain: ; 'MSVBVM' 'OpenRosAsmPe', 'DisassembleProc'
   ; Positive Recognition for Data and Code:
 
   ; 'MarkEvocated' _MUST_ be kept _first_ Recognition.
-    call TryLoadPointersFromRELOC
-    call ImportReferencesToCode
+    call BarProgress | call TryLoadPointersFromRELOC | call BarProgress
+    call ImportReferencesToCode | call BarProgress
     call MarkEvocatedRelative | call ConditionalJumpsAnalyzes
 ;map
     call MarkEntryPoint
@@ -669,7 +669,7 @@ DisMain: ; 'MSVBVM' 'OpenRosAsmPe', 'DisassembleProc'
     _________________________________________________________________
   ; Try&See recognitions of left Code // Negative Recognition of Data:
     call 'User32.SendMessageA' D$hwndForBar, &WM_SETTEXT, 0, PointersAnalyzes
-;
+    call 'User32.SendMessageA' D$ProgressInst, &PBM_SETPOS, 0,0
     call CodeFromPointers
 
     If B$AttemptSuccess = &TRUE
@@ -678,7 +678,7 @@ DisMain: ; 'MSVBVM' 'OpenRosAsmPe', 'DisassembleProc'
     End_If
 
     call 'User32.SendMessageA' D$hwndForBar, &WM_SETTEXT, 0, NegativeAnalyze
-
+    call 'User32.SendMessageA' D$ProgressInst, &PBM_SETPOS, 0,0
     call GetBiggerSectionsBlank | mov ecx D$BiggerZeroedSectionsChunk
 ;map
 
@@ -728,7 +728,7 @@ L9:     pop ecx
 
         shr ecx 1 | mov eax ecx | shr eax 1 | add ecx eax
   ; Let the ecx = 0. This is to say down to one _Instruction_:
-    call RemoveMSGs
+    ;call BarProgress
     .Loop_Until ecx = 0
     call ReleaseDisTablesCopies ; now only release
     call FlagsCleaner
@@ -3423,12 +3423,13 @@ ________________________________________________________________________________
 ____________________________________________________________________________________________
 
 [DisEndOfChunk: ?]
-[DisCodeDisplacement: ?    DisCodeBytes: ?    DisBarStep: ?    NextDisBarPos: ?
+[DisCodeDisplacement: ?   DisCurrSource: ?    DisBarStep: ?    NextDisBarPos: ?
  NewAccessedLocations: ?]
 
 [TestLastLocation: ?  TestLastLineLocation: ?]
 
 DisassembleForCodeRouting:
+    sub eax eax | push DisOpcSEH | push FS:D$eax | mov FS:D$eax esp
     mov edi D$CodeSource, esi D$UserPeStart
     add esi D$FirstSection
     mov D$NewAccessedLocations &FALSE, D$LastCodeRef 0
@@ -3443,29 +3444,29 @@ L0: mov B$DisFlag 0, D$SegmentOverride 0, B$AddressSizeOverride 0
   ; Parse onlyCODEFLAGed (in SectionsMap) and ACCESSED (in RoutingMap) Locations:
 L1: mov eax esi | sub eax D$UserPestart | add eax D$SectionsMap
     Test B$eax CODEFLAG | jnz L2>
-        inc esi | On esi = D$UserPeEnd, jmp L9>>
+        inc esi | cmp esi D$UserPeEnd | jae L9>>
             jmp L1<
 
 L2: sub eax D$SectionsMap | add eax D$RoutingMap
     test B$eax ACCESSED | jnz L3>
-        inc esi | On esi = D$UserPeEnd, jmp L9>>
+        inc esi | cmp esi D$UserPeEnd | jae L9>>
             jmp L1<
+
+E0: mov esi D$TestLastLineLocation, edi D$DisCurrSource, eax esi
+    sub eax D$UserPestart | add eax D$SectionsMap | and B$eax (Not CODEFLAG)
+    sub eax D$SectionsMap | add eax D$RoutingMap | and B$eax (Not INSTRUCTION)
+    cmp esi D$UserPeEnd | jae L9>> | jmp L1<
 
       ; Call for the Disassembly Routines:
 L3:     or B$eax INSTRUCTION
-L3:     movzx eax B$esi
+        mov D$TestLastLineLocation esi, D$DisCurrSource edi
+L3:     mov D$TestLastLocation esi
+        movzx eax B$esi | inc esi | cmp esi D$UserPeEnd | ja E0<
+        call D$DisOp1+eax*4 | cmp B$DisFlag DISDONE | je L3< ; Loop immidiately in case of simple Prefix:
+      ; Opc Max Len check!
+        mov eax esi | sub eax D$TestLastLineLocation | sub eax 15 | jg E0<
 
-        mov D$TestLastLineLocation esi, D$TestLastLocation esi
-
-        inc esi | call D$DisOp1+eax*4
-
-      ; Loop immidiately in case of simple Prefix:
-        While B$DisFlag = DISDONE
-            mov D$TestLastLocation esi
-            movzx eax B$esi | inc esi | call D$DisOp1+eax*4
-        End_While
-
-        mov eax D$TestLastLineLocation | sub eax D$UserPeStart | add eax D$DisImageBase
+        ;mov eax D$TestLastLineLocation | sub eax D$UserPeStart | add eax D$DisImageBase
 
       ; Clear any LABEL from inside the valid parsed Code:
         mov eax D$TestLastLineLocation, edx esi | inc eax
@@ -3489,7 +3490,7 @@ L3:     and B$eax (not LABEL)
             mov eax D$LastCodeRef
             sub eax D$DisImageBase | add eax D$SectionsMap
             On eax < D$SectionsMap, jmp L4>>
-            On eax >= D$EndOfSectionsMap, jmp L4>>
+            On eax > D$EndOfSectionsMap, jmp L4>>
             test B$eax VIRTUALFLAG+IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+DATAFLAG | jnz L4>>
             ;test B$eax VIRTUALFLAG+IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG | jnz L4>>
                 mov B$eax CODEFLAG
@@ -3500,7 +3501,7 @@ L3:             or B$eax NODE+INSTRUCTION+ACCESSED+EVOCATED+LABEL
         .End_If
 
       ; CHUNKEND Flag marks the first Byte *after* a RET or a JMP:
-L4:     mov eax esi | sub eax D$UserPeStart | add eax D$RoutingMap
+L4:     cmp esi D$UserPeEnd | jae L4> | mov eax esi | sub eax D$UserPeStart | add eax D$RoutingMap
         If B$DisEndOfChunk = &TRUE
             or B$eax CHUNKEND | dec eax | mov B$DisEndOfChunk &FALSE
         End_If
@@ -3508,7 +3509,7 @@ L4:     mov eax esi | sub eax D$UserPeStart | add eax D$RoutingMap
       ; Now Flaged *backward* 'ACCESSED' the Bytes of the new disassembled Instruction,
       ; including the very first Byte of the new coming Instruction, if this one is
       ; not a CHUNKEND (we have 'dec eax' up there in such cases):
-L4:     test B$eax ACCESSED | jnz L4>
+L4:     cmp esi D$UserPeEnd | jae L6> | test B$eax ACCESSED | jnz L4>
             mov D$NewAccessedLocations &TRUE
 
 L4:     mov ecx D$TestLastLineLocation | sub ecx D$UserPeStart | add ecx D$RoutingMap
@@ -3528,14 +3529,25 @@ L6:   ; Adjust the ProgressBar is wanted:
             call BarProgress
         End_If
 
-    On esi < D$UserPeEnd, jmp L0<<
+    cmp esi D$UserPeEnd | jb L0<<
 
   ; Loop it all until no more new accessed Code Chunks are found:
 L9: mov D$NextDisBarPos 0
    ; map
+DisOpcSEHret:
+    sub eax eax | mov esp FS:D$eax | pop FS:D$eax | pop eax
     cmp B$NewAccessedLocations &TRUE | je DisassembleForCodeRouting
-L9:ret
+    ret
 
+DisOpcSEH:
+    mov eax D$esp+0C | mov edx D$esp+04 | cmp D$edx &EXCEPTION_ACCESS_VIOLATION | jne E9>
+    mov ecx D$edx+018 | cmp D$UserPeEnd ecx | jne E9>
+    mov D$eax+0B8 DisOpcSEHret
+    mov esi D$TestLastLineLocation, eax esi
+    sub eax D$UserPestart | add eax D$SectionsMap | and B$eax (Not CODEFLAG)
+    sub eax D$SectionsMap | add eax D$RoutingMap | and B$eax (Not INSTRUCTION)
+    sub eax eax | ret
+E9: mov eax 1 | ret
 ____________________________________________________________________________________________
 
 IsItNoReturnCall:
@@ -3927,6 +3939,15 @@ Proc IsItCode:
     Arguments @Start, @End, @Required
     Local @OpNumber
 
+ Call @setSEH
+    mov eax D$esp+0C | mov edx D$esp+04 | cmp D$edx &EXCEPTION_ACCESS_VIOLATION | jne E9>
+    mov ecx D$edx+018 | cmp D$UserPeEnd ecx | jne E9>
+    mov D$eax+0B8 @SEHret | sub eax eax | ret
+E9: mov eax 1 | ret
+
+@setSEH:
+    push FS:D$0 | mov FS:D$0 esp
+
     mov B$SimpleScan &TRUE ; Prevents 'WriteDisRelative' from modifying Routing Flags.
     mov B$DisEndOfChunkEncounted &FALSE
 
@@ -3943,7 +3964,8 @@ Proc IsItCode:
         add ecx 2
         On ecx >= D$UserPeEnd, jmp L2>
         If W$esi+1 = 0
-L2:            mov eax &FALSE | jmp L9>>
+@SEHret:
+L2:         mov eax &FALSE | jmp L9>>
         End_If
     .End_If
 
@@ -3995,8 +4017,8 @@ L1:         mov eax D$LastUnAccessed | sub eax D$UserPeStart | add eax D$DisImag
 L2: mov eax &TRUE
 
 L9: mov B$SimpleScan &FALSE
-
     On eax = &TRUE, mov D$LastUnAccessed esi
+    mov esp FS:D$0 | pop FS:D$0 | lea esp D$esp+4
 EndP
 ____________________________________________________________________________________________
 
@@ -4016,7 +4038,11 @@ L0: mov edi D$CodeSource, D$LastCodeRef 0
     mov B$OperandSizeOverride 0, W$DisSizeMarker 'D$'
     mov B$DisCodeDisplacement &FALSE, B$EscapePrefix &FALSE
     mov B$CALLInstruction &FALSE, B$DisEndOfChunk &FALSE
-
+  ; Adjust the ProgressBar is wanted:
+    If esi > D$NextDisBarPos
+        mov eax esi | add eax D$DisBarStep | mov D$NextDisBarPos eax
+        call BarProgress
+    End_If
   ; Parse onlyCODEFLAGed (in SectionsMap) and ACCESSED (in RoutingMap) Locations:
 L1: mov eax esi | sub eax D$UserPestart | add eax D$SectionsMap
 
@@ -4026,7 +4052,7 @@ L1: mov eax esi | sub eax D$UserPestart | add eax D$SectionsMap
             mov D$DisFailureType 1
             mov B$DisFailure &TRUE | ret
         End_If
-        inc esi | On esi = D$UserPeEnd, jmp L9>>
+        inc esi | cmp esi D$UserPeEnd | jae L9>>
             jmp L1<
 
 L2:
@@ -4035,19 +4061,23 @@ L2:
 
     sub eax D$SectionsMapCopy | add eax D$RoutingMap
     test B$eax ACCESSED | jnz L3>
-        inc esi | On esi = D$UserPeEnd, jmp L9>>
+        inc esi | cmp esi D$UserPeEnd | jae L9>>
             jmp L1<
+
+E0: mov esi D$TestLastLineLocation, edi D$DisCurrSource, eax esi
+    sub eax D$UserPestart | add eax D$SectionsMap | and B$eax (Not CODEFLAG)
+    sub eax D$SectionsMap | add eax D$RoutingMap | and B$eax (Not INSTRUCTION)
+    cmp esi D$UserPeEnd | jae L9>> | jmp L1<<
 
       ; Call for the Disassembly Routines:
 L3:     or B$eax INSTRUCTION
-
-        movzx eax B$esi | mov D$TestLastLocation esi | inc esi
-
+        mov D$TestLastLineLocation esi, D$DisCurrSource edi
+L3:     mov D$TestLastLocation esi
+        movzx eax B$esi | inc esi | cmp esi D$UserPeEnd | ja E0<
         call D$DisOp1+eax*4
-
-        While B$DisFlag = DISDONE
-            movzx eax B$esi | inc esi | call D$DisOp1+eax*4
-        End_While
+        cmp B$DisFlag DISDONE | je L3<
+      ; Opc Max Len check!
+        mov eax esi | sub eax D$TestLastLineLocation | sub eax 15 | jg E0<
 
         If B$LockPrefix = &TRUE
             mov B$LockPrefix &FALSE | add B$UnlikelyCode 50
@@ -4074,7 +4104,7 @@ L3:         inc eax | inc ebx
 
             mov eax D$LastCodeRef | sub eax D$DisImageBase | add eax D$SectionsMap
             On eax < D$SectionsMap, jmp L4>>
-            On eax > D$EndOfSectionsMap, jmp L4>>
+            On eax >= D$EndOfSectionsMap, jmp L4>>
             test B$eax VIRTUALFLAG+IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+DATAFLAG | jnz L4>>
             jmp L5>
 
@@ -4109,7 +4139,7 @@ L3:         or B$eax NODE+INSTRUCTION+ACCESSED+EVOCATED+LABEL
         ...End_If
 
       ; CHUNKEND Flag marks the first Byte *after* a RET or a JMP:
-L4:     mov eax esi | sub eax D$UserPeStart | add eax D$RoutingMap
+L4:     cmp esi D$UserPeEnd | jae L4> | mov eax esi | sub eax D$UserPeStart | add eax D$RoutingMap
         If B$DisEndOfChunk = &TRUE
             or B$eax CHUNKEND | dec eax | mov B$DisEndOfChunk &FALSE | ret ; <<<< new
         End_If
@@ -4124,7 +4154,7 @@ L4:     mov eax esi | sub eax D$UserPeStart | add eax D$RoutingMap
       ; Now Flaged *backward* 'ACCESSED' the Bytes of the new disassembled Instruction,
       ; including the very first Byte of the new coming Instruction, if this one is
       ; not a CHUNKEND (we have 'dec eax' up there in such cases):
-L4:     test B$eax ACCESSED | jnz L6>>
+L4:     cmp esi D$UserPeEnd | jae L6>> | test B$eax ACCESSED | jnz L6>>
             mov ecx D$TestLastLocation | sub ecx D$UserPeStart | add ecx D$RoutingMap
 
 L4:         or B$eax ACCESSED | mov D$NewAccessedLocations &TRUE
@@ -4150,12 +4180,6 @@ L6: If B$DisFlag = DISLINEOVER+DISDONE
         On esi < D$UserPeEnd, jmp L0<<
     Else_If B$DisFlag = DISFAILED
         mov D$DisFailureType 9 | mov B$DisFailure &TRUE | ret
-    End_If
-
-  ; Adjust the ProgressBar is wanted:
-    If esi > D$NextDisBarPos
-        mov eax esi | add eax D$DisBarStep | mov D$NextDisBarPos eax
-        call BarProgress
     End_If
 
   ; Cases of B$DisFlag = DISDONE only (Prefixes, ...):
@@ -5742,7 +5766,7 @@ DisAlign:
             End_While
 
             ..If B$esi = 0
-                mov ebx esi | inc esi
+                mov ebx esi | inc esi | On esi >= D$EndOfSectionsMap, ret
                 While B$esi = 0
                     mov eax esi | sub eax D$SectionsMap | add eax D$RoutingMap
                     test B$eax LABEL | jnz L9>
@@ -5911,6 +5935,7 @@ L2:     inc esi
     mov D@numRelp ebx
 
 @ManagePointers:
+    call BarProgress
     mov esi D@memRelp | mov ecx D@numRelp | mov edi 080000000 | sub ebx ebx
 L3: lodsd | mov edx eax | sub edx edi | cmp edx 4 | je L4> | sub ebx ebx | jmp L6>
 L4: inc ebx | cmp ebx 2 | jb L6> | mov edx D$SizesMap | lea edx D$edx+eax | jne L7>

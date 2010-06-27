@@ -1029,7 +1029,7 @@ L3:         ifnot op3 'O', L3>
                 ;On B$LocalSize <> UpShort, error D$NoPlainLabelForLoopPtr
                 cmp B$LocalSize UpShort | je L7> | cmp B$LocalSize DownShort | je L7> ; jE! allowed down loop!
                 error D$NoPlainLabelForLoopPtr
-          L7:   mov op1 00_1110_0010 | jmp op_dis8
+   L7:          mov op1 00_1110_0010 | jmp op_dis8
 L4:           ;BadMnemonic
 L3:         ;BadMnemonic
 L2:       BadMnemonic
@@ -1581,8 +1581,9 @@ L4:          BadMnemonic
 L3:        ifnot op3 'O', L3>
              ifnot op4 'P', L4>
                ifnot op5 'Z', L6>                 ; LOOPZ  /  E
-L5:              On B$LocalSize <> UpShort, error D$NoPlainLabelForLoopPtr
-                 mov op1 00_1110_0001 | jmp op_dis8
+L5:              cmp B$LocalSize UpShort | je L7> | cmp B$LocalSize DownShort | je L7> ; jE! allowed down loop!
+                 error D$NoPlainLabelForLoopPtr
+   L7:           mov op1 00_1110_0001 | jmp op_dis8
 L6:            cmp op5, 'E' | je L5<
                BadMnemonic
 L4:          ;BadMnemonic
@@ -2031,13 +2032,14 @@ L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        BadMnemonic
 L2:      ifnot op2 'O', L2>
-           ifnot op3 'O', L3>
-             ifnot op4 'P', L4>
-               ifnot op5 'N', L5>
+           ifnot op3 'O', L2>
+             ifnot op4 'P', L2>
+               ifnot op5 'N', L2>
                  ifnot op6 'Z', L6>                 ; LOOPNZ /  E
-L7:                On B$LocalSize <> UpShort, error D$NoPlainLabelForLoopPtr
-                   mov op1 00_1110_0000 | jmp op_dis8
-L6:              cmp op6 'E' | je L7<
+L5:                cmp B$LocalSize UpShort | je L7> | cmp B$LocalSize DownShort | je L7> ; jE! allowed down loop!
+                   error D$NoPlainLabelForLoopPtr
+   L7:             mov op1 00_1110_0000 | jmp op_dis8
+L6:              cmp op6 'E' | je L5<
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        ;BadMnemonic
@@ -5612,6 +5614,7 @@ w_reg1_P2:
 
 w_reg1_P2cl:
     ParmsAny 2 | GPreg1
+    On B$FirstOperandWbit = WordSize, ToOpcode 066
     cmp B$SecondReg RegCL | jne L1>
     cmp B$SecondOperandWbit ByteSize | je L2>
 L1:   error D$MixTypePtr

@@ -293,11 +293,11 @@ ReadResource:
 
 
     If eax < D$UserPeStart
-        ;mov B$MissingResource &TRUE | ret
-        jmp DisFail
+        cmp B$Disassembling &TRUE | je DisFail
+        mov B$MissingResource &TRUE | ret
     Else_If eax > D$UserPeEnd
-        ;mov B$MissingResource &TRUE | ret
-        jmp DisFail
+        cmp B$Disassembling &TRUE | je DisFail
+        mov B$MissingResource &TRUE | ret
     End_If
 
     push esi, edi

@@ -205,7 +205,7 @@ L2: call ExtendLocalSymbols
     call BuildRelocationAndFillSymbols
 
     If B$ExportsectionWanted = &TRUE
-        call PrepareDllVariables | call FillExportSection
+        call PrepareDllVariables | call FillExportSection | call FinishDllVariables
     End_If
 
     call BarProgress
@@ -248,7 +248,7 @@ ret
 L7: call SetTestSavingName |  call WriteDestination | call CloseProgressBar | jmp L8<<
 
 
-QuickOut:    call CloseProgressBar | call ReleaseAsmTables | ret
+QuickOut:    call CloseProgressBar | call ReleaseAsmTables | mov esp D$OldStackPointer, ebp D$OldStackEBP | ret
 
 ____________________________________________________________________________________________
 ____________________________________________________________________________________________

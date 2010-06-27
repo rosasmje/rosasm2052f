@@ -85,21 +85,24 @@ Proc MainWindowProc:
   USES EBX ESI EDI
 
 
-    If D@Message = &WM_CREATE
+    .If D@Message = &WM_CREATE
         call 'SHELL32.DragAcceptFiles' D@Adressee, &TRUE | jmp L9>>
 
-    Else_If D@Message = &WM_DROPFILES
+    .Else_If D@Message = &WM_DROPFILES
+        CloseDebuggerOrIgnore
+        call Security | cmp eax &IDCANCEL | je L9>>
         call 'SHELL32.DragQueryFile' D@wParam, 0, lpszFile, D$cch
+        move D$OldSourceReady D$SourceReady | mov B$SourceReady &FALSE
         mov esi lpszFile, edi SaveFilter
-        while B$esi <> 0 | movsb | End_While | movsb
+        while B$esi <> 0 | movsb | End_While | mov B$edi 0
         call DirectLoad
-        call StartEdition
-        call ReInitUndo
-        call SetPartialEditionFromPos
-        call EnableMenutems
-        call LoadBookMarks
-        call AskForRedraw
-    End_If
+        call UpdateTitlesFromIncludeFiles
+        cmp D$SaveFilter 0 | je L0>
+            call ReInitUndo
+            call SetPartialEditionFromPos | call EnableMenutems
+            call LoadBookMarks
+L0:     ;call AskForRedraw
+    .End_If
 
     mov eax D@Adressee
 
@@ -119,6 +122,8 @@ Proc MainWindowProc:
             mov D$ActualCursor eax
             call 'USER32.SetClassLongA' D$BpWindowHandle, &GCL_HCURSOR, eax
         End_If
+    .Else_If eax = D$hwndForBar
+        cmp D@Message &WM_DESTROY | jne NoClient | and D$hwndForBar 0 | jmp NoClient
     .Else
         jmp NoClient
     .End_If
