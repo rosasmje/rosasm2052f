@@ -10866,152 +10866,30 @@ ret
 
 [RelocPage: ?    RelocSectionSize: ?    FileAlignedRelocationSize: ?]
 [StartOfCodeSection: 01000  StartOfDataSection: 02000] ; redefined any case after encoding
+__________________________________________________________________________________________
+; EAX = 'L1<' EDX = RefPtr ECX=LastRefLLListPos
+;[LastRefLLListPos: ?]
+FindNearestLocalLabelInLLListA: ; special case for FillCodeSymbols
+    push ebx, esi
+    mov edi D$LocalLabelList | mov esi D$edi | add esi edi | add edi 4
+    mov ebx eax | shr ebx 16 | cmp bl '<' | mov ebx edi | mov edi ecx | jne L1> ; goto Down
 
-[LastUpSearchLabel: ?]
+L0: cmp D$edi+2 edx | ja L0> | add edi 10 | cmp edi esi | jb L0<
+L0: sub edi 10 | mov ecx edi
+L0: cmp W$edi ax | je L7> | sub edi 10 | cmp ebx edi | jbe L0< | jmp L8>
+L1:
+L0: cmp D$edi+2 edx | ja L0> | add edi 10 | cmp edi esi | jb L0< | jmp L8>
+L0: mov ecx edi
+L0: cmp W$edi ax | je L7> | add edi 10 | cmp edi esi | jb L0< | jmp L8>
 
-SearchLocalLabelUp:                     ; EDI >>> LabelList+3 / EDX >>> end of LabelList
-L0: push esi, ecx, ebx                  ; this ESI points to CodeRef <<<<<< ESI >>>>>>
-L1:   lodsb                             ; jmp over name in Coderef
-      cmp al EOI | ja L1<
-        lodsb                           ; strip one '|' ('L1<|..' turn previously 'L1||..')
-        On B$LongRelative = &TRUE, lodsb ; idem for long > 'L1>>|'  > 'L1|||'
-        lodsd                           ; local label evocation offset in EAX
-        and eax 07FFFFFFF   ; 0111111111111111B strip relative flag from offset (if any)
-        mov ecx eax
-        lodsd | mov D$StatementsCounter eax
-        mov esi edi         ; switch ESI to LabelList    <<<<<< ESI >>>>>>
-        On D$LastUpSearchLabel > 0, mov esi D$LastUpSearchLabel
-; ESI > start of first name in LabelList. We now search in LabelList a fitting adress
-; by comparison with evocation offset stored in ECX: search for a neighbour label
-; located after evocation and set EDI to previous one's end
-
-L2:   mov ebx esi                       ; save start of LabelList name
-L3:   lodsb                             ; jmp over name in LabelList
-        cmp esi edx | jae L5>           ; reach end of LabelList? (EDX = Max)
-        cmp al EOI | ja L3<
-        lodsd                           ; read an offset in LabelList
-        test B$esi CodeLabelFlag | je L4>
-        cmp eax ecx | ja L5>            ; is it about the same offset than the Coderef one?
-L4:     lodsb                           ; jump over flag byte
-        lodsb                           ; jmp over '|'
-      jmp L2<
-                                        ;          |PREVIOUSNAME|Dword byte|NAME|
-                                        ;                      ^ <<<<<<<<  ^
-L5: sub ebx 8 | mov edi ebx             ; set EDI > end of previous LabelList name
-    mov D$LastUpSearchLabel ebx         ; This Value saves a lot of Search tim!!!
-    pop ebx, ecx, esi                   ; ESI back to CodeRef     <<<<<<< SI >>>>>>
-    inc esi                             ; For 'L1' label, ESI was at 'L'. Now, ready for
-                                                                  ; backward search
-    std                                 ; ready to check backward
-
-    align 32
-
-L6: push esi ecx
-      repe cmpsb                 ;  cmp ESI (CodeRef) to EDI (LabelList) until different
-      je L9>                            ;  > found
-      cmp B$edi+1 EOI | jbe L7>         ; case of LabelList name shorter than CodeRef's one
-      mov ecx 0FF,  al EOI | repne scasb  ; longer: LabelList Di ptr > after next '|'
-L7:   sub edi 6                           ;          |PREVIOUSNAME|Dword byte|NAME|
-                                          ;                      ^ <<<<<<< ^
-    pop ecx, esi
-    On edi <= D$LabelList, error D$UnknownSymbolPtr esi      ; (we are searching upward)
-    jmp L6<
-
-L9: cld                                  ; ESI, EDI > start of identical found label name
-    pop ecx esi                          ; ESI > end of name
-    On B$LongRelative = &TRUE,  inc esi   ; strip additionnal '|' (old '<')
-    add esi 3                            ; ESI > Dword offset of code evocation
-    add edi 5                            ; EDI > Dword offset of code or data label
+L7: mov edi D$edi+6 | add edi 3 | jmp L9>
+L8: or eax 0-1
+L9: pop esi ebx
 ret
-
-
-[LastDownSearchLabel: ?]
-
-SearchLocalLabelDown:
-L0: push esi, ecx, ebx
-L1:   lodsb                             ; jmp over name in Coderef
-        cmp al EOI | jne L1<
-        lodsb                           ; stip one '|' ('L1>|..' turn previously 'L1||..')
-        On B$LongRelative = &TRUE,  lodsb
-        lodsd                           ; local label evocation offset in eax
-        test eax RelativeFlag | jz L2>
-          and eax 00_01111111_11111111_11111111_11111111   ;07FFFFFFF   ; strip flag
-L2:   mov ecx eax
-      lodsd | mov D$StatementsCounter eax | mov esi edi
-      On D$LastDownSearchLabel > 0, mov esi D$LastDownSearchLabel
-L3:   mov ebx esi                       ; save start of LabelList name
-L4:   lodsb                             ; jmp over name in LabelList
-        cmp esi edx | jae L7>           ; reach end of LabelList? (EDX = Max)
-        cmp al EOI | ja L4<
-        lodsd
-        test B$esi CodeLabelFlag | je L5>
-          cmp eax ecx | jae L6>         ; is it about the same offset?
-L5:     lodsb                           ; jump over flag byte
-        lodsb                           ; jmp over '|'
-      jmp L3<
-L6: mov edi ebx                         ; restore start of LabelList name in DI
-    mov D$LastDownSearchLabel ebx       ; This Value saves lot of search time!!!
-    pop ebx ecx esi           ; edi > First label name's letter with possible adress
-    call SearchRegularLabel
-    inc esi                             ; strip '>' for short jump
-    On B$LongRelative = &TRUE,  inc esi  ; strip next '>' if long jump
-ret
-
-L7: pop ebx ecx esi
-    error D$UnknownSymbolPtr esi
-
-
-; when called, ESI > start of a label name in CodeRef, ECX lenght of this name
-; EDI set to >  LabelList + 5  by FillCodeSymbols (start of first label name in LabelList)
-
-SearchRegularLabel:
-    mov al EOI
-L0: push esi ecx
-        repe cmpsb              ;  cmp esi (CodeRef/DataRef) to edi (LabelList) until different
-        je L8>                  ;  > found
-            cmp B$edi-1 al | jbe L3>      ; case of LabelList name shorter than CodeRef's one
-            mov ecx 0FF | repne scasb     ; longer: LabelList edi ptr > after next '|'
-L3:         add edi 6                                 ; |LABELNAME|dword FlagByte|NEXTNAME
-                                                    ;        EDI ^ >>>>>>>>     ^
-            If edi >= edx                       ; edx = LabelList Max.
-                pop ecx, esi
-                error D$UnknownSymbolPtr esi
-            end_if
-    pop ecx, esi | jmp L0<
-
-L8: cmp B$Relative &TRUE | je L9>           ; if comming from 'SearchLocalLabeldown', OK
-      test D$esi RelativeFlag | jz L9>           ; if not, possible relative:
-        mov D$Relative &TRUE,  B$LongRelative &TRUE     ; this is for 'JMP label'
-L9: pop eax eax             ; if here, found: dummy stack restore. edi > code adress dWord
-    ret
-
 
 SearchSortedRegularLabel:
-;;
-    dec ecx
-    If D$LabelsPointersBySizes+ecx*4 <> 0
-        mov edi D$LabelsPointersBySizes+ecx*4
-    Else
-        error UnknownSymbol esi
-    End_If
-    inc ecx | mov al EOI
-    
 
-L0: push esi ecx
-        repe cmpsb              ;  cmp esi (CodeRef/DataRef) to edi (LabelList) until different
-        je L8>                  ;  > found
-            cmp B$edi-1 al | jbe L3>      ; case of LabelList name shorter than CodeRef's one
-            mov ecx 0FF | repne scasb     ; longer: LabelList edi ptr > after next '|'
-L3:         add edi 6                             ; |LABELNAME|dword FlagByte|NEXTNAME
-                                                  ;        EDI ^ >>>>>>>>     ^
-            If edi >= edx                       ; edx = LabelList Max.
-                pop ecx, esi
-                error UnknownSymbol esi
-            End_if
-    pop ecx, esi | jmp L0<
-;;
-
-L8: call GetFromQwordCheckSum esi, D$LabelList, D$LabelListLimit
+    call GetFromQwordCheckSum esi, D$LabelList, D$LabelListLimit
 
     If eax = 0
         push D$esi
@@ -11022,10 +10900,10 @@ L8: call GetFromQwordCheckSum esi, D$LabelList, D$LabelListLimit
         error D$UnknownSymbolPtr, esi
     Else
         While B$eax > LowSigns | inc eax | inc esi | End_While | inc eax | inc esi
-        mov edi eax, ecx 0
+        mov edi eax
     End_If
 
-L8: cmp B$Relative &TRUE | je L9>           ; if comming from 'SearchLocalLabeldown', OK
+    cmp B$Relative &TRUE | je L9>           ; if comming from 'SearchLocalLabeldown', OK
         test D$esi RelativeFlag | jz L9>           ; if not, possible relative:
             mov D$Relative &TRUE,  B$LongRelative &TRUE     ; this is for 'JMP label'
 
@@ -11127,17 +11005,18 @@ L1: ;error D$ShortDisPtr
 
 [ApplyShortenJump: ?]
 
+____________________________________________________________________________________________
+
 FillCodeSymbols:
     mov eax D$CodeRef | add eax 5
     On D$CodeRefPtr = eax,  ret                 ; if no symbol at all (???!!!)
-    mov edx D$LabelList | mov esi edx | lodsd   ; len of LabelList (-1) > EAX > EDX
-    add edx eax | dec edx                       ; last octet of LabelList table (edx=edi max)
     mov ebx D$CodeRef | mov esi ebx | lodsd     ; len of CodeRef (-1) > EAX > EBX
     add ebx eax | dec ebx                       ; last octet of CodeRef table (ebx=esi max)
     mov esi D$CodeRef | add esi 5               ; (+5) > jmp over len and '|'
 
-L0: mov edi D$LabelList | add edi 5
-
+    mov ecx D$LocalLabelList | add ecx 4
+    ;mov D$LastRefLLListPos ecx
+L0:
     mov B$ApplyShortenJump &FALSE
 ;;
  For Api calls relocations, the 'EncodeLines' does it directely (> 'NewSearchApiName'): 
@@ -11148,59 +11027,59 @@ L0: mov edi D$LabelList | add edi 5
  with this, out of the DLL relocations building:
 ;;
     If B$esi = 0FF
-        call StoreApiReloc | cmp esi ebx | jb L0<
-        ret
+        call StoreApiReloc | jmp L9>>
     End_If
 
-    push esi
-      mov ecx 0
-L1:   lodsb
-        inc ecx                                 ; simple lenght counter of Code symbolics'
-        cmp al EOI | ja L1<                     ; lenghts, in CodeRef, including separator
-        lodsd | lodsd | mov D$StatementsCounter eax
-    pop esi                       ; when encoding 'Relative' is either 0 or high bit flag
+    mov eax esi
+L1:   inc eax | cmp B$eax EOI | ja L1<
+      mov eax D$eax+5 | mov D$StatementsCounter eax
+                                                 ; when encoding 'Relative' is either 0 or high bit flag
     mov D$Relative &FALSE                        ; now on, either true or false
-      mov ah B$esi,  al B$esi+1
-      cmp ah 'A' | jb S9>>
-        cmp ah 'Z' | ja S9>>
-          cmp al '0' | jb S9>>
-            cmp al '9' | ja S9>>                 ; is it a local label evocation?
 
-            .If B$esi+2 = '>'
+    mov eax D$esi
+    cmp ah '9' | ja S9>> | cmp ah '0' | jb S9>>
+    cmp al 'A' | jb S9>> | cmp al 'Z' | ja S9>>
+    ror eax 16
+
+            .If AL = '>'
                 mov D$Relative &TRUE
-                If B$esi+3 = '>'
+                If AH = '>'
                     mov B$LongRelative &TRUE
-                Else_If B$esi+3 = '.'
+                Else_If AH = '.'
                     mov B$LongRelative &TRUE | mov B$esi+3 '>'
                     mov B$ApplyShortenJump &TRUE
-                Else_If B$esi+3 < Separators
+                Else_If AH < Separators
                     mov B$LongRelative &FALSE
                 Else
                     Error D$WhatIsThisPtr
                 End_If
 
-                mov B$esi+2 EOI | mov ecx 3 | call SearchLocalLabelDown
+                jmp L3>
 
-            .Else_If B$esi+2 = '<'
+            .Else_If AL = '<'
                 mov D$Relative &TRUE
-                If B$esi+3 = '<'
+                If AH = '<'
                     mov B$LongRelative &TRUE
-                Else_If B$esi+3 = '.'
+                Else_If AH = '.'
                     mov B$LongRelative &TRUE | mov B$esi+3 '<'
                     mov B$ApplyShortenJump &TRUE
-                Else_If B$esi+3 < Separators
+                Else_If AH < Separators
                     mov B$LongRelative &FALSE
                 Else
                     Error D$WhatIsThisPtr
                 End_If
+L3:
+                If B$LongRelative = &TRUE
+                    ON B$esi+4 >= Separators, Error D$WhatIsThisPtr
+                End_If
 
-                mov B$esi+2 EOI | mov ecx 3 | call SearchLocalLabelUp
-
+                ror eax 16 ;| mov ecx D$LastRefLLListPos
+L3:             inc esi | cmp B$esi EOI | ja L3< | inc esi
+                mov edx D$esi | and edx (not relativeFlag)
+                call FindNearestLocalLabelInLLListA | cmp eax 0-1 | je E0>>
+                ;| mov D$LastRefLLListPos ecx
             .Else
-S9:             push edx
-                    call SearchSortedRegularLabel
-                pop edx
-
+S9:             call SearchSortedRegularLabel
             .End_If
 ;;
   got here after label search up, down or regular (and found)
@@ -11213,7 +11092,7 @@ S9:             push edx
     On B$ApplyShortenJump = &TRUE, mov B$LongRelative &FALSE
 
   ; write 'done' on LabelList flag byte:
-    mov cl B$edi+4 | or B$edi+4 DoneFlag
+    mov dl B$edi+4 | or B$edi+4 DoneFlag
     mov edi D$esi | add esi 9
   ; ESI > CodeRef offset of evocation > EDI
 
@@ -11230,34 +11109,33 @@ S9:             push edx
 
 L6:         On eax > 080, jmp ErrorShortDisDown    ; short positive value > 07F + 1
                                                     ; +127 (limit for signed positive byte)
-L7:         sub eax 1 | add B$edi al | cmp esi ebx | jb L0<<     ; store on one byte
-            ret
+L7:         sub eax 1 | add B$edi al | jmp L9>     ; store on one byte
 
         .Else
-            On B$ProfilerFlag = &TRUE, call TimingCalls
 
-L8:         sub eax 4 | add D$edi eax | cmp esi ebx | jb L0<<       ; store on 4 bytes
-            ret      ; why ADD and not MOV: exemple: 'ADC ebx MyLabel+2' > '2' previously stored
+L8:         sub eax 4 | add D$edi eax | jmp L9>       ; store on 4 bytes
+                ; why ADD and not MOV: exemple: 'ADC ebx MyLabel+2' > '2' previously stored
                 ; 'sub ax, 4'  is to jump over storage bytes (L7: idem for one byte storage)
         .End_If
     ...End_If
 
-L9: If D$RelocsWanted = &TRUE ;SavingExtension = '.DLL' ; jE!
+    If D$RelocsWanted = &TRUE ;SavingExtension = '.DLL' ; jE!
         call StoreReloc
     Else_If D$SavingExtension = '.SYS'
         call StoreReloc
     End_If
 
-    If cl < CodeLabelFlag
+    If dl < CodeLabelFlag
         add eax D$DataAjust         ; 2 >>> data / 3 >>> data+done
     Else
         add eax D$CodeAjust         ; 4 >>> code / 5 >>> code+done
     End_If
 
     add D$edi eax                                   ; store on 4 bytes (uncomputed)
-    cmp esi ebx | jb L0<<
+L9: cmp esi ebx | jb L0<<
 ret
 
+E0: error D$UnknownSymbolPtr, esi
  ________________________________________________________________________________________
 ;
 ; Filling empty rooms left in Data section (same comments as upper ones)
@@ -11389,12 +11267,12 @@ BuildRelocationAndFillSymbols:                      ; >>> StoreReloc <<<
     call InitRelocationForData
         mov B$ErrorLevel 3
         move D$CodeOrData D$DataList
-        call BuildPlainLabelList
-
+        call BuildPlainANDLocalLabelLists
+        ;call BuildNewCodeRefLIst
       ; Left for viewing the List of Labels, the Debugger, ...
-       call SortPlainLabelList
+        call SortPlainLabelList
 
-       call FillDataSymbols
+    call FillDataSymbols
 
         call CloseRelocation
         If D$RelocSectionSize = 8                   ; Case of no relocation
@@ -11403,11 +11281,10 @@ BuildRelocationAndFillSymbols:                      ; >>> StoreReloc <<<
 
     call InitRelocationForCode
         mov B$ErrorLevel 2
-        mov D$LastDownSearchLabel 0, D$LastUpSearchLabel 0
         move D$CodeOrData D$DataList
         mov eax D$uDataSize | Align_On 0200 eax | add D$CodeOrData eax
 
-        call FillCodeSymbols
+    call FillCodeSymbols
 
         call CloseRelocation
         If D$RelocSectionSize = 8                   ; Case of no relocation
@@ -11458,7 +11335,7 @@ L0:     lodsb | cmp al EOI | jne L0<
     call SortLabelStringsBySize
 
     VirtualFree D$SortTempoMemory
-L9: ret
+    ret
 
 
 SortLabelStringsBySize:
@@ -11515,39 +11392,41 @@ ret
 ;;
 
 [PlainLabelList: ?    EndOfPlainLabelList: ?]
+[PlainLabelNum: ?  LocalLabelNum: ?]
+; D$ size, ['L1', D$ CodePtr, LabelListPtr] = 10 Byte struct
+[LocalLabelList: ?    EndOfLocalLabelList: ?]
 
-BuildPlainLabelList:
-    mov eax D$LabelList, eax D$eax | inc eax
+BuildPlainANDLocalLabelLists:
+    mov esi D$LabelList, ecx D$esi | inc ecx
+    VirtualAlloc PlainLabelList ecx
 
-    VirtualAlloc PlainLabelList eax
+    VirtualFree D$LocalLabelList
+    VirtualAlloc LocalLabelList ecx
 
-    mov edx D$LabelList | add edx D$edx
+    mov edx esi | add edx D$esi | add esi 5
+    mov ebx D$LocalLabelList | add ebx 4 ; keeps 4-align
     mov edi D$PlainLabelList | add edi 5
-    mov esi D$LabelList | add esi 5
+    mov D$PlainLabelNum 0 | sub ecx ecx
 
     .While esi < edx
         cmp B$esi+2 EOI | jne L1>
-            cmp B$esi 'A' | jb L1>
-            cmp B$esi 'Z' | ja L1>
-                cmp B$esi+1 '0' | jb L1>
-                cmp B$esi+1 '9' | ja L1>
-                    ; |L0|dWord Byte| >>> 9
-                    add esi 9 | jmp L2>
-
-L1:     While B$esi <> EOI
-            movsb
-        End_While
-        movsb   ; |
+            mov eax D$esi
+            cmp ah '9' | ja L1> | cmp ah '0' | jb L1>
+            cmp al 'A' | jb L1> | cmp al 'Z' | ja L1>
+            mov W$ebx ax, D$ebx+6 esi, eax D$esi+3, D$ebx+2 eax
+            add esi 9 | add ebx 10 | inc ecx | jmp L2>
+L1:     inc D$PlainLabelNum
+L0:     lodsb | stosb | cmp al EOI | ja L0<
         movsd   ; Ptr
-        movsb   ; Flag
-        movsb   ; |
+        movsw   ; Flag |
 L2: .End_While
-
-    mov eax edi | mov D$EndOfPlainLabelList eax | sub eax D$PlainLabelList
-    mov edi D$PlainLabelList | stosd | mov al EOI | stosb
+    mov D$LocalLabelNum ecx
+    mov D$EndOfPlainLabelList edi, eax D$PlainLabelList
+    sub edi eax | mov D$eax edi, B$eax+4 EOI
+    mov D$EndOfLocalLabelList ebx, eax D$LocalLabelList
+    sub ebx eax | mov D$eax ebx
 ret
-
- _______________________________________________________________________________________
+_______________________________________________________________________________________
 
 
 FixTableSizes:
@@ -11566,6 +11445,69 @@ FixTableSizes:
     add eax 01000 | add eax 0400000
     mov D$StartOfDataSection eax
 ret
+____________________________________________________________________________________________
+; EAX = 'L1<' EDX = RefPtr ECX=LastRefLLListPos
+FindNearestLocalLabelInLLList:
+    push ebx esi edi
+    mov edi D$LocalLabelList | mov esi D$edi | add esi edi | add edi 4
+    mov ebx eax | shr ebx 16 | cmp bl '<' | mov ebx edi | mov edi ecx | jne L1> ; goto Down
+
+L0: cmp D$edi+2 edx | ja L0> | add edi 10 | cmp edi esi | jb L0<
+L0: sub edi 10 | mov ecx edi
+L0: cmp W$edi ax | je L7> | sub edi 10 | cmp ebx edi | jbe L0< | jmp L8>
+L1:
+L0: cmp D$edi+2 edx | ja L0> | add edi 10 | cmp edi esi | jb L0< | jmp L8>
+L0: mov ecx edi
+L0: cmp W$edi ax | je L7> | add edi 10 | cmp edi esi | jb L0< | jmp L8>
+
+L7: mov eax D$edi+2 | jmp L9>
+L8: or eax 0-1
+L9: pop edi esi ebx
+ret
+____________________________________________________________________________________________
+; D$ size, [D$ LabelPtr, CodePtr, SrcPtr] = 12 ; thus 3xDword struct
+[CodeRefList: ?    EndOfCodeRefList: ?]
+BuildNewCodeRefList:
+    VirtualFree D$CodeRefList
+    mov esi D$CodeRef, eax D$esi
+    VirtualAlloc CodeRefList eax
+;xor eax eax| RDTSC | push edx, eax
+    mov ebx esi | add ebx D$ebx | add esi 5
+    mov edi D$CodeRefList | add edi 4 ; keeps 4-align
+    mov ecx D$LocalLabelList | add ecx 4
+    .While esi < ebx
+        mov eax D$esi
+        cmp al 0FF | jne L0> | add esi 6 | jmp L3>
+L0:     cmp ah '9' | ja L1> | cmp ah '0' | jb L1>
+        cmp al 'A' | jb L1> | cmp al 'Z' | ja L1>
+        ror eax 16
+        cmp ax 023C | je L2> | cmp ax 023E | je L2> ; EOI<,EOI>
+        cmp ax '<<' | je L4> | cmp ax '>>' | jne L1>
+L4:     cmp B$esi+4 EOI | jne E0>
+L2:     ror eax 16 | mov edx esi
+L0:     inc edx | cmp B$edx EOI | jne L0< | mov edx D$edx+1 | and edx (not relativeFlag)
+        call FindNearestLocalLabelInLLList | cmp eax 0-1 | jne L5>
+        jmp E0>
+
+L1:     ;mov edx esi
+        call FindPlainLabelByCheckSum | cmp eax 0-1 | je E0>
+L5:     inc esi | cmp B$esi EOI | jne L5< | inc esi
+        stosd | movsd | movsd | inc esi
+L3: .End_While
+;RDTSC | pop ecx | sub eax ecx | pop ecx | sbb edx ecx | int 3
+    mov D$EndOfCodeRefList edi, eax D$CodeRefList
+    sub edi eax
+    mov D$eax edi
+
+ret
+
+E0: error D$UnknownSymbolPtr, esi
+____________________________________________________________________________________________
+FindPlainLabelByCheckSum:
+call GetFromQwordCheckSum esi, D$LabelList, D$LabelListLimit
+cmp eax 0 | je L8> |
+L5: inc eax | cmp B$eax EOI | jne L5< | inc eax | mov eax D$eax | ret
+L8: or eax 0-1 | ret
 
 ____________________________________________________________________________________________
 ____________________________________________________________________________________________
