@@ -9242,35 +9242,36 @@ SearchForSIB:
 L0: mov al B$Ereg,  B$SIBreg1 al
 
     call SearchForScale | mov al B$ScaleFound, B$Reg1isIndex al   ; true or FALSE
-    call SearchForEreg | IfEregNotFound L1>
+    call SearchForEreg | IfEregNotFound L1>>
         On B$esi-4 <> addSign, error D$ExpressionPtr
         mov al B$Ereg,  B$SIBreg2 al | mov B$TwoRegsFound &TRUE
 
         call SearchForScale | mov al B$ScaleFound,  B$Reg2isIndex al
         call SearchForEreg | On B$Ereg <> NotFound,  error D$expressionPtr    ; 3 regs forbidden
 
-        .If B$ScaleFound = &FALSE
-            If B$SIBreg2 = RegEBP
-              ; Exchange the two regs, for saving from having to add the zero Dis:
-                mov al B$SIBreg1, bl B$SIBreg2
-                mov B$SIBreg2 al, B$SIBreg1 bl
-            End_If
+        mov al B$Reg1isIndex,  ah B$Reg2isIndex
+        On ax = 0101,  error D$DoubleIndexPtr                  ; 2 index forbidden
+        .If AX = 01                                            ; Exchange the two regs, so BASE will 1st
+            mov al B$SIBreg1, ah B$SIBreg2
+            mov B$SIBreg1 ah, B$SIBreg2 al
+            mov B$Reg1isIndex &FALSE, B$Reg2isIndex &TRUE
         .End_If
 
-L1: mov al B$Reg1isIndex,  ah B$Reg2isIndex                    ; 2 index forbidden
-    On ax = 0101,  error D$DoubleIndexPtr
-    cmp ax 0 | je L4>                                          ; if no index found >L8
+L1: mov al B$Reg1isIndex,  ah B$Reg2isIndex
+    cmp ax 0 | je L4>                                          ; if no index found >L4
 
-    mov B$SIBinside &TRUE | cmp ax 1 | je L2>            ; if here: 1 reg / 1 index
-        mov al B$ScaledIndex | or al B$SIBreg1                 ; reg2 is Index and
-        mov B$SIB al | jmp L9>>                                 ; reg1 is base
+    mov B$SIBinside &TRUE | cmp ax 1 | je L2>
+        mov al B$ScaledIndex | or al B$SIBreg1 | mov B$SIB al  ; reg1 is base, reg2 is Index and;
+        cmp B$SIBreg1 RegEBP | jne L9>>
+        mov B$DisInside &TRUE | mov D$Dis32 0 | jmp L9>>       ; set DIS for EBP base
 
-L2: cmp B$TwoRegsFound &TRUE | je L3>
-        mov B$SibReg2 00101                              ; if no base > base = 00101
-        mov B$DummyDis &TRUE                                    ;
+
+L2: cmp B$TwoRegsFound &TRUE | je L3>                          ; if here: 1 reg / 1 index
+        mov B$SibReg2 00101                                    ; if no base > base = MEM
+        mov B$DummyDis &TRUE
 
 L3: mov al B$ScaledIndex | or al B$SIBreg2                      ; reg1 is Index
-      mov B$SIB al | jmp L9>
+    mov B$SIB al | jmp L9>
 
 L4: cmp B$TwoRegsFound &TRUE | jne L5>                           ; no index, but
         mov B$SibInside &TRUE
@@ -9374,7 +9375,7 @@ L9: ret
 ____________________________________________________________________________________________
 
 ; Search for a displacement. If found, return value set by translating routine in eax:
-
+; NOTE: B$DisInside can be set in SearchForSIB for EBP-base!
 SearchForDis:
     push esi | jmp L1>
 L0:     inc esi
@@ -10923,9 +10924,7 @@ StoreReloc: ; 'RelocComments'
     push eax, ebx, ecx, edi
 L0:
       mov eax edi
-      sub eax D$CodeOrData | and eax PageMask ;| add eax PageSize
-     ; cmp eax D$RelocPage | je L3>
-      cmp eax 01000 | jb L3>>
+      sub eax D$CodeOrData | and eax PageMask | cmp eax 01000 | jb L3>>
      ; if in the same page of code, just write (>L3). if not:
      ; writing of reloc page header. Each section begins by a header of two Dwords.
      ; first one is the virtual adress; exemple, 01000 if begins at 00401000.
@@ -10933,12 +10932,12 @@ L0:
       add D$CodeOrData 01000
 
 If D$RelocSectionSize = 8 ; if unused RelocSection, reuse it for Next
- add D$RelocPage PageSize | mov eax D$RelocPage |
- mov ecx D$RelocationPtr | mov D$ecx-8 eax | jmp L0<
+     add D$RelocPage PageSize | mov eax D$RelocPage |
+     mov ecx D$RelocationPtr | mov D$ecx-8 eax | jmp L0<
 End_IF
-      push eax, edi
+      push edi
         mov eax 0 | mov edi D$RelocationPtr
-L1:     test D$RelocationPtr 0011 | jz L2>                   ; align on Dword boudary
+        test D$RelocationPtr 0011 | jz L2>                   ; align on Dword boudary
           stosw                                              ; fill with zeros
           add D$RelocationPtr 2 | add D$RelocSectionSize 2
 
@@ -10947,14 +10946,17 @@ L2:     mov ebx D$RelocationPtr | sub ebx D$RelocSectionSize | add ebx 4
 
         add D$RelocPage PageSize | mov eax D$RelocPage | stosd
         add edi 4 | mov D$RelocationPtr edi | mov D$RelocSectionSize 8
-      pop edi, eax
+      pop edi
 jmp L0<< ; don't continue, becouse can be over NEXT-PAGE
 
-L3:   mov eax edi | sub eax D$CodeOrData | and eax 0FFF| add eax 03000  ; or! eax 03000, RelocTypeFlag
-      mov edi D$RelocationPtr | stosw
-
+L3:   mov eax edi | sub eax D$CodeOrData | and eax 0FFF| or eax 03000  ; RelocTypeFlag
+      mov edi D$RelocationPtr | cmp W$edi-2 ax | jne L0> ; go store
+; kill paired relocation on same address!
+; it happens on offset-substraction [myDataLen: someOffset1 - someoffset2]
+      and W$edi-2 0 | sub D$RelocSectionSize 2 | sub D$RelocationPtr 2 | jmp L1>
+L0:   stosw
       add D$RelocSectionSize 2 | mov D$RelocationPtr edi
-    pop edi, ecx, ebx, eax
+L1: pop edi, ecx, ebx, eax
 ret
  ________________________________________________________________________________________
 ;;

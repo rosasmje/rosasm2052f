@@ -2413,7 +2413,7 @@ CheckImport:
             sub edi D$UserPeStart | add edi D$SectionsMap | rep stosd
           ; Flag the LookUp Table (dWords):
             mov edi D$edx, ebx edi | add edi D$SectionsMap | add ebx D$UserPeStart
-            ON B$ebx = 0, jmp DisFail ;first must be!
+            ON D$ebx = 0, jmp DisFail ;first must be!
             While D$ebx <> 0
                 ;call FlagImportCalls ebx
                 stosd | add ebx 4
