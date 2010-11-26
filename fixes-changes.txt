@@ -399,6 +399,24 @@ added possibility of very short DLL-name
 for this added var DisasmHeader, upgraded DisassembleProc, added CheckBox in Dialog-resource
 .for more security, in PE-file opening places (OpenPeForReadingIcon, GetExportScannerFile) added call to isValidMZPE
 
+_07
+.many fixes-improvements:
+.in Disassembler, WM_DROPFILES case, DownLoop allow, InitMacroWithIf fix, StoreDBCode fix,
+Guga's new atoi64 fixed (Proc removed).
+.BarProgress management: now you can exit too long Disasm process by closing progress bar;
+.FinishDllVariables proc added.
+
+_08
+.new 2x-fast LocalLabel List-search engine.
+
+_09
+.fix in IATCheck
+.kill paired relocation on same address!
+.opt-fixed SearchForSIB: EBP-base case incorrect assembly fix by set DisInside flag.
+.typo "lenght" in RSRC fixed. {TmX}
+
+
+
 ;isValidMZPE should more enhanced & ErrorStrings needs to add.
 ;UPX-packer puts Header-Size 01000 while true is 0400.. bad..
 
