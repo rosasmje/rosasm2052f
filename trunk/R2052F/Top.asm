@@ -598,9 +598,9 @@ Proc ClearBuffer: ; (Guga: Instead of ClearCharMapData)
     Arguments @Buffer, @Size
     Uses edi, ecx
 
-        mov edi D@Buffer, ecx D@Size, eax 0
-
-        rep stosb
+        CLD | mov edi D@Buffer, ecx D@Size, eax 0
+        shr ecx 2 | rep stosd
+        mov ecx D@Size | and ecx 3 | rep stosb
 EndP
 
 ____________________________________________________________________________________________

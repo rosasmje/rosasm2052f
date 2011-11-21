@@ -566,7 +566,7 @@ OpenStringsFile:
 
         call 'KERNEL32.GetFileSize' eax, 0 | mov D$RosAsmStringsFilelenght eax
         add eax 10
-
+        VirtualFree D$RosAsmStringsMemory
         VirtualAlloc RosAsmStringsMemory eax | add D$RosAsmStringsMemory 10
 
         call 'KERNEL32.ReadFile' D$RosAsmStringsFileHandle, D$RosAsmStringsMemory,

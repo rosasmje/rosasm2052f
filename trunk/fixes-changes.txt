@@ -415,6 +415,9 @@ _09
 .opt-fixed SearchForSIB: EBP-base case incorrect assembly fix by set DisInside flag.
 .typo "lenght" in RSRC fixed. {TmX}
 
+_10
+.Memory manager tables moved to allocated space!
+.MAXDIALOG & others fixed to 1200 (2100 mostly was typo)
 
 
 ;isValidMZPE should more enhanced & ErrorStrings needs to add.

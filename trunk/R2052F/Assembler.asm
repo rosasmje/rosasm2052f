@@ -46,16 +46,16 @@ ________________________________________________________________________________
                     ; > (As concerned tables have 3 dwords per pointed resource),
                     ; > Allow 100 differents...
 
-[MAXDIALOG 2100]     ; ... Dialogs.
-[MAXMENU 2100]       ; ... Menus.
-[MAXBITMAP 2100]     ; ... BitMaps
-[MAXSTRINGS 2100]
-[MAXFONT 2100]
-[MAXWAVE 2100]
-[MAXAVI 2100]
-[MAXRCDATA 2100]
-[MAXCURSOR 2100]
-[MAXICON 2100]
+[MAXDIALOG 1200]     ; ... Dialogs.
+[MAXMENU 1200]       ; ... Menus.
+[MAXBITMAP 1200]     ; ... BitMaps
+[MAXSTRINGS 1200]
+[MAXFONT 1200]
+[MAXWAVE 1200]
+[MAXAVI 1200]
+[MAXRCDATA 1200]
+[MAXCURSOR 1200]
+[MAXICON 1200]
 
 [MAXRESOURCE 3500]   ; Allow, as a whole, 1000 different resources in one PE
 

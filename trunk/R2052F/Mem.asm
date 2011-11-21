@@ -79,18 +79,18 @@ ________________________________________________________________________________
 ;[GUARDPAGE 0]      ; having / not having hand made Guard Pages.
 
 ; MemTable is 3 dWords per record: pointer-to-Mem / MemChunkSize / Mother Pointer// ...
-[MEMTABLESIZE ((MAXRESOURCE+50)*3) ] ; room for 50 Chunks + Resources Chunks.
+[MEMTABLESIZE (01000*12) ] ; room for 01000 Chunks.
 [MEMRECORD (4*3)]
 
-[MemTable: ? #MEMTABLESIZE] [MemTableEnd: ?    MemChunSize: ?]
+[MemTable: D$ 0, MemTableEnd: 0, MemChunSize: 0
+ LastMemRecord: 0, TempoMemPointer: 0]    ; used when no named Pointer is used by
+                                            ; caller (cases of Tables of Memory Pointers,
+                                            ; for example).
 
 [MemAlert: 'Memory attribution failure', 0
  MemInternalAlert: 'Error inside RosAsm Memory Management', 0
  MemAlertText: "   RosAsm is going to close. Shut down some Aplications and re-run      " 0]
 
-[LastMemRecord: ?    TempoMemPointer: ?]    ; used when no named Pointer is used by
-                                            ; caller (cases of Tables of Memory Pointers,
-                                            ; for example).
 [VirtAllocOverFlowString: 'VirtualAlloc Buffer overflowed', 0]
 [VirtAllocFailureString:  'VirtualAlloc Function failure' 0]
 
@@ -98,12 +98,24 @@ Proc VirtAlloc:
   Arguments @sz, @ptr
   USES ecx edx ebx esi edi
 
-        mov edi MemTable                    ; Search an empty Record.
+        .If D$MemTable = 0
+            call 'KERNEL32.VirtualAlloc' &NULL, MEMTABLESIZE+02000, &MEM_RESERVE, &PAGE_NOACCESS
+            test eax eax | je @bad | add eax 01000
+            call 'KERNEL32.VirtualAlloc' eax, MEMTABLESIZE, &MEM_COMMIT, &PAGE_READWRITE
+            test eax eax | je @bad
+            mov D$MemTable eax | add eax MEMTABLESIZE | mov D$MemTableEnd eax
+            call 'KERNEL32.VirtualAlloc' &NULL, MEMTABLEVIEWSIZE+02000, &MEM_RESERVE, &PAGE_NOACCESS
+            test eax eax | je @bad | add eax 01000
+            call 'KERNEL32.VirtualAlloc' eax, MEMTABLEVIEWSIZE, &MEM_COMMIT, &PAGE_READWRITE
+            test eax eax | je @bad
+            mov D$MemTableView eax | add eax MEMTABLEVIEWSIZE | mov D$MemTableViewEnd eax
+        .End_If
+        mov edi D$MemTable                    ; Search an empty Record.
         While D$edi > 0
             add edi MEMRECORD
           ; This Alert can only happend if i completly corrupt a Mem Pointer Value
           ; so that it is no more founded in the 'MemTable':
-            If edi = MemTableEnd
+            If edi = D$MemTableEnd
                 call 'USER32.MessageBoxA' D$hwnd, MemAlertText, MemAlert,
                                           &MB_SYSTEMMODAL__&MB_ICONSTOP
                 call ViewRosAsmMems
@@ -132,10 +144,10 @@ Proc VirtAlloc:
         If eax = 0
             push edi
                 mov eax D$MemChunSize | Align_On 010_000 eax
-                call 'KERNEL32.VirtualAlloc' &NULL, eax, &MEM_RESERVE, &PAGE_READWRITE
-                On eax = 0, hexprint D$MemChunSize
-                ;hexprint eax
-            pop edi
+                call 'KERNEL32.VirtualAlloc' &NULL, eax, &MEM_RESERVE, &PAGE_NOACCESS
+                cmp eax 0 | jne L0>
+                hexprint D$MemChunSize | pop edi | jmp @bad
+L0:         pop edi
             mov D$edi eax, D$edi+8 eax      ; D$edi+8 = Pointer
         Else
             mov D$edi eax, D$edi+8 ebx      ; D$edi+8 = MotherPointer ('IsThereSomeRoom' ebx)
@@ -147,7 +159,7 @@ Proc VirtAlloc:
         call 'KERNEL32.VirtualAlloc' eax, ecx, &MEM_COMMIT, &PAGE_READWRITE
       ;  pop ecx, ebx                       ; For my Tests
         If eax = 0
-      ;      hexprint ecx | hexprint ebx    ; For my Tests
+@bad:      ;      hexprint ecx | hexprint ebx    ; For my Tests
             call 'USER32.MessageBoxA' D$hwnd, MemInternalAlert, MemAlert,
                                          &MB_SYSTEMMODAL__&MB_ICONSTOP
             call ViewRosAsmMems
@@ -172,10 +184,10 @@ VirtFree:       ; eax = D$Pointer
   ; computation begining by 'If D$esi-4 = ...", for example >>> Restore origin:
     and eax 0_FFFF_F000                 ; (Chunks are always Page-aligned).
 
-    mov esi MemTable
+    mov esi D$MemTable
     While D$esi <> eax
         add esi MEMRECORD
-        If esi = MemTableEnd
+        If esi = D$MemTableEnd
             call 'USER32.MessageBoxA' D$hwnd, MemInternalAlert, MemInternalAlert,
                                       &MB_SYSTEMMODAL__&MB_ICONSTOP
             call ViewRosAsmMems
@@ -196,7 +208,7 @@ VirtFree:       ; eax = D$Pointer
     mov ebx D$esi+8, ecx 0
     mov D$esi 0, D$esi+4 0, D$esi+8 0       ; Clear the record, anyway.
     push esi
-        mov esi MemTable
+        mov esi D$MemTable
         While esi <= D$LastMemRecord
             If D$esi+8 = ebx
                 inc ecx
@@ -220,7 +232,7 @@ ________________________________________________________________________________
 ; holds the size of the wanted Block + one Page:
 
 IsThereSomeRoom:
-    mov esi MemTable
+    mov esi D$MemTable
     .While esi <= D$LastMemRecord
         ..If D$esi > 0
             mov eax D$esi | add eax D$esi+4
@@ -252,7 +264,7 @@ L9: ret
 ;;
 IsThisRoomFree:
     push esi
-        mov esi MemTable
+        mov esi D$MemTable
         While esi <= D$LastMemRecord
             mov ecx D$esi, edx ecx | add edx D$esi+4
             If ebx <= ecx
