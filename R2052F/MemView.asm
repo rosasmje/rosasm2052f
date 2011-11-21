@@ -5,9 +5,8 @@ TITLE MemView
 ____________________________________________________________________________________________
 
 ; Routine for: Menu > Tools > 'View RosAs mMems':
-
-[MemTableView: D$ ? #(MEMTABLESIZE*5)]
-[MemTableViewEnd: ?]
+[MEMTABLEVIEWSIZE (MEMTABLESIZE*5)]
+[MemTableView: D$ 0, MemTableViewEnd: 0]
 [MemTableViewTitle: 'VirtualAlloc Mems actually commited to RosAsm:', 0]
 
 
@@ -53,23 +52,21 @@ Proc MemViewWarning:
         call DisplayMemInfo D@Adressee
 
     ..Else_If D@Message = &WM_CLOSE
-        call ClearBuffer MemTableView (MEMTABLESIZE*5*4)
-       ; call ClearBuffer MemTable (MEMTABLESIZE*4)
+        call ClearBuffer D$MemTableView MEMTABLEVIEWSIZE
         call ClearBuffer DumpMemWarnMsg 256
         call 'User32.EndDialog' D@Adressee &NULL
 
     ..Else_If D@Message = &WM_COMMAND
         .If D@wParam = &IDOK
-            call ClearBuffer MemTableView (MEMTABLESIZE*5*4)
-          ;  call ClearBuffer MemTable (MEMTABLESIZE*4)
+            call ClearBuffer D$MemTableView MEMTABLEVIEWSIZE
             call ClearBuffer DumpMemWarnMsg 256
             call 'User32.EndDialog' D@Adressee &NULL
         .Else_If D@wParam = IDC_DUMPMEM
-            mov eax MemTableEnd
-            sub eax MemTable
-            call DumpMemory D@Adressee, MemTable, eax
+            mov eax D$MemTableEnd
+            sub eax D$MemTable
+            call DumpMemory D@Adressee, D$MemTable, eax
         .Else_If D@wParam = IDC_SAVEMEMREPORT
-            call SaveMemoryReport D@Adressee, MemTableView, D$MemReportInfoSize
+            call SaveMemoryReport D@Adressee, D$MemTableView, D$MemReportInfoSize
         .End_If
 
     ..Else
@@ -163,9 +160,9 @@ Proc DisplayMemData:
 
     pushad
 
-    mov esi MemTable, edi MemTableView, edx 0
+    mov esi D$MemTable, edi D$MemTableView, edx 0
 
-    While esi < MemTableEnd
+    While esi < D$MemTableEnd
         mov eax D$esi
         .If eax > 0
             If eax = D$esi+8
@@ -183,17 +180,17 @@ Proc DisplayMemData:
         If eax = 0
             mov al ' ' | stosb
         End_If
-            mov eax edx | and eax 00_111
+        mov eax edx | and eax 00_111
         If eax = 0
             mov eax '    ' | stosd
         End_If
-            mov eax edx | and eax 00_11111
+        mov eax edx | and eax 00_11111
         If eax = 0
-            mov al CR | stosb | mov al LF | stosb
+            mov ax CRLF | stosw
         End_If
     End_While
     mov B$edi 0
-    call 'USER32.SetDlgItemTextA' D@Adressee, IDC_DISPLAYMEMDATA, MemTableView
+    call 'USER32.SetDlgItemTextA' D@Adressee, IDC_DISPLAYMEMDATA, D$MemTableView
 
     popad
 EndP
@@ -241,14 +238,14 @@ Proc DisplayMemInfo:
 
     pushad
 
-    mov esi MemTable, edi MemTableView, edx 0
+    mov esi D$MemTable, edi D$MemTableView, edx 0
 
     push esi | zCopy MemTitleDisplay1 | pop esi
     mov eax esi
     call Writeeax
     push esi | zCopy MemTitleDisplay2 | pop esi
 
-    .While esi < MemTableEnd
+    .While esi < D$MemTableEnd
         mov eax D$esi
         call WriteMemTableOffset esi
         call WriteMemDwordChunck eax
@@ -268,9 +265,9 @@ Proc DisplayMemInfo:
     .End_While
     mov B$edi 0
     mov eax edi
-    sub eax MemTableView
+    sub eax D$MemTableView
     mov D$MemReportInfoSize eax
-    call 'USER32.SetDlgItemTextA' D@Adressee, IDC_DISPLAYMEMINFO, MemTableView
+    call 'USER32.SetDlgItemTextA' D@Adressee, IDC_DISPLAYMEMINFO, D$MemTableView
 
     popad
 EndP
