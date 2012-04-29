@@ -419,6 +419,10 @@ _10
 .Memory manager tables moved to allocated space!
 .MAXDIALOG & others fixed to 1200 (2100 mostly was typo)
 
+_11
+.restoring old TranslateDecimal, found it 1.7x faster then atoi64. (+ correction on L4)
+.fix in AddOneControl. there is tricky in-place adjaster..
+
 
 ;isValidMZPE should more enhanced & ErrorStrings needs to add.
 ;UPX-packer puts Header-Size 01000 while true is 0400.. bad..
