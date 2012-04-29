@@ -8182,11 +8182,44 @@ L8: mov ecx D$HexTypePtr | jmp BadNumberFormat
 L9: mov eax ebx
 ret
 
-
+; restoring old TranslateDecimal, found it 1.7x faster then atoi64. (+ correction on L4)
 TranslateDecimal:
-    call atoi64 ; esi
-    inc esi
-    ret
+    mov eax 0, ecx 0, edx 0
+
+L2: mov cl B$esi | inc esi                        ; (eax used for result > no lodsb)
+    cmp cl LowSigns | jbe  L9>
+
+      mov edx 10 | mul edx | jo L3>               ; loaded part * 10
+                                                  ; Overflow >>> Qword
+        sub  ecx '0' ;| jc L7>
+        cmp  ecx 9   | ja L7>
+
+          add  eax ecx | jnc  L2<
+            jmp  L4>                              ; carry >>> Qword
+
+                                                  ; if greater than 0FFFF_FFFF:
+L3: sub ecx '0' ;| jc L7>
+    cmp ecx 9   | ja L7>
+
+      add eax ecx
+
+L4:   adc edx 0 | jc L6>                          ; also here can overflow
+      mov cl B$esi | inc  esi
+      cmp cl LowSigns | jbe L9>
+
+        mov ebx eax, eax edx, edx 10 | mul edx    ; high part * 10
+          jo L6>                                  ; Qword overflow
+            xchg eax ebx | mov edx 10 | mul edx   ; low part * 10
+            add  edx ebx
+            jnc   L3<                             ; carry >>> overflow
+
+L6:           On B$esi < '0', error D$OverFlowPtr
+              If B$esi <= '9'
+                  inc esi | jmp L6<
+              End_If
+
+L7: mov ecx D$DezimalTypePtr | jmp BadNumberFormat
+L9: ret                                           ; >>> number in EDX:EAX
 
 TranslateAny:
     If W$esi = '00'

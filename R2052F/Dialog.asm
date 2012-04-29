@@ -249,7 +249,7 @@ AddOneControl:
         call ScrollDownToLastControl
     End_If
 
-    mov edi D$NewDialogTemplateText, al 0, ecx 200 | repne scasb
+    mov edi D$NewDialogTemplateText, al 0, ecx 200 | repne scasb | repne scasb
     mov al '0' | repne scasb | add edi 2 | inc B$edi
     On B$edi > '9', add B$edi 7
     .If B$edi > 'F'
