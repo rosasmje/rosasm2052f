@@ -426,10 +426,15 @@ EM_GETLINE_Comment:
 StoreMenuEdition:
     call GetuMenuID | On D$FirstMenuId = 0, ret
    ; "EM_GETLINECOUNT" returns 1 if empty; so, ...:
+    mov W$OneItemString 160
     call 'User32.SendMessageA' D$MenuEditHandle, &EM_GETLINE, 0, OneItemString
     mov B$OneItemString+eax 0  ; >>> 'EM_GETLINE_Comment'
 
     If eax = 0
+        mov D$FirstMenuId 0 | ret
+    End_If
+
+    If B$OneItemString <= ' '
         mov D$FirstMenuId 0 | ret
     End_If
 
@@ -446,8 +451,10 @@ T0:     mov eax 0, edi OneItemString, ecx 40 | rep stosd        ; GETLINE not ze
         call 'User32.SendMessageA' D$MenuEditHandle, &EM_GETLINE, edx, OneItemString
       ; Copied Line may be corrupted at the end with some weird Drivers on Board:
         mov B$OneItemString+eax 0  ; >>> 'EM_GETLINE_Comment'
-
-        On eax = 0, jmp T1>
+      ; Empty line not allowed
+        If eax = 0
+            popad | mov D$FirstMenuId 0 | ret
+        End_If
         mov esi OneItemString
         While B$esi = tab
             inc esi | dec eax                                   ; no header tabs in chars count
@@ -665,11 +672,15 @@ ________________________________________________________________________________
 
 StoreMenuPopFlags:
     mov D$MenuItemTabsListPtr MenuItemTabsList
-
+    mov W$OneItemString 160
     call 'User32.SendMessageA' D$MenuEditHandle, &EM_GETLINE, 0, OneItemString
     mov B$OneItemString+eax 0  ; >>> 'EM_GETLINE_Comment'
 
     On eax = 0, ret
+
+    If B$OneItemString <= ' '
+        mov D$FirstMenuId 0 | ret
+    End_If
 
     call 'User32.SendMessageA' D$MenuEditHandle, &EM_GETLINECOUNT, 0, 0
 
@@ -681,7 +692,10 @@ L0: pushad
 
       call 'User32.SendMessageA' D$MenuEditHandle, &EM_GETLINE, edx, OneItemString
       mov B$OneItemString+eax 0  ; >>> 'EM_GETLINE_Comment'
-
+      ; Empty line not allowed
+      If eax = 0
+          popad | mov D$FirstMenuId 0 | ret
+      End_If
       mov esi OneItemString, edi D$MenuItemTabsListPtr, B$edi 1
 
       .If eax > 0
