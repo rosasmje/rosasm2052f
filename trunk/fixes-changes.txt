@@ -423,6 +423,16 @@ _11
 .restoring old TranslateDecimal, found it 1.7x faster then atoi64. (+ correction on L4)
 .fix in AddOneControl. there is tricky in-place adjaster..
 
+_12
+StoreMenuEdition: GetLine problem; empty line damages below MenuItems,
+also if first line starts with TAB, damages below.
+I restricted empty lines and first line start non-char.
+
+
+
+
+
+;fake IMPORTs! if IMPORT has no refs, disasm is messy
 
 ;isValidMZPE should more enhanced & ErrorStrings needs to add.
 ;UPX-packer puts Header-Size 01000 while true is 0400.. bad..
