@@ -428,6 +428,9 @@ StoreMenuEdition: GetLine problem; empty line damages below MenuItems,
 also if first line starts with TAB, damages below.
 I restricted empty lines and first line start non-char.
 
+_13
+in NewBuildWin32Equates uncommeted NoDuplicationOfEquates calls and +1 added
+
 
 
 

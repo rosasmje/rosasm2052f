@@ -11990,24 +11990,27 @@ L1:         shl edx 4 | mov al B$esi | sub al '0' | On al > 9, sub al 7
             On D$CheckSumsRecords+ecx+4 <> 0, jmp L1>
             mov D$CheckSumsRecords+ecx eax
             mov D$CheckSumsRecords+ecx+4 ebx
-            move D$CheckSumsRecords+ecx+8 edx
+            mov D$CheckSumsRecords+ecx+8 edx
         .Else
 L1:         If D$CheckSumsRecords+ecx+12 = 0
                 move D$CheckSumsRecords+ecx+12 D$PointerToCheckSumsLinkedRecords
+     ; Here, on first busy place, also needs Duplication check.
+                lea edi D$CheckSumsRecords+ecx
+                call NoDuplicationOfEquates
             Else
                 mov edi D$CheckSumsRecords+ecx+12
                 While D$edi+12 <> 0
-                    ;call NoDuplicationOfEquates
+                    call NoDuplicationOfEquates
                     mov edi D$edi+12
                 End_While
-                ;call NoDuplicationOfEquates
+                call NoDuplicationOfEquates
                 move D$edi+12 D$PointerToCheckSumsLinkedRecords
             End_If
 
             mov edi D$PointerToCheckSumsLinkedRecords
             mov D$edi eax
             mov D$edi+4 ebx
-            move D$edi+8 edx
+            mov D$edi+8 edx
             add D$PointerToCheckSumsLinkedRecords 16
         .End_If
 
