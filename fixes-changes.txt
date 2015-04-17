@@ -431,7 +431,9 @@ I restricted empty lines and first line start non-char.
 _13
 in NewBuildWin32Equates uncommeted NoDuplicationOfEquates calls and +1 added
 
-
+_14
+added in disassembler possibilty for (undocumented) REPNE MOVS/STOS/LODS cases. (meet in watcom compiled files)
+removed duplicated REP MOVSW/CMPSW/SCASW/
 
 
 

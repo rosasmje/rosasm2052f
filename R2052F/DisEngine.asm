@@ -4885,12 +4885,30 @@ OpF2:
             inc D$UnLikelyCode | mov B$DisFlag DISDONE | ret
         .End_If
 
+    ..Else_If B$esi = 0A4   ; F2 A4 REPNE MOVSB (undoc)
+        inc esi | mov D$edi 'repn', D$edi+4 'e mo', D$edi+8 'vsb ' | add edi 11
+    ..Else_If W$esi = 0A566 ; F2 66 A5 REPNE MOVSW (undoc)
+        add esi 2 | mov D$edi 'repn', D$edi+4 'e mo', D$edi+8 'vsw ' | add edi 11
+    ..Else_If B$esi = 0A5   ; F2 A5 REPNE MOVSD (undoc)
+        inc esi | mov D$edi 'repn', D$edi+4 'e mo', D$edi+8 'vsd ' | add edi 11
     ..Else_If B$esi = 0A6   ; F2 A6 REPNE CMPS m8, m8
         inc esi | mov D$edi 'repn', D$edi+4 'e cm', D$edi+8 'psb ' | add edi 11
     ..Else_If W$esi = 0A766   ; F2 A7 REPNE CMPS m16, m16 ; F2 A7 REPNE CMPS m32, m32
         add esi 2 | mov D$edi 'repn', D$edi+4 'e cm', D$edi+8 'psw ' | add edi 11
     ..Else_If B$esi = 0A7   ; F2 A7 REPNE CMPS m16, m16 ; F2 A7 REPNE CMPS m32, m32
         inc esi | mov D$edi 'repn', D$edi+4 'e cm', D$edi+8 'psd ' | add edi 11
+    ..Else_If B$esi = 0AA       ; F2 AA REPNE STOSB (undoc)
+        inc esi | mov D$edi 'repn', D$edi+4 'e st', D$edi+8 'osb ' | add edi 11
+    ..Else_If W$esi = 0AB66       ; F2 AB REPNE STOSW (undoc)
+        add esi 2 | mov D$edi 'repn', D$edi+4 'e st', D$edi+8 'osw ' | add edi 11
+    ..Else_If B$esi = 0AB       ; F2 AB REPNE STOSD (undoc)
+        inc esi | mov D$edi 'repn', D$edi+4 'e st', D$edi+8 'osd ' | add edi 11
+    ..Else_If B$esi = 0AC       ; F2 AC REPNE LODSB (undoc)
+        inc esi | mov D$edi 'repn', D$edi+4 'e lo', D$edi+8 'dsb ' | add edi 11
+    ..Else_If W$esi = 0AD66       ; F2 AD REPNE LODSW (undoc)
+        add esi 2 | mov D$edi 'repn', D$edi+4 'e lo', D$edi+8 'dsw ' | add edi 11
+    ..Else_If B$esi = 0AD       ; F2 AD REPNE LODSD (undoc)
+        inc esi | mov D$edi 'repn', D$edi+4 'e lo', D$edi+8 'dsd ' | add edi 11
     ..Else_If B$esi = 0AE   ; F2 AE REPNE SCAS m8
         inc esi | mov D$edi 'repn', D$edi+4 'e sc', D$edi+8 'asb ' | add edi 11
     ..Else_If W$esi = 0AF66   ; F2 AF REPNE SCAS m16 ; F2 AF REPNE SCAS m32
@@ -5009,14 +5027,6 @@ OpF3:
 
     ..Else_If B$esi = 090   ; F3 90 PAUSE
         inc esi | mov D$edi 'paus', B$edi+4 'e' | add edi 5
-    ..Else_If W$esi = 0A766 ; F3 66 17
-        add esi 2 | mov D$edi 'rep ', D$edi+4 'cmps', B$edi+8 'w' | add edi 9
-      ;  add esi 2 | mov D$edi 'rep ', D$edi+4 'movs', B$edi+8 'w' | add edi 9
-    ..Else_If W$esi = 0AF66 ; F3 66 17
-        add esi 2 | mov D$edi 'rep ', D$edi+4 'scas', B$edi+8 'w' | add edi 9
-    ..Else_If W$esi = 0A566 ; F3 66 17
-        add esi 2 | mov D$edi 'rep ', D$edi+4 'movs', B$edi+8 'w' | add edi 9
-      ;!!!!  add esi 2 | mov D$edi 'rep ', D$edi+4 'cmps', B$edi+8 'w' | add edi 9
     ..Else_If B$esi = 06C       ; F3 6C REP INS r/m8, DX
         inc D$UnLikelyCode
         inc esi | mov D$edi 'rep ', D$edi+4 'insb' | add edi 8 ; | jmp Dis_rm8_dx
@@ -5037,31 +5047,31 @@ OpF3:
         inc esi | mov D$edi 'rep ', D$edi+4 'outs', B$edi+8 'd' | add edi 9 ;| jmp Dis_dx__rm32_rm16
     ..Else_If B$esi = 0A4       ; F3 A4 REP MOVS m8, m8
         inc esi | mov D$edi 'rep ', D$edi+4 'movs', B$edi+8 'b' | add edi 9
-    ..Else_If W$esi = 0A566       ; F3 A5 REP MOVS m16, m16 ; F3 A5 REP MOVS m32, m32
+    ..Else_If W$esi = 0A566       ; F3 66 A5 REP MOVS m16, m16 ; F3 66 A5 REP MOVS m32, m32
         add esi 2 | mov D$edi 'rep ', D$edi+4 'movs', B$edi+8 'w' | add edi 9
     ..Else_If B$esi = 0A5       ; F3 A5 REP MOVS m16, m16 ; F3 A5 REP MOVS m32, m32
         inc esi | mov D$edi 'rep ', D$edi+4 'movs', B$edi+8 'd' | add edi 9
     ..Else_If B$esi = 0A6       ; F3 A6 REPE CMPS m8, m8
         inc esi | mov D$edi 'rep ', D$edi+4 'cmps', B$edi+8 'b' | add edi 9
-    ..Else_If W$esi = 0A766       ; F3 A7 REPE CMPS m16, m16 ; F3 A7 REPE CMPS m32, m32
+    ..Else_If W$esi = 0A766       ; F3 66 A7 REPE CMPS m16, m16 ; F3 A7 REPE CMPS m32, m32
         add esi 2 | mov D$edi 'rep ', D$edi+4 'cmps', B$edi+8 'w' | add edi 9
     ..Else_If B$esi = 0A7       ; F3 A7 REPE CMPS m16, m16 ; F3 A7 REPE CMPS m32, m32
         inc esi | mov D$edi 'rep ', D$edi+4 'cmps', B$edi+8 'd' | add edi 9
     ..Else_If B$esi = 0AA       ; F3 AA REP STOS m8
         inc esi | mov D$edi 'rep ', D$edi+4 'stos', B$edi+8 'b' | add edi 9
-    ..Else_If W$esi = 0AB66       ; F3 AB REP STOS m16 ; F3 AB REP STOS m32
+    ..Else_If W$esi = 0AB66       ; F3 66 AB REP STOS m16 ; F3 66 AB REP STOS m32
         add esi 2 | mov D$edi 'rep ', D$edi+4 'stos', B$edi+8 'w' | add edi 9
     ..Else_If B$esi = 0AB       ; F3 AB REP STOS m16 ; F3 AB REP STOS m32
         inc esi | mov D$edi 'rep ', D$edi+4 'stos', B$edi+8 'd' | add edi 9
     ..Else_If B$esi = 0AC       ; F3 AC REP LODS AL
         inc esi | mov D$edi 'rep ', D$edi+4 'lods', B$edi+8 'b' | add edi 9
-    ..Else_If W$esi = 0AD66       ; F3 AD REP LODS AX ; F3 AD REP LODS EAX
+    ..Else_If W$esi = 0AD66       ; F3 66 AD REP LODS AX ; F3 66 AD REP LODS EAX
         add esi 2 | mov D$edi 'rep ', D$edi+4 'lods', B$edi+8 'w' | add edi 9
     ..Else_If B$esi = 0AD       ; F3 AD REP LODS AX ; F3 AD REP LODS EAX
         inc esi | mov D$edi 'rep ', D$edi+4 'lods', B$edi+8 'd' | add edi 9
     ..Else_If B$esi = 0AE       ; F3 AE REPE SCAS m8
         inc esi | mov D$edi 'rep ', D$edi+4 'scas', B$edi+8 'b' | add edi 9
-    ..Else_If W$esi = 0AF66       ; F3 AF REPE SCAS m16 ; F3 AF REPE SCAS m32
+    ..Else_If W$esi = 0AF66       ; F3 66 AF REPE SCAS m16 ; F3 66 AF REPE SCAS m32
         add esi 2 | mov D$edi 'rep ', D$edi+4 'scas', B$edi+8 'w' | add edi 9
     ..Else_If B$esi = 0AF       ; F3 AF REPE SCAS m16 ; F3 AF REPE SCAS m32
         inc esi | mov D$edi 'rep ', D$edi+4 'scas', B$edi+8 'd' | add edi 9
