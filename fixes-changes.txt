@@ -435,6 +435,9 @@ _14
 added in disassembler possibilty for (undocumented) REPNE MOVS/STOS/LODS cases. (meet in watcom compiled files)
 removed duplicated REP MOVSW/CMPSW/SCASW/
 
+_15
+in added Assembler: D$AppSecondImport 0, D$AppSecondImportSize 0 ; cleanUp, or W10 will file to load non existent IAT;
+in Exception: RestoreRealSource moved down, because if crash comes from there, handler will exit without Log..
 
 
 ;fake IMPORTs! if IMPORT has no refs, disasm is messy

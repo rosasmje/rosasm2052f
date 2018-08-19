@@ -6642,7 +6642,9 @@ BuildImport:
     call SearchForApis      ; copy all api calls in ApiListA (> edi > end of ApiListA).
 
     If edi = D$ApiListA     ; case of DLL with no api call
-        mov D$uBaseOfData 01000, D$uImportSize 0 | ret
+        mov D$uBaseOfData 01000, D$uImportSize 0,  ; write size in PE sections header
+            D$AppSecondImport 0, D$AppSecondImportSize 0 ; cleanUp, or W10 will not loads
+            ret
     End_If
 
     call FullfillApiList   ; FullFill each Function in the 'MODULE.ext.Function' Form.

@@ -19,14 +19,16 @@ Proc FinalExceptionHandler:
 
   ; Save whole source
     call 'KERNEL32.SetUnhandledExceptionFilter', LastFinalException ; jE!
-    On B$RealSourceRestored = &FALSE, call RestoreRealSource
-    mov B$WeAreSavingPart &FALSE | call SaveSource
-
     mov eax D@ExceptionInfo | call GetExceptionInfo D$eax
     mov eax D@ExceptionInfo | call WriteCrashLog D$eax D$eax+4
+
     ON D$hwndForBar <> 0, call 'USER32.DestroyWindow' D$hwndForBar | and D$hwndForBar 0
     call 'User32.MessageBoxA' D$hwnd, ExceptionMessage,
         {'RosAsm crashed' 0}, &MB_OK+&MB_ICONEXCLAMATION
+
+    On B$RealSourceRestored = &FALSE, call RestoreRealSource ; moved down, self-crash case
+    mov B$WeAreSavingPart &FALSE | call SaveSource
+
     ON D$hwnd <> 0, call 'USER32.DestroyWindow' D$hwnd
 
     call 'KERNEL32.SetErrorMode' &SEM_NOGPFAULTERRORBOX
