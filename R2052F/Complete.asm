@@ -331,7 +331,7 @@ Completion:
             While D$esi <> MLC
                 inc esi | On esi >= edx, jmp L9>>
             End_While
-            add esi 4
+            add esi 3 ; jE!
 
         ...Else_If B$esi = ';'
             While B$esi > CR | inc esi | End_While

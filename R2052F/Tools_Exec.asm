@@ -985,7 +985,7 @@ InitImportsProcList:
             While D$esi <> MLC
                 inc esi | On esi = edx, jmp L9>>
             End_While
-            add esi 4
+            add esi 3 ; jE!
 
         ..Else_If al = ';'
                 While B$esi >= ' ' | inc esi | End_While
@@ -1063,7 +1063,7 @@ InitExportsProcList:
             While D$esi <> MLC
                 inc esi | On esi = edx, jmp L9>>
             End_While
-            add esi 4
+            add esi 3 ; jE!
 
         ..Else_If al = ';'
                 While B$esi >= ' ' | inc esi | End_While
@@ -1126,7 +1126,7 @@ ViewDllFunctionList:
             While D$esi <> MLC
                 inc esi | On esi = edx, jmp L9>>
             End_While
-            add esi 4
+            add esi 3 ; jE!
 
         ...Else_If al = ';'
                 While B$esi >= ' ' | inc esi | End_While
