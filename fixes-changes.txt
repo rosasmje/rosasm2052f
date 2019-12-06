@@ -441,7 +441,7 @@ in Exception: RestoreRealSource moved down, because if crash comes from there, h
 
 _16
 was not showing all imported DLLs in Menu>list>Import. bad MLC search. corrected in four places.
-
+in IconEditor on '=Cancel=' click, restore previous icon.
 
 ;fake IMPORTs! if IMPORT has no refs, disasm is messy
 
