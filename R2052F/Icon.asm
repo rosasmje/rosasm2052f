@@ -1003,6 +1003,10 @@ StoreIcon:
     mov esi iIcon, edi uIcon, ecx 02E8 | rep movsb
 ret
 
+ReStoreIcon:
+    mov esi uIcon, edi iIcon, ecx 02E8 | rep movsb
+ret
+
  ____________________________________________________________________________________
  ____________________________________________________________________________________
 
@@ -1057,6 +1061,7 @@ Proc IconEditProc:
 
     ...Else_If D@Message = &WM_COMMAND
         .If D@wParam = &IDCANCEL
+            call ReStoreIcon
             mov D$IconEditorHandle 0
             call 'User32.EndDialog' D@Adressee 0
         .Else_If D@wParam = ID_Inew
