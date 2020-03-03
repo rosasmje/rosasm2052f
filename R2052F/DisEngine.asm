@@ -8964,7 +8964,7 @@ L0: .While esi < edx
         mov eax D$esi | sub eax D$DisImageBase | add eax D$UserPeStart
 
         .If eax > D$UserPeStart
-            If eax < D$UserPeEnd
+            If eax < EDX ; D$UserPeEnd
                 sub eax D$UserPeStart | add eax D$SectionsMap
                 test B$eax IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jnz L5>>
                 test B$eax+1 IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jnz L5>>
