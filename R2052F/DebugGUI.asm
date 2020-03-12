@@ -6209,7 +6209,7 @@ Proc MouseOverDataHint:
 
     On D$ToolbarWanted = 1, sub edx D$ToolBarPixelsHight
 
-    move W$MousePosX ax, W$MousePosY dx
+    mov W$MousePosX ax, W$MousePosY dx
 
     call SimpleMouseTextPos
 

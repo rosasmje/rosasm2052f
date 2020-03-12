@@ -273,9 +273,9 @@ WriteMapFiles:
         If eax <> &INVALID_HANDLE_VALUE
             mov D$MapFileHandle eax
 
-            mov ecx D$EndOfSectionsMap | sub ecx D$SectionsMap
+            mov ecx D$EndOfRoutingMap | sub ecx D$RoutingMap
 
-            call 'KERNEL32.WriteFile' D$MapFileHandle, D$SectionsMap, ecx,
+            call 'KERNEL32.WriteFile' D$MapFileHandle, D$RoutingMap, ecx,
                                       NumberOfReadBytes, 0
 
             call 'KERNEL32.CloseHandle' D$MapFileHandle | and D$MapFileHandle 0
@@ -291,9 +291,9 @@ WriteMapFiles:
         If eax <> &INVALID_HANDLE_VALUE
             mov D$MapFileHandle eax
 
-            mov ecx D$EndOfSectionsMap | sub ecx D$SectionsMap
+            mov ecx D$EndOfSizesMap | sub ecx D$SizesMap
 
-            call 'KERNEL32.WriteFile' D$MapFileHandle, D$SectionsMap, ecx,
+            call 'KERNEL32.WriteFile' D$MapFileHandle, D$SizesMap, ecx,
                                       NumberOfReadBytes, 0
 
             call 'KERNEL32.CloseHandle' D$MapFileHandle | and D$MapFileHandle 0
@@ -1209,6 +1209,23 @@ SetForcedEndAddress:
                                           0, CopyOfEndLabelHexa
     pop edi, esi
 ret
+____________________________________________________________________________________________
+
+; prevent Disassembler to overwrite our Forced job ; Affects only Z-flag
+Proc CheckInForcedMap:
+ ARGUMENT @address
+ USES eax ebx
+
+    mov eax D$ForcedRecordsTable | test eax eax | je B0>
+    add eax FORCED_FILE_HEADERLENGHT
+    mov ebx D@address
+
+    While D$eax <> 0
+        cmp D$eax ebx | je P9> ; exit with Z-flag 1
+        add eax FORCED_RECORD_LENGHT
+    End_While
+B0: test esp esp ; exit with Z-flag=0
+EndP
 ____________________________________________________________________________________________
 
 [AddressToBeForced: ?   ForcedFlag: ?

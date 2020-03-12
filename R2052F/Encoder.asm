@@ -2274,12 +2274,24 @@ L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        ;BadMnemonic
 L2:      BadMnemonic
+L1:    ifnot op1 'X', L1>
+L2:      ifnot op2 'G', L2>
+           ifnot op3 'E', L3>
+             ifnot op4 'T', L4>
+               ifnot op5 'B', L5>
+                 ifnot op6 'V', L6>                       ; XGETBV
+                    ToOpcode 0F, 01, 0D0 | ret
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          ;BadMnemonic
+L3:        ;BadMnemonic
+L2:      BadMnemonic
 L1:    ifnot op1 'W', L1>
          ifnot op2 'B', L2>
            ifnot op3 'I', L3>
              ifnot op4 'N', L4>
                ifnot op5 'V', L5>
-                 ifnot op6 'D', L6>                           ; WBINVD
+                 ifnot op6 'D', L6>                       ; WBINVD
                    mov op1 00_1111,  op2 00_1001 | jmp op_op
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic

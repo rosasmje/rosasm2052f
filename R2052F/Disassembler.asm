@@ -684,8 +684,9 @@ DisMain: ; 'MSVBVM' 'OpenRosAsmPe', 'DisassembleProc'
 
     .Do
 L0:     push ecx
-            call TryToDisassembleEvocated ecx
-
+        mov D$No0CC &True
+        call TryToDisassembleEvocated ecx
+        mov D$No0CC &False
             If B$AttemptSuccess = &TRUE
                 call DisassembleForCodeRouting
                 call SmallBlanksToSameFlag
@@ -743,7 +744,7 @@ L9:     pop ecx
 ;Map
   ; All Code pointed out >>> Not flaged Chunks to Data:
     call FillDataSection | call StripSectionsZeroEnd
-
+    call ReTryLoadedPointersFromRELOC
     call MarkIsolatedPointers ; Second call really helpfull?
 ;map
     mov B$LastDisassemblyRoutingPass &TRUE
@@ -1500,7 +1501,8 @@ CheckPointersTable:
             cmp ebx D$UserPeEnd | ja L5>>
 
               ; OK, this is a Table of Code Pointers. Flag everything:
-L0:             mov ebx D$eax | sub ebx D$DisImageBase | add ebx D$UserPeStart
+L0:             mov ebx D$eax | call CheckInForcedMap ebx | je L2> ;ops, can be DATA
+                sub ebx D$DisImageBase | add ebx D$UserPeStart
                 cmp ebx D$UserPeStart | jb L2>
                 cmp ebx D$UserPeEnd | ja L2>
                     mov edx eax | sub edx D$UserPeStart | add edx D$SizesMap
@@ -2209,7 +2211,7 @@ ret
 ____________________________________________________________________________________________
 
 [TempoUserPeStart: ?    DisFlagsImage: ?    DisFlagsImageEnd: ?    DisRelocPointer: ?]
-
+[RelocsSorted: ? , RelocsCount: ?]
 [FirstSection: ?    EndOfLastSection: ?]
 
 ;;
@@ -5249,14 +5251,14 @@ ________________________________________________________________________________
 Proc FlagsCleaner:
     pushad
         mov ecx D$SectionsMap, edx D$EndOfSectionsMap, esi D$RoutingMap, ebx D$SizesMap
-        mov eax (not (INSTRUCTION+NODE+EXPORTNODE+PUSH_EBP))
+        mov eax (not (INSTRUCTION+NODE+PUSH_EBP)) ; +EXPORTNODE ; met in VirtualData
 
         .While ecx < edx
           ; Data cannot assume any of these Routing Flags:
             If B$ecx = DATAFLAG
-                xor al EXPORTNODE
+                ;xor al EXPORTNODE
                 and B$esi al
-                xor al EXPORTNODE
+                ;xor al EXPORTNODE
 
           ; Same for VirtualData:
             Else_If B$ecx = VIRTUALFLAG
@@ -5549,9 +5551,9 @@ L1:   ; ecx = How many Bytes unaccessed.
                 mov D$Alignement '04  '
         .End_If
 
-        mov B$ItWasAlignment &TRUE
-L9: popad
-ret
+;        mov B$ItWasAlignment &TRUE
+;L9: popad
+;ret
 
 ;;
   Supposed no more use Instructions checking, because, at that stage, if no pointer
@@ -5884,31 +5886,33 @@ EndP
 ____
 
 Proc TryLoadPointersFromRELOC: ; jE! Version2
-  Local @memRelp, @numRelp
+;  Local @memRelp, @numRelp
   USES EBX ESI EDI
-    and D@memRelp 0
+    and D$RelocsSorted 0 | and D$RelocsCount 0
     mov esi D$UserPeStart| add esi D$esi+03C
-    mov ebx D$esi+0A4| mov esi D$esi+0A0| test esi esi| je @FindPointers
+    mov ebx D$esi+0A4| mov esi D$esi+0A0| test esi esi| je @FindPointers | or D$RelocsWanted 1
     lea eax D$esi+ebx | add esi D$UserPeStart | cmp D$UserPeLen eax | jae L0>
     mov ebx D$UserPeEnd | sub ebx esi | jmp @orFindPointers
 L0:
     call ScanRelocation, esi, ebx, D$UserPeLen | test eax eax| je @orFindPointers
 
-    lea eax D$eax*4+010 | lea edx D@memRelp
-    VirtualAlloc edx, eax
+    lea eax D$eax*4+010
+    VirtualAlloc RelocsSorted, eax
 
-    call BuildRVAPointersFromReloc D@memRelp, esi, ebx | mov D@numRelp eax
-    call DualBubbleSortDWORDs D@memrelp, eax
+    call BuildRVAPointersFromReloc D$RelocsSorted, esi, ebx | mov D$RelocsCount eax
+    call DualBubbleSortDWORDs D$RelocsSorted, eax
     sub eax eax | mov edi esi | mov ecx ebx | shr ecx 2 | rep stosd ; cleanup RELOCs
-    mov edx D@numRelp, esi D@memrelp ; check 2 same
-L0: lodsd | lea ecx D$edx-1 | mov edi esi | repne scasd | je B0> | dec edx | jne L0<
+    mov ecx D$RelocsCount, esi D$RelocsSorted
+    dec ecx | lea edi D$esi+4
+L0: CMPSD | je B0> | dec ecx | jne L0< ; check 2 same in sorted
     jmp @ManagePointers
- B0:
-    VirtualFree D@memrelp | jmp @FindPointers
+B0:
+    VirtualFree D$RelocsSorted | jmp @FindPointers
 
 @orFindPointers:
     sub eax eax | mov edi esi | mov ecx ebx | shr ecx 2 | rep stosd
 @FindPointers:
+    and D$DisRelocPointer 0
     mov esi D$UserPeStart | add esi D$FirstSection | sub ebx ebx ; count
     mov ecx D$UserPeEnd | sub ecx 4 | mov edx ecx | sub edx D$UserPeStart
     While esi < ecx
@@ -5919,12 +5923,12 @@ L0: lodsd | lea ecx D$edx-1 | mov edi esi | repne scasd | je B0> | dec edx | jne
 L2:     inc esi
     End_While
     test ebx ebx | je P9>> ; no pointers!
-    lea eax D$ebx*4+010 | lea edx D@memRelp
-    VirtualAlloc edx, eax
+    lea eax D$ebx*4+010
+    VirtualAlloc RelocsSorted, eax
 
     mov esi D$UserPeStart | add esi D$FirstSection | sub ebx ebx ; count
     mov ecx D$UserPeEnd | sub ecx 4 | mov edx ecx | sub edx D$UserPeStart
-    mov edi D@memrelp
+    mov edi D$RelocsSorted
     While esi < ecx
         mov eax D$esi | sub eax D$DisImageBase
         cmp eax edx | ja L2> | cmp eax D$FirstSection | jb L2> | add eax D$SectionsMap
@@ -5932,11 +5936,10 @@ L2:     inc esi
         mov eax esi | sub eax D$UserPeStart | stosd | add esi 3 | inc ebx
 L2:     inc esi
     End_While
-    mov D@numRelp ebx
+    mov D$RelocsCount ebx
 
 @ManagePointers:
-    call BarProgress
-    mov esi D@memRelp | mov ecx D@numRelp | mov edi 080000000 | sub ebx ebx
+    mov esi D$RelocsSorted | mov ecx D$RelocsCount | mov edi 080000000 | sub ebx ebx
 L3: lodsd | mov edx eax | sub edx edi | cmp edx 4 | je L4> | sub ebx ebx | jmp L6>
 L4: inc ebx | cmp ebx 2 | jb L6> | mov edx D$SizesMap | lea edx D$edx+eax | jne L7>
     mov D$edx-8 POINTER | mov D$edx-4 POINTER ; 3+ together are sure POINTERs in DATA
@@ -5944,46 +5947,50 @@ L7: mov D$edx POINTER
     mov edx D$SectionsMap | lea edx D$edx+eax | jne L7>
     mov D$edx-8 FOURDATAFLAGS | mov D$edx-4 FOURDATAFLAGS
 L7: mov D$edx FOURDATAFLAGS
+L6: ; in DATA = Ponter ; not yet initlzd
+    mov edx D$SectionsMap | cmp D$edx+eax FOURDATAFLAGS | jne L6>
+    mov edx D$SizesMap | mov D$edx+eax POINTER
 L6: mov edi eax| add eax D$UserPeStart| mov eax D$eax| sub eax D$DisImageBase| cmp D$UserPeLen eax| jbe L5>
-    push ecx, edi| mov edi D@memRelp|  mov ecx D@numRelp| repne scasd| pop edi, ecx| jne L2>
+    push ecx, edi| mov edi D$RelocsSorted|  mov ecx D$RelocsCount| REPNE SCASD | pop edi, ecx| jne L2>
+; Referenced pointer is DATA-POINTER!
     mov edx D$SizesMap| mov D$edx+eax POINTER| mov edx D$SectionsMap| mov D$edx+eax FOURDATAFLAGS
 L2: add eax D$RoutingMap | or B$eax LABEL+EVOCATED
 L5: dec ecx| jne L3<<
 
 L8:
-    VirtualFree D@memrelp
+    If D$DisRelocPointer = 0
+     VirtualFree D$RelocsSorted | and D$RelocsCount 0
+    End_If
 EndP
-
-;;
-Mark3PointerAsDataPointerFlow: ; jE! Ver3
-    pushad
-    mov edi D$SizesMap | mov ecx D$UserPeLen | mov eax POINTER | sub ecx 4
-S0: test ecx ecx| jle S8>|repne scasb| jne S8>| dec edi| inc ecx| mov edx ecx
-    shr ecx 2| push edi, ecx| repe scasd| sub D$esp ecx| pop ecx, edi| dec ecx|xchg ecx edx
-    cmp edx 3| jl S1>| mov ebx edi| sub ebx D$SizesMap| add ebx D$SectionsMap
-S2: mov D$ebx FOURDATAFLAGS| add ebx 4| add edi 4| sub ecx 4| dec edx| jg S2<| jmp S0<
-S1: shl edx 2| add edi edx| sub ecx edx| jmp S0<
-S8: popad | ret
-
-____
-
-Proc TryLoadPointersFromRELOC: ; jE! Version3
-  Local @memRelp, @numRelp
+;
+;
+Proc ReTryLoadedPointersFromRELOC:
   USES EBX ESI EDI
-....
-    mov esi D@memRelp | mov ecx D@numRelp
-L3: lodsd | mov edx D$SizesMap | mov D$edx+eax POINTER | add eax D$UserPeStart
-    mov eax D$eax | sub eax D$DisImageBase | cmp D$UserPeLen eax | jb L5>
-; Referenced pointer is DATA-POINTER! >>
-    push ecx| mov edi D@memRelp|  mov ecx D@numRelp| repne scasd| pop ecx| jne L2>
-    mov edx D$SectionsMap| mov D$edx+eax FOURDATAFLAGS
-L2: add eax D$RoutingMap | mov B$eax LABEL+EVOCATED;+INDIRECT
-L5: dec ecx| jne L3<; loop L3<
-    or ebx 0-1
+
+    cmp D$RelocsSorted 0 | je P9>>
+
+    mov esi D$RelocsSorted | mov ecx D$RelocsCount | mov edi 080000000 | sub ebx ebx
+L3: lodsd | mov edx eax | sub edx edi | cmp edx 4 | je L4> | sub ebx ebx | jmp L6>
+L4: inc ebx | cmp ebx 2 | jb L6> | mov edx D$SizesMap | lea edx D$edx+eax | jne L7>
+    mov D$edx-8 POINTER | mov D$edx-4 POINTER ; 3+ together are sure POINTERs in DATA
+L7: mov D$edx POINTER
+    mov edx D$SectionsMap | lea edx D$edx+eax | jne L7>
+    mov D$edx-8 FOURDATAFLAGS | mov D$edx-4 FOURDATAFLAGS
+L7: mov D$edx FOURDATAFLAGS
+L6: ; in DATA = Ponter ; not yet initlzd
+    mov edx D$SectionsMap | cmp D$edx+eax FOURDATAFLAGS | jne L6>
+    mov edx D$SizesMap | mov D$edx+eax POINTER
+L6: mov edi eax| add eax D$UserPeStart| mov eax D$eax| sub eax D$DisImageBase| cmp D$UserPeLen eax| jbe L5>
+    push ecx, edi| mov edi D$RelocsSorted|  mov ecx D$RelocsCount| REPNE SCASD | pop edi, ecx| jne L2>
+; Referenced pointer is DATA-POINTER!
+    mov edx D$SizesMap| mov D$edx+eax POINTER| mov edx D$SectionsMap| mov D$edx+eax FOURDATAFLAGS
+L2: add eax D$RoutingMap | or B$eax LABEL+EVOCATED
+L5: dec ecx| jne L3<<
+
 L8:
-    call 'Kernel32.VirtualFree', D@memrelp, 0, &MEM_RELEASE | mov eax ebx
+    VirtualFree D$RelocsSorted | and D$RelocsCount 0
 EndP
-;;
+
 ________________________
 
 Proc BuildRVAPointersFromReloc: ;returns NumOfPointer or 0 on bad

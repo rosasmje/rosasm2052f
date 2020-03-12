@@ -623,8 +623,8 @@ L0:     call 'USER32.AppendMenuA' D$FloatHandle, &MF_SEPARATOR, &NULL, &NUll
 
 
     call 'USER32.GetWindowRect' D$hwnd RECT
-    mov eax D$RECTleft | add eax 20 | add D$MousePosX eax
-    mov eax D$RECTtop | add D$MousePosY eax
+    mov eax D$RECTleft | add eax 20 | add D$MousePosX eax | jns L0> | and D$MousePosX 0 | L0:
+    mov eax D$RECTtop | add D$MousePosY eax | jns L0> | and D$MousePosY 0 | L0:
 
     call 'KERNEL32.GetCurrentThreadId'
     call 'USER32.SetWindowsHookExA' &WH_KEYBOARD, FloatMenuProc, &NULL, eax

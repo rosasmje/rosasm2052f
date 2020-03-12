@@ -105,16 +105,21 @@ Op01:
         mov D$edi 'add ' | add edi 4 | jmp Dis_rm32_rm16__r32_r16
         inc D$LikelyCode
 
-    ..Else_If W$esi = 0C801 ; 0F,01,C8 MONITOR
+    ..Else_If W$esi-1 = 0C801 ; 0F,01,C8 MONITOR
         inc D$LikelyCode
-        add esi 2
+        add esi 1
         mov D$edi 'moni', D$edi+4 'tor ' | add edi 8
         mov B$DisFlag DISDONE+DISLINEOVER | ret
 
-    ..Else_If W$esi = 0C901 ; 0F,01,C9 MWAIT
+    ..Else_If W$esi-1 = 0C901 ; 0F,01,C9 MWAIT
         inc D$LikelyCode
-        add esi 2
+        add esi 1
         mov D$edi 'mwai', D$edi+4 't ' | add edi 6
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0D001 ; 0F,01,D0 XGETBV
+        add esi 1
+        mov D$edi 'xget', D$edi+4 'bv  ' | add edi 7
         mov B$DisFlag DISDONE+DISLINEOVER | ret
 
     ..Else
@@ -8755,7 +8760,7 @@ ret
 ____________________________________________________________________________________________
 
 [FlowNumberOfPointers: ?]
-
+;;
 MarkPointersFlows:
     mov esi D$UserPeStart | add esi D$FirstSection
     mov edx D$UserPeEnd | sub edx 4
@@ -8810,7 +8815,7 @@ L5:         mov ecx 0
             inc esi | mov D$FlowNumberOfPointers 0
         .End_While
 ret
-
+;;
 
 [NumberOfAlternatedPointers: ?]
 
@@ -8945,6 +8950,7 @@ ________________________________________________________________________________
 [PointerInData: ?]
 
 MarkIsolatedPointers: ; MarkPointersFlows
+    ON D$DisRelocPointer > 0, RET ; if RELOCs loaded, pointers are FIXed
     mov esi D$UserPeStart | add esi D$FirstSection
     mov edx D$UserPeEnd | sub edx 4
     mov D$FlowNumberOfPointers 0
