@@ -5546,9 +5546,15 @@ L1:   ; ecx = How many Bytes unaccessed.
         .Else_If ecx > 04
             test ebx 00_0111 | jnz L9>>
                 mov D$Alignement '08  '
+            test ebx 00_1111 | jnz L0> | mov D$Alignement '010 '
+L0:
         .Else  ; _If ecx > 0
             test ebx 00_0011 | jnz L9>>
                 mov D$Alignement '04  '
+            test ebx 00_0111 | jnz L0> | mov D$Alignement '08  '
+L0:
+            test ebx 00_1111 | jnz L0> | mov D$Alignement '010 '
+L0:
         .End_If
 
 ;        mov B$ItWasAlignment &TRUE
@@ -5564,15 +5570,15 @@ L1:   ; ecx = How many Bytes unaccessed.
 L0:     lodsb
 
         ..If al = 090                   ; nop
-            dec ecx | cmp ecx 0 | ja L0<
+            dec ecx | cmp ecx 0 | jg L0<
 
         ..Else_If al = 0CC              ; int 3
-            dec ecx | cmp ecx 0 | ja L0<
+            dec ecx | cmp ecx 0 | jg L0<
 
         ..Else_If al = 0
             If B$esi = 0                ; add B$eax al >>> 0 0
                 inc esi | sub ecx 2 | jc L9>>
-                cmp ecx 0 | ja L0<
+                cmp ecx 0 | jg L0<
             End_If
            ; dec esi
            ; While B$esi = 0
@@ -5581,58 +5587,67 @@ L0:     lodsb
            ; cmp ecx 0 | ja L0<
 
         ..Else_If al = 08D              ; lea esp D$esp+00 >>> 8D A4 24 00 00 00 00
-            .If D$esi = 024A4
-                If W$esi+4 = 0
-                    add esi 6 | sub ecx 7 | jc L9>>
-                    cmp ecx 0 | ja L0<
+            .If W$esi = 024A4
+                If D$esi+2 = 0
+                    add esi 6 | sub ecx 7 | jg L0<
                 End_If
-
-            .Else_If D$esi = 0B6       ; lea esi D$esi >>> 8D B6 00 00 00 00
-                                       ; LeaEsiLong2 --> Guga
-                If B$esi+4 = 0
+            .Else_If W$esi = 026B4      ; lea esi D$esi+00 >>> 8D B4 26 00 00 00 00
+                If D$esi+2 = 0
+                    add esi 6 | sub ecx 7 | jg L0<<
+                End_If
+            .Else_If B$esi = 080        ; lea eax D$eax+00 >>> 8D 80 00 00 00 00
+                If D$esi+1 = 0
+                    add esi 5 | sub ecx 6 | jg L0<<
+                End_If
+            .Else_If B$esi = 089        ; lea ecx D$ecx+00 >>> 8D 89 00 00 00 00
+                If D$esi+1 = 0
+                    add esi 5 | sub ecx 6 | jg L0<<
+                End_If
+            .Else_If B$esi = 092        ; lea edx D$edx+00 >>> 8D 92 00 00 00 00
+                If D$esi+1 = 0
+                    add esi 5 | sub ecx 6 | jg L0<<
+                End_If
+            .Else_If B$esi = 09B        ; lea ebx D$ebx+00 >>> 8D 9B 00 00 00 00
+                If D$esi+1 = 0
+                    add esi 5 | sub ecx 6 | jg L0<<
+                End_If
+            .Else_If B$esi = 0B6        ; lea esi D$esi+00 >>> 8D B6 00 00 00 00
+                                        ; LeaEsiLong2 --> Guga
+                If D$esi+1 = 0
                     add esi 5 | sub ecx 6 | jc L9>>
-                    cmp ecx 0 | ja L0<<
+                    cmp ecx 0 | jg L0<<
                 End_If
-            .Else_If D$esi = 026B4      ; lea esi D$esi+00 >>> 8D B4 26 00 00 00 00
-                If W$esi+4 = 0
-                    add esi 6 | sub ecx 7 | jc L9>>
-                    cmp ecx 0 | ja L0<<
+            .Else_If B$esi = 0BF        ; lea edi D$edi+00 >>> 8D BF 00 00 00 00
+                If D$esi+1 = 0
+                    add esi 5 | sub ecx 6 | jg L0<<
                 End_If
             .Else_If D$esi-1 = 024648D  ; lea esp D$esp+00 >>> 8D 64 24 00
-                add esi 3 | sub ecx 4 | jc L9>>
-                cmp ecx 0 | ja L0<<
-            .Else_If D$esi = 09B        ; lea ebx D$ebx+00 >>> 8D 9B 00 00 00 00
-                If B$esi+4 = 0
-                    add esi 5 | sub ecx 6 | jc L9>>
-                    cmp ecx 0 | ja L0<<
-                End_If
-            .Else_If W$esi = 049        ; lea ecx D$ecx+00 >>> 8D 49 00
-                add esi 2 | sub ecx 3 | jc L9>>
-                cmp ecx 0 | ja L0<<
+                add esi 3 | sub ecx 4 | jg L0<<
+            .Else_If D$esi-1 = 020448D  ; lea eax D$eax+00 >>> 8D 44 20 00
+                add esi 3 | sub ecx 4 | jg L0<<
             .Else_If W$esi = 040        ; lea eax D$eax+00 >>> 8D 40 00
-                add esi 2 | sub ecx 3 | jc L9>>
-                cmp ecx 0 | ja L0<<
+                add esi 2 | sub ecx 3 | jg L0<<
+            .Else_If W$esi = 049        ; lea ecx D$ecx+00 >>> 8D 49 00
+                add esi 2 | sub ecx 3 | jg L0<<
+            .Else_If W$esi = 052        ; lea edx D$edx+00 >>> 8D 52 00
+                add esi 2 | sub ecx 3 | jg L0<<
             .End_If
 
         ..Else_If al = 05               ; add eax 0 >>> 05 00 00 00 00
             If D$esi = 0
-                add esi 4 | sub ecx 5 | jc L9>>
-                cmp ecx 0 | ja L0<<
+                add esi 4 | sub ecx 5 | jg L0<<
             End_If
 
         ..Else_If al = 089              ; mov esi esi >>> 89 F6
             If B$esi = 0F6
-                inc esi | sub ecx 2 | jc L9>>
-                cmp ecx 0 | ja L0<<
+                inc esi | sub ecx 2 | jg L0<<
             End_If
 
         ..Else_If al = 08B              ; mov edi edi >>> 8B FF
             If B$esi = 0FF
-                inc esi | sub ecx 2 | jc L9>>
-                cmp ecx 0 | ja L0<<
+                inc esi | sub ecx 2 | jg L0<<
             Else_If B$esi = 0C0         ; mov eax eax >>> 8B C0
-                inc esi | sub ecx 2 | jc L9>>
-                cmp ecx 0 | ja L0<<
+                inc esi | sub ecx 2 | jg L0<<
             End_If
         ..End_If
 
@@ -5916,6 +5931,8 @@ B0:
     mov esi D$UserPeStart | add esi D$FirstSection | sub ebx ebx ; count
     mov ecx D$UserPeEnd | sub ecx 4 | mov edx ecx | sub edx D$UserPeStart
     While esi < ecx
+        mov eax esi | sub eax D$UserPeStart | add eax D$SectionsMap
+        test B$eax RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jne L2>
         mov eax D$esi | sub eax D$DisImageBase
         cmp eax edx | ja L2> | cmp eax D$FirstSection | jb L2> | add eax D$SectionsMap
         test B$eax RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jne L2>
@@ -5930,6 +5947,8 @@ L2:     inc esi
     mov ecx D$UserPeEnd | sub ecx 4 | mov edx ecx | sub edx D$UserPeStart
     mov edi D$RelocsSorted
     While esi < ecx
+        mov eax esi | sub eax D$UserPeStart | add eax D$SectionsMap
+        test B$eax RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jne L2>
         mov eax D$esi | sub eax D$DisImageBase
         cmp eax edx | ja L2> | cmp eax D$FirstSection | jb L2> | add eax D$SectionsMap
         test B$eax RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jne L2>

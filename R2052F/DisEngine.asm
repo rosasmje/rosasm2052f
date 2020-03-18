@@ -8278,6 +8278,7 @@ Proc AsciiRecognition:
 
         While esi < D$UserPeEnd
             test B$ebx IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG+CODEFLAG | jnz L2>
+            call CheckInForcedMap esi | jz L2>
             mov al B$esi
 
             .If B$edx+eax = GOODASCII
@@ -10203,7 +10204,8 @@ Proc MarkSSEdata:
       ; Remove the 'reg' bits from the mod/r/m byte:
         lodsb | and al 00_11_000_111 | On al <> 00_000_101, ExitP
 
-        lodsd | sub eax D$DisImageBase | add eax D$RoutingMap
+        lodsd | call CheckInForcedMap eax | jz P9>>
+        sub eax D$DisImageBase | add eax D$RoutingMap
 
         .If eax < D$RoutingMap
             mov B$UnlikelyCode 5

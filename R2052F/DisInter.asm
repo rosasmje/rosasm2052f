@@ -1222,7 +1222,10 @@ Proc CheckInForcedMap:
 
     While D$eax <> 0
         cmp D$eax ebx | je P9> ; exit with Z-flag 1
-        add eax FORCED_RECORD_LENGHT
+                        jb L0>
+        cmp D$eax+4 ebx | jae L0>
+        sub eax eax | jmp P9> ; ? in range > Z
+L0:     add eax FORCED_RECORD_LENGHT
     End_While
 B0: test esp esp ; exit with Z-flag=0
 EndP

@@ -450,6 +450,9 @@ in disasm: prevent every 0CC asembling; ReTryLoadedPointersFromRELOC; no more lo
         AlignRecognition back, or we was loosing code in 'Align'-s;
 	CheckInForcedMap: prevent Dism to overwrite Forced job;
 
+_18
+CheckInForcedMap upgraded. AlignRecognition improved
+
 
 ;fake IMPORTs! if IMPORT has no refs, disasm is messy
 
