@@ -453,6 +453,12 @@ in disasm: prevent every 0CC asembling; ReTryLoadedPointersFromRELOC; no more lo
 _18
 CheckInForcedMap upgraded. AlignRecognition improved
 
+_19
+upgraded WriteDisPointers, more preventing loss of next pointers.
+fixed BuildFromEquRoutine, as Structure name can contain number
+fixed file "Structures.str": '+1' occurences converted to ' + 1', as code recognizes(reuploaded "RosAsmFiles.7z")
+
+
 
 ;fake IMPORTs! if IMPORT has no refs, disasm is messy
 

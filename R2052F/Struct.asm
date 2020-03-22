@@ -527,7 +527,7 @@ L4:             mov al 0 | stosb
             End_If
 
             mov B$ShowWinEquateError &TRUE, D$imm32 0
-            While B$esi >= 'A'
+            While B$esi >= '0'
                 inc esi | On B$esi = '|', jmp L5>
             End_While
             If D$esi = ' + 1'

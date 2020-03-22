@@ -621,6 +621,12 @@ L2: pop eax
             End_If
         .End_If
 
+        test cl POINTER | je L2>
+        test B$esi POINTER+DWORD | jne L2>
+        test D$esi 040404040 | je L2>
+                call NextDisDataLine
+                mov cl B$esi | ret
+L2:
         If edi > D$NextDataOutputBreak
             call NextDisDataLine
         Else_If esi < edx
