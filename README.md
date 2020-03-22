@@ -11,6 +11,8 @@ main info about RosAsm from source:
             Download last version at:
         http://betov.free.fr/RosAsm.html
 
+(above page not exists)
+
 More about RosAsm: see program file "B_U_Asm.EXE"
 
 Create directory "RosAsm", unpack files from "RosAsmFiles.7z" here.
