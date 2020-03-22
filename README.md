@@ -7,7 +7,7 @@ main info about RosAsm from source:
 
          RosAsm, the Specific Assembler
             is free, open source, GPL.
- Main Author is RenΘ Tournois < betov@free.fr>        
+    Main Author is RenΘ Tournois < betov@free.fr>        
             Download last version at:
         http://betov.free.fr/RosAsm.html
 
