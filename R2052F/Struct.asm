@@ -141,9 +141,9 @@ L9: EndP
 
 ____________________________________________________________________________________________
 
+[StructEditText: ? ] ; pBuffer
 [StructTitle: ? # 50] [StructTitleLen: ?]
 [UserStructTitle: ? #50]
-[StructEditText: ? #1000]
 
 ; Fill the ComboBox with all 'WinStructures' Data:
 
@@ -261,7 +261,7 @@ L9: ret
 
 
 BuildStructForm:
-    mov edi StructEditText, eax 0, ecx 1000 | rep stosd
+;    mov edi StructEditText, eax 0, ecx 1000 | rep stosd
 
   ; First, search the structure inside 'WinStructures' list same for all forms):
     mov esi D$WinStructures, bl B$StructTitle, eax D$StructTitleLen
@@ -279,6 +279,10 @@ L1: inc esi
     cmp dl ':' | jne L1<
     add esi eax | inc esi
 
+    mov edi esi, al LF, ecx D$WinStructures | add ecx D$StructuresFileSize | sub ecx esi
+    REPNE SCASB | sub edi esi | SHL edi 2
+    VirtualFree D$StructEditText | VirtualAlloc StructEditText EDI
+
     If D$StructMode = 0
         call BuildStructDataForm
         sub edi 3 | mov al ']' | stosb |  mov B$edi 0
@@ -292,12 +296,12 @@ L1: inc esi
 
     call StripDoubleColon
 
-    call 'User32.SendMessageA' D$StructEditHandle &WM_SETTEXT 0 StructEditText
+    call 'User32.SendMessageA' D$StructEditHandle &WM_SETTEXT 0 D$StructEditText
 ret
 
 
 StripDoubleColon:
-    mov esi StructEditText
+    mov esi D$StructEditText
     While B$esi > 0
         lodsb
         If al = ':'
@@ -310,7 +314,7 @@ ret
 
 BuildStructDataForm:
   ; Write the Structure main name in the EditBox:
-    mov edi StructEditText
+    mov edi D$StructEditText
 
     push esi
         mov esi UserStructTitle
@@ -428,7 +432,7 @@ ret
 BuildStructEquForm:
   ; Write the Structure main name in the EditBox:
   ; esi is on 'WinStructures'
-    mov edi StructEditText, D$StructDisplacement 0
+    mov edi D$StructEditText, D$StructDisplacement 0
 
         mov al '[' | stosb
 
@@ -558,7 +562,7 @@ ret
 
 BuildStructStackForm:
 
-    mov edi StructEditText | add edi 100 | mov D$StructDisplacement 0
+    mov edi D$StructEditText | add edi 100 | mov D$StructDisplacement 0
 
     call BuildFromEquRoutine
 
@@ -610,7 +614,7 @@ L6:     If bl = 'B'
 
     .End_If
 
-    mov edi StructEditText, esi UserStructTitle  ; Write "Structure @NAME"
+    mov edi D$StructEditText, esi UserStructTitle  ; Write "Structure @NAME"
     mov eax 'Stru' | stosd | mov eax 'ctur' | stosd | mov ax 'e ' | stosw | mov al '@' | stosb
         While B$esi <> 0
             movsb
@@ -631,7 +635,7 @@ L2: pop eax                                     ; Retrieve Backward
 L9:
     mov ax ', ' | stosw
 
-    mov esi StructEditText | add esi 100
+    mov esi D$StructEditText | add esi 100
 
     While B$esi <> 0
         lodsb
@@ -710,10 +714,11 @@ ________________________________________________________________________________
 ClipStructure:
     push D$BlockStartTextPtr, D$BlockEndTextPtr, D$BlockInside
 
-        VirtualAlloc ClipStructureMemory 4000
+        call 'USER32.GetWindowTextLengthA' D$StructEditHandle | test eax eax | je L9>
+        lea ebx D$eax+1 | VirtualAlloc ClipStructureMemory ebx
         move D$BlockStartTextPtr D$ClipStructureMemory
 
-        call 'USER32.SendMessageA' D$StructEditHandle, &WM_GETTEXT, 4000, D$ClipStructureMemory
+        call 'USER32.SendMessageA' D$StructEditHandle, &WM_GETTEXT, ebx, D$ClipStructureMemory | test eax eax | je L9>
 
         If eax > 0
             add eax D$BlockStartTextPtr

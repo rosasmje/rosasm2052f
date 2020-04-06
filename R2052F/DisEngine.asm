@@ -7097,8 +7097,9 @@ Proc SetApiData:
 
         .If eax > D$SectionsMap
             If eax < D$EndOfSectionsMap
+                cmp B$eax VIRTUALFLAG | je L0>
                 mov B$eax DATAFLAG
-
+L0:
                 sub eax D$SectionsMap | add eax D$RoutingMap
                 or B$eax LABEL+EVOCATED
             End_If

@@ -458,6 +458,10 @@ upgraded WriteDisPointers, more preventing loss of next pointers.
 fixed BuildFromEquRoutine, as Structure name can contain number
 fixed file "Structures.str": '+1' occurences converted to ' + 1', as code recognizes(reuploaded "RosAsmFiles.7z")
 
+_20
+prevent SetApiData to change VIRTUALFLAG
+handled long WinStructures in SideKick
+
 
 
 ;fake IMPORTs! if IMPORT has no refs, disasm is messy
