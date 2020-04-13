@@ -113,6 +113,7 @@ Proc StrucProc:
             call ClipStructure
 L1:         mov D$StructHandle 0
             VirtualFree D$WinStructures
+            VirtualFree D$StructEditText
             call 'USER32.EndDialog' D@Adressee 0
 
         .Else_If D@wParam = &IDHELP

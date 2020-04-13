@@ -462,6 +462,10 @@ _20
 prevent SetApiData to change VIRTUALFLAG
 handled long WinStructures in SideKick
 
+_21
+in DisDataTypeRouter more preventing pointers. no CheckPointersInData, if RELOCs
+correctin in WriteFontType,WriteFontSize.
+in NewSearchApiName removed my wrong change.
 
 
 ;fake IMPORTs! if IMPORT has no refs, disasm is messy

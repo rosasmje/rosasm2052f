@@ -159,9 +159,13 @@ DisDataTypeRouter:
     .If cl = BYTE
         mov eax edx | sub eax esi | and eax 00_11
         If eax = 00_10
+          test B$esi+1 POINTER | jne L0>
             mov cl WORD
+L0:
         Else_If eax = 00_00
+          test D$esi 040404000 | jne L0>
             mov cl DWORD
+L0:
         End_If
     .End_If
 

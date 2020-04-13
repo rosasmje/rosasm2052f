@@ -5032,6 +5032,7 @@ ________________________________________________________________________________
 ;;
 
 CheckPointersInData:
+    ON D$DisRelocPointer > 0, RET ; if RELOCs loaded, pointers are FIXed
     mov esi D$SectionsMap, edx D$EndOfSectionsMap | sub edx 4
     add esi D$FirstSection
 

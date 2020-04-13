@@ -216,11 +216,11 @@ AddOneControl:
     On D$DialogListIndex > 0FFFF, mov D$DialogListIndex 0      ; no sel. > OK  > add
 
     mov eax D$DialogListIndex
-    While eax >= Line_empty+1 | sub eax Line_empty+1 | End_While
+    While eax >= LineEmpty+1 | sub eax LineEmpty+1 | End_While
 
     Push eax
 
-    If eax = Line_empty
+    If eax = LineEmpty
       ; Insert 'DefaultControlLenght' of 'NewDialogControlText':
         dec D$DefaultControlLenght                                  ; no 255 end mark
         call SearchDialogLine | inc edi | mov edx edi               ; > start of next control
@@ -243,7 +243,7 @@ AddOneControl:
     call FromTextToBinTemplate | call ShowDialogResult | call FillDialogListBox
     pop eax
 
-    If eax = Line_empty                                             ; if "insert":
+    If eax = LineEmpty                                              ; if "insert":
         call ScrollToInsertedControl
     Else                                                            ; if "add":
         call ScrollDownToLastControl
@@ -750,10 +750,10 @@ KickDims:
 L1:     If ecx > 0
             mov eax ControlsIDlistdWords
             sub eax ecx                         ; eax = ID list position (in ControlsIDlist)
-            mov ecx Line_empty+1 | imul eax ecx ; what control dim
+            mov ecx LineEmpty+1 | imul eax ecx ; what control dim
             push eax
             call 'User32.SendMessageA' D$DialogListHandle &LB_SETTOPINDEX eax 0 ; Pos
-            pop eax | add eax Line_Dim
+            pop eax | add eax LineDim
             call 'User32.SendMessageA' D$DialogListHandle &LB_SETCURSEL eax 0   ; select
             call SetDialogTools
             On B$ModifiedControl = &TRUE, call UpdateControlDims
@@ -761,7 +761,7 @@ L1:     If ecx > 0
 
     .Else
         call 'User32.SendMessageA' D$DialogListHandle &LB_SETTOPINDEX 0 0
-        call 'User32.SendMessageA' D$DialogListHandle &LB_SETCURSEL Line_Dim 0
+        call 'User32.SendMessageA' D$DialogListHandle &LB_SETCURSEL LineDim 0
 
         call SetDialogTools
 
@@ -1081,7 +1081,7 @@ L9: ret
 ; Restore end mark, in case of second run:
 
 ResetDialogListBox:
-    mov edi D$NewDialogTemplateText, ecx Line_empty+1, al 0
+    mov edi D$NewDialogTemplateText, ecx LineEmpty+1, al 0
 
 L0: push ecx
         mov ecx 200 | repne scasb
@@ -1256,7 +1256,7 @@ ret
 ScrollToInsertedControl:
     call 'User32.SendMessageA' D$DialogListHandle &LB_GETCOUNT 0 0
     dec eax | mov D$LastDialogListItem eax
-    mov eax D$DialogListIndex | add eax Line_Font
+    mov eax D$DialogListIndex | add eax LineFont
     call 'User32.SendMessageA' D$DialogListHandle &LB_SETCURSEL  eax 0  ; select title
 ret
 
@@ -1267,7 +1267,7 @@ ret
 ; D$ControlIndex values (set by "SetDialogTools"):
 ;   0 > Style  1 > exStyle 2 > Dim   3 > ID   4 > Class   5 > Title   6 > Font
 ;   0_FFFF_FFFF if not yet or blank line.
-[Line_Style 0 | Line_exStyle 1 | Line_Dim 2 | Line_ID 3 | Line_Class 4 | Line_Title 5 | Line_Font 6 | Line_empty 7]
+[LineStyle 0 | LineExStyle 1 | LineDim 2 | LineID 3 | LineClass 4 | LineTitle 5 | LineFont 6 | LineEmpty 7]
 [ProposedUpDowmChange: ?] ; The UDN_DELTAPOS WM_NOTIFY Message is sent before the
 ; Edit Control update. I use this Message to ease differenciating between all the
 ; Various Edit Controls. Immidiately after 'WriteDim' has used it, it reset it to
@@ -1415,11 +1415,11 @@ L0:                 lodsd
                 ;  call 'User32.SetForegroundWindow' D$DialogEditorHandle
 
             .Else_If eax = &EN_CHANGE           ; Edit Box?
-                If D$ControlIndex = Line_Title
+                If D$ControlIndex = LineTitle
                     call WriteTitle
-                Else_If D$ControlIndex = Line_ID
+                Else_If D$ControlIndex = LineID
                     call WriteID
-                Else_If D$ControlIndex = Line_Class
+                Else_If D$ControlIndex = LineClass
                     call WriteTitle              ; reuse for Dialog Class
                 End_If
 L2:             call 'User32.SetForegroundWindow' D$DialogEditorHandle
@@ -1435,7 +1435,7 @@ L2:             call 'User32.SetForegroundWindow' D$DialogEditorHandle
                 call 'User32.SetForegroundWindow' D$DialogEditorHandle
 
             .Else_If eax = &EN_UPDATE                  ; direct input in Dim edit control
-                On D$ControlIndex = Line_Dim, call WriteDim
+                On D$ControlIndex = LineDim, call WriteDim
                 call 'User32.SetForegroundWindow' D$DialogEditorHandle
 
             .End_If
@@ -1746,9 +1746,9 @@ ShowControlStyles:
     call SearchDialogLine | mov esi edi | add esi 3
     call TranslateDialogHexa | mov D$CheckActual ebx
 
-    add D$DialogListIndex Line_Class
+    add D$DialogListIndex LineClass
         call SearchWhatControlClass             ; ebx = indice of class (0 / 1 / 2 / 3...)
-    sub D$DialogListIndex Line_Class
+    sub D$DialogListIndex LineClass
 
     ..If edi = ControlClassByNumber             ; >>> class by Number
         .If ebx = 0
@@ -4665,7 +4665,7 @@ ret
 
 ShowControlStyleControl:
     push D$DialogListIndex
-       add D$DialogListIndex Line_Class | call SearchWhatControlClass
+       add D$DialogListIndex LineClass | call SearchWhatControlClass
 
        ..If edi = ControlClassByNumber
             If ebx = 0      | ShowSetOfCheckBoxes ButtonTextTable
@@ -5096,47 +5096,47 @@ SetDialogTools:
     call 'User32.SendMessageA' D$DialogListHandle, &LB_GETCURSEL, eax, 0
     mov D$DialogListIndex eax
 
-    ..If eax < Line_empty
+    ..If eax < LineEmpty
         mov D$ControlIndex eax
-        .If eax = Line_Style
+        .If eax = LineStyle
             call ShowDialogStyleControl | call ShowDialogStyles
-        .Else_If eax = Line_Dim
+        .Else_If eax = LineDim
             mov D$DimIsForDialogWindow &TRUE | call ShowDimControls
-        .Else_If eax = Line_ID
+        .Else_If eax = LineID
             call SearchDialogLine
             If D$edi = 'FFFF'
                 call EditDialogMenu
             Else
                 call AddMenuToDialog
             End_If
-        .Else_If eax = Line_Class
+        .Else_If eax = LineClass
             call ShowTitleControl          ; reuse for dialog class
          ;  NoDialogControl  ; not yet
-        .Else_If eax = Line_Class
+        .Else_If eax = LineClass
             NoDialogControl  ; not yet
-        .Else_If eax = Line_Title
+        .Else_If eax = LineTitle
             call ShowTitleControl
-        .Else_If eax = Line_Font
+        .Else_If eax = LineFont
             call ShowFontControls
         .End_If
-    ..Else_If eax = Line_empty
+    ..Else_If eax = LineEmpty
         NoDialogControl    ; separator
     ..Else_If eax < D$LastDialogListItem
-L1:     sub eax Line_empty+1 | cmp eax Line_empty+1 | jae L1<
+L1:     sub eax LineEmpty+1 | cmp eax LineEmpty+1 | jae L1<
         mov D$ControlIndex eax
-        If eax = Line_Style
+        If eax = LineStyle
             call ShowControlStyleControl | call ShowControlStyles
-        Else_If eax = Line_ExStyle
+        Else_If eax = LineExStyle
             NoDialogControl   ; not yet
-        Else_If eax = Line_Dim
+        Else_If eax = LineDim
             mov D$DimIsForDialogWindow &FALSE | call ShowDimControls
-        Else_If eax = Line_ID
+        Else_If eax = LineID
             call ShowIDcontrols
-        Else_If eax = Line_Class
+        Else_If eax = LineClass
             call ShowClassControls
-        Else_If eax = Line_Title
+        Else_If eax = LineTitle
             call ShowTitleControl
-        Else_If eax = Line_Font
+        Else_If eax = LineFont
             NoDialogControl   ; not yet
         End_If
     ..End_If
@@ -5268,9 +5268,9 @@ WriteStyle:
 
     ...Else                                  ; >>> this is for Control Style:
         push ebx                                ; table indice (0 / 4 / 8 / 12...)
-            add D$DialogListIndex Line_Class
+            add D$DialogListIndex LineClass
             call SearchWhatControlClass             ; ebx = indice of class (0 / 1 / 2 / 3...)
-            sub D$DialogListIndex Line_Class
+            sub D$DialogListIndex LineClass
         pop eax                                       ; table indice in eax
         ..If edi = ControlClassByNumber               ; >>> class by Number
             .If ebx = 0
@@ -5571,11 +5571,11 @@ WriteClass: ;need LINES_!!
     call 'User32.SendMessageA' D$DialogControlsHandles, &CB_GETCURSEL, 0, 0 | mov ebx eax
 
     mov edx D$DialogListIndex, edi D$NewDialogTemplateText, al 0, ecx MaxTemplateText
-    sub edx Line_Class
+    sub edx LineClass
 
 L0: repne scasb | dec edx | jnz L0<                          ; to point to upper Style
     add edi 4 | mov B$edi-1 '5', al '0', ecx 7 | rep stosb   ; reset Style record to default
-    mov edx Line_Class, al 0, ecx 0FFFFFFFF
+    mov edx LineClass, al 0, ecx 0FFFFFFFF
 L0: repne scasb | dec edx | jnz L0<                          ; point to Class record
 
     ..If D$edi = 'FFFF'
@@ -5628,7 +5628,7 @@ ________________________________________________________________________________
 
 WriteFontSize:
     mov edi D$NewDialogTemplateText al 0, ecx MaxTemplateText
-    repne scasb | repne scasb | repne scasb | repne scasb | repne scasb
+    repne scasb | repne scasb | repne scasb | repne scasb | repne scasb | repne scasb
     push edi
         call 'User32.SendMessageA' D$DialogControlsHandles+4  &CB_GETCURSEL  0  0
     pop edi
@@ -5714,7 +5714,7 @@ ret
 WriteFontType:
     call ClearLBbuffer
     mov edi D$NewDialogTemplateText al 0, ecx MaxTemplateText
-    repne scasb | repne scasb | repne scasb | repne scasb | repne scasb
+    repne scasb | repne scasb | repne scasb | repne scasb | repne scasb | repne scasb
     add edi 4
     push edi
         call StripTemplateText
@@ -5762,7 +5762,8 @@ L2:     mov cl B$esi | inc  esi              ; (eax used for result > no lodsb)
             mov edx 10 | mul edx | sub  ecx '0'
             add  eax ecx | jmp  L2<          ; >>> number in EAX
 L9:         mov ebx eax
-            add ebx D$ProposedUpDowmChange | mov D$ProposedUpDowmChange 0
+            add ebx D$ProposedUpDowmChange | mov D$ProposedUpDowmChange 0 | jns L0> | sub ebx ebx
+L0:
       ; Store text hexa at "DimTempo":
         mov edi LBbuffer | call TranslateDialogText8 | mov al 0 | stosb
     pop edi
@@ -5836,7 +5837,7 @@ DelOneControl:
     call 'User32.SendMessageA' D$DialogListHandle &LB_GETCURSEL eax 0
     mov D$DialogListIndex eax
 
-    .If D$DialogListIndex < Line_empty+1
+    .If D$DialogListIndex < LineEmpty+1
         jmp OutDelOneControl
 
     .Else_If D$DialogListIndex > 0FFFF
@@ -6157,7 +6158,7 @@ SearchLenghtOfDialogData:
         mov ax 0, ecx 200 | repne scasw | repne scasw   ; title / font
     mov esi edi
 
-    sub ebx Line_empty+1
+    sub ebx LineEmpty+1
     while ebx > 0
         test esi 00_11 | jz L1>
             lodsw                               ; align
@@ -6174,7 +6175,7 @@ L1:     lodsd | lodsd                           ; styles
         mov esi edi
         lodsw
 
-        sub ebx Line_empty+1
+        sub ebx LineEmpty+1
     End_While
 
     mov ecx esi | sub ecx D$EditedDialogBoxData ; lenght of dialog data

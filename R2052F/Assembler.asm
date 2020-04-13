@@ -10190,7 +10190,7 @@ L5: pop esi
     mov eax ebx
     If D$SavingExtension = '.SYS'
         add eax DRIVERDEFAULT | jmp L1>
-    Else_If D$RelocsWanted = &TRUE ;D$SavingExtension = '.DLL' ; jE!
+    Else_If D$SavingExtension = '.DLL'
         add eax D$LinkerDllDefault
 L1:     push ebx
           ; Comments in 'FillCodeSymbols':
