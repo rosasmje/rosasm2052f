@@ -806,7 +806,7 @@ L9:     pop ecx
     End_If
 
     call NamedIdSubstitution
-
+    VirtualFree D$RelocsSorted | and D$RelocsCount 0
     VirtualFree D$TruthAsciiTable, D$ApiBuffer
     VirtualFree D$UserPeStart | move D$UserPeStart D$CodeSource
     VirtualFree D$SectionsMap, D$RoutingMap, D$SizesMap, D$StringsMap
@@ -5977,7 +5977,6 @@ L6: mov edi eax| add eax D$UserPeStart| mov eax D$eax| sub eax D$DisImageBase| c
 L2: add eax D$RoutingMap | or B$eax LABEL+EVOCATED
 L5: dec ecx| jne L3<<
 
-L8:
     If D$DisRelocPointer = 0
      VirtualFree D$RelocsSorted | and D$RelocsCount 0
     End_If
@@ -6007,10 +6006,16 @@ L6: mov edi eax| add eax D$UserPeStart| mov eax D$eax| sub eax D$DisImageBase| c
 L2: add eax D$RoutingMap | or B$eax LABEL+EVOCATED
 L5: dec ecx| jne L3<<
 
-L8:
-    VirtualFree D$RelocsSorted | and D$RelocsCount 0
 EndP
-
+;
+; check to prevent false references production
+; ARGUMENT: RAW addr; returns Z-flag only
+IsInRELOCations:
+    xchg D$esp+4 eax
+    push ecx, edi | mov edi D$RelocsSorted | mov ecx D$RelocsCount
+    REPNE SCASD | pop edi, ecx
+    mov eax D$esp+4 ; retore eax
+    RET 04
 ________________________
 
 Proc BuildRVAPointersFromReloc: ;returns NumOfPointer or 0 on bad

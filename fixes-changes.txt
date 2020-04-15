@@ -464,8 +464,13 @@ handled long WinStructures in SideKick
 
 _21
 in DisDataTypeRouter more preventing pointers. no CheckPointersInData, if RELOCs
-correctin in WriteFontType,WriteFontSize.
+correction in WriteFontType,WriteFontSize.
 in NewSearchApiName removed my wrong change.
+
+_22
+'IsInRELOCations': prevent false references instead of IMM32.
+SavingExtension needs more attention.
+
 
 
 ;fake IMPORTs! if IMPORT has no refs, disasm is messy

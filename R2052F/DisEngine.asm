@@ -9624,6 +9624,9 @@ WriteImm32:  ; WriteDis32
         ; >>> WriteEax
     Else_If ebx <= D$SectionsMap
         ; >>> WriteEax
+    Else_If D$DisRelocPointer <> 0
+        lea ebx D$esi-4 | sub ebx D$UserPeStart
+        call IsInRELOCations ebx | JZ WriteDisRelative
     Else
         mov bl B$ebx
         and bl DATAFLAG+VIRTUALFLAG+CODEFLAG | jnz WriteDisRelative
