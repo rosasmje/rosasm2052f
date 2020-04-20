@@ -6075,7 +6075,7 @@ EndWith.D.mem:
     mov W$DisSizeMarker 'D$'
 EndWithModRm:
     call WriteEffectiveAddressFromModRm
-    mov B$DisFlag DISDONE+DISLINEOVER
+    mov B$DisFlag DISDONE+DISLINEOVER | mov B$LeaInstruction &FALSE
 ret
 
 EndWith.WD.mem:
@@ -6374,7 +6374,11 @@ L0: On B$WeAreInTheCodeBox = &TRUE, jmp L8>>
     sub eax D$DisImageBase | add eax D$SectionsMap
 
     On eax >= D$EndOfSectionsMap, jmp L8>>
-    On eax <= D$SectionsMap, jmp L8>>
+    On eax < D$SectionsMap, jmp L8>>
+; MZheader case: if RELOCs confirm, then for sure
+    If eax = D$SectionsMap
+        cmp D$DisRelocPointer 0 | je L8>>
+    End_If
 
     mov B$ToJumpsTable &FALSE
     mov al B$eax | and al DATAFLAG+VIRTUALFLAG+IMPORTFLAG+CODEFLAG
@@ -9622,7 +9626,7 @@ WriteImm32:  ; WriteDis32
     mov ebx eax | sub ebx D$DisImageBase | add ebx D$SectionsMap
     If ebx >= D$EndOfSectionsMap
         ; >>> WriteEax
-    Else_If ebx <= D$SectionsMap
+    Else_If ebx < D$SectionsMap
         ; >>> WriteEax
     Else_If D$DisRelocPointer <> 0
         lea ebx D$esi-4 | sub ebx D$UserPeStart

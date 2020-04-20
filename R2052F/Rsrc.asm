@@ -54,7 +54,7 @@ Proc ReadRosAsmResources:
 
     pushad
         call ClearCustomList
-        mov D$RsrcType 0
+        mov D$RsrcType 0 | mov D$RsrcTypeStringLen 0
         call FillCustomListFromResourceTree D$UserPEStartOfResources, CustomList
         call CopyStandarTypeResources
     popad
@@ -83,7 +83,7 @@ Proc FillCustomListFromResourceTree: ; 'ResourcesStub' For infos.
           ; We need to see if we have a Unicode String Name or a ID
 L0:
             lodsd ; load the name ID to eax
-            mov D$RsrcTypeStringLen 0
+;            mov D$RsrcTypeStringLen 0 ; moved up & below
             mov edx eax
 
             mov D$edi+CustomList.TypeDis edx
@@ -136,6 +136,7 @@ L0:
                 pushad
                     call ReadResource
                     mov D$edi-4 eax ; copy the read address to CustomList.PointerDis
+                    mov D$RsrcTypeStringLen 0
                 popad
             .Test_End
 

@@ -5961,12 +5961,12 @@ L2:     inc esi
 @ManagePointers:
     mov esi D$RelocsSorted | mov ecx D$RelocsCount | mov edi 080000000 | sub ebx ebx
 L3: lodsd | mov edx eax | sub edx edi | cmp edx 4 | je L4> | sub ebx ebx | jmp L6>
-L4: inc ebx | cmp ebx 2 | jb L6> | mov edx D$SizesMap | lea edx D$edx+eax | jne L7>
-    mov D$edx-8 POINTER | mov D$edx-4 POINTER ; 3+ together are sure POINTERs in DATA
-L7: mov D$edx POINTER
-    mov edx D$SectionsMap | lea edx D$edx+eax | jne L7>
-    mov D$edx-8 FOURDATAFLAGS | mov D$edx-4 FOURDATAFLAGS
-L7: mov D$edx FOURDATAFLAGS
+L4: inc ebx | cmp ebx 2 | jb L6> | mov edx D$SizesMap | jne L7>
+    mov D$edx+eax-8 POINTER | mov D$edx+eax-4 POINTER ; 3+ together are sure POINTERs in DATA
+L7: mov D$edx+eax POINTER
+    mov edx D$SectionsMap | jne L7>
+    mov D$edx+eax-8 FOURDATAFLAGS | mov D$edx+eax-4 FOURDATAFLAGS
+L7: mov D$edx+eax FOURDATAFLAGS
 L6: ; in DATA = Ponter ; not yet initlzd
     mov edx D$SectionsMap | cmp D$edx+eax FOURDATAFLAGS | jne L6>
     mov edx D$SizesMap | mov D$edx+eax POINTER
@@ -5987,20 +5987,24 @@ Proc ReTryLoadedPointersFromRELOC:
   USES EBX ESI EDI
 
     cmp D$RelocsSorted 0 | je P9>>
-
+    mov edi D$SizesMap | mov ecx D$EndOfSizesMap | sub ecx edi | SHR ecx 2
+L0: and D$edi (NOT 040404040) | add edi 4 | LOOP L0< ; cleanup pointers
     mov esi D$RelocsSorted | mov ecx D$RelocsCount | mov edi 080000000 | sub ebx ebx
 L3: lodsd | mov edx eax | sub edx edi | cmp edx 4 | je L4> | sub ebx ebx | jmp L6>
-L4: inc ebx | cmp ebx 2 | jb L6> | mov edx D$SizesMap | lea edx D$edx+eax | jne L7>
-    mov D$edx-8 POINTER | mov D$edx-4 POINTER ; 3+ together are sure POINTERs in DATA
-L7: mov D$edx POINTER
-    mov edx D$SectionsMap | lea edx D$edx+eax | jne L7>
-    mov D$edx-8 FOURDATAFLAGS | mov D$edx-4 FOURDATAFLAGS
-L7: mov D$edx FOURDATAFLAGS
-L6: ; in DATA = Ponter ; not yet initlzd
+L4: inc ebx | cmp ebx 2 | jb L6> | mov edx D$SizesMap | jne L7>
+    mov D$edx+eax-8 POINTER | mov D$edx+eax-4 POINTER ; 3+ together are sure POINTERs in DATA
+L7: mov D$edx+eax POINTER
+    mov edx D$SectionsMap | jne L7>
+    mov D$edx+eax-8 FOURDATAFLAGS | mov D$edx+eax-4 FOURDATAFLAGS
+L7: mov D$edx+eax FOURDATAFLAGS
+L6: ; in DATA = Ponter ;
     mov edx D$SectionsMap | cmp D$edx+eax FOURDATAFLAGS | jne L6>
-    mov edx D$SizesMap | mov D$edx+eax POINTER
+    mov edx D$SizesMap | mov D$edx+eax POINTER | mov edx D$RoutingMap | and D$edx+eax 0FF
 L6: mov edi eax| add eax D$UserPeStart| mov eax D$eax| sub eax D$DisImageBase| cmp D$UserPeLen eax| jbe L5>
-    push ecx, edi| mov edi D$RelocsSorted|  mov ecx D$RelocsCount| REPNE SCASD | pop edi, ecx| jne L2>
+ ; if not yet, now init as DATA for {mov D$ecx+label cases}
+    mov edx D$SectionsMap | test B$edx+eax DATAFLAG+VIRTUALFLAG+IMPORTFLAG+CODEFLAG | jne L6>
+    mov D$edx+eax DATAFLAG
+L6: push ecx, edi| mov edi D$RelocsSorted|  mov ecx D$RelocsCount| REPNE SCASD | pop edi, ecx| jne L2>
 ; Referenced pointer is DATA-POINTER!
     mov edx D$SizesMap| mov D$edx+eax POINTER| mov edx D$SectionsMap| mov D$edx+eax FOURDATAFLAGS
 L2: add eax D$RoutingMap | or B$eax LABEL+EVOCATED

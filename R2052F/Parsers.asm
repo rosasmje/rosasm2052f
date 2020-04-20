@@ -1229,7 +1229,7 @@ ExtendLocalSymbols:
                 End_While
             End_If
 
-            Do | movsb | Loop_Until B$esi < LowSigns
+            Do | movsb | Loop_Until B$esi < TextSign
         ...End_If
 
         movsb

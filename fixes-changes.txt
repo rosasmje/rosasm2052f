@@ -463,13 +463,21 @@ prevent SetApiData to change VIRTUALFLAG
 handled long WinStructures in SideKick
 
 _21
-in DisDataTypeRouter more preventing pointers. no CheckPointersInData, if RELOCs
+in DisDataTypeRouter more preserving pointers. no CheckPointersInData, if RELOCs
 correction in WriteFontType,WriteFontSize.
-in NewSearchApiName removed my wrong change.
+in NewSearchApiName my change needs correction
 
 _22
 'IsInRELOCations': prevent false references instead of IMM32.
 SavingExtension needs more attention.
+
+_23
+!!!Named RSRC fixed surprisingy easy. (FillCustomListFromResourceTree is recursive, better not);
+in Disasm: 'LeaInstruction' was not always reset; MZheader references will correctly handled with RELOCs;
+(but afterwards, user should remanage that code, like define [MZheader DataStart-DataRVAddr]..);
+even more preserving pointers;
+errorfix in ExtendLocalSymbols (if text after @);
+on 'File>New' action, restore default icon.
 
 
 

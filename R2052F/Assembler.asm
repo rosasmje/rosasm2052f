@@ -1018,7 +1018,7 @@ StartNewFile:
     call ReInitHeaderFormat
     On B$SourceReady = &TRUE, call ReleaseMainFile
 
-    call ClearBackTable | call ReleaseResourceMemory
+    call ClearBackTable | call ReleaseResourceMemory | call RestoreDefaultIcon
 
     mov D$SourceLen 0
 
