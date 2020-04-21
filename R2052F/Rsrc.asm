@@ -193,6 +193,7 @@ L5:
     call FillResourceTypeList CustomList, IconList, IconListPtr, &RT_ICON, MAXICON
     ; Erase the First Icon, Which is the Main One (elsewhere...)
     If D$IconList = 1
+      cmp B$OtherMainIcon &TRUE | je I1>
         VirtualFree D$IconList+4
         mov esi IconList, edi esi, ecx MAXICON-3 | add esi 12 | rep movsd
         On D$IconListPtr > IconList, sub D$IconListPtr 12
@@ -200,6 +201,7 @@ L5:
     call FillResourceTypeList CustomList, GroupIconList, GroupIconListPtr, &RT_GROUP_ICON, MAXICON
     ; Erase the First GroupIcon, Which is the Main One (elsewhere...)
     If D$GroupIconList = 1
+      cmp B$OtherMainIcon &TRUE | je I1>
         VirtualFree D$GroupIconList+4
         mov esi GroupIconList, edi esi, ecx MAXICON-3 | add esi 12 | rep movsd
         On D$GroupIconListPtr > GroupIconList, sub D$GroupIconListPtr 12
@@ -375,6 +377,7 @@ NewTemporaryFillRsrcList:
 
   ; Store default icon if user didn't edit any (or user defined if any):
     If B$NoMainIcon = &FALSE
+      cmp B$OtherMainIcon &TRUE | je I1>
         mov eax &RT_ICON | stosd | mov eax ID_Icon | stosd | mov eax Language | stosd
         mov eax uIcon | stosd | mov eax uIconEnd | sub eax uIcon | stosd
     End_If
@@ -428,6 +431,7 @@ NewTemporaryFillRsrcList:
     End_If
 
     If B$NoMainIcon = &FALSE
+      cmp B$OtherMainIcon &TRUE | je I1>
         mov eax &RT_GROUP_ICON | stosd | mov eax ID_Group_Icon | stosd
         mov eax Language | stosd
         mov eax uGroupIcon | stosd

@@ -479,6 +479,9 @@ even more preserving pointers;
 errorfix in ExtendLocalSymbols (if text after @);
 on 'File>New' action, restore default icon.
 
+_24
+original Icon will preserved as possible in disasm.
+
 
 
 ;fake IMPORTs! if IMPORT has no refs, disasm is messy

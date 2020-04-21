@@ -753,7 +753,7 @@ L1: On D$esi <> '.rsr', jmp SectNotFound
 
 ; eax-pResource, ebx-RVA_Resource
 DisReadMainIcon:
-    mov B$PeIconFound &FALSE
+    mov B$PeIconFound &FALSE, B$OtherMainIcon &FALSE
 
     mov esi eax | add esi 14                     ; > number of ID resources
     mov eax 0 | lodsw | mov ecx eax              ; > in ecx
@@ -819,7 +819,7 @@ AbortIconSearch:
     End_If
 ;;
                  mov eax NoIcon      | jmp L9>
-BadIcoSize:      mov eax BadIconSize | jmp L9>
+BadIcoSize:      mov eax BadIconSize | mov B$OtherMainIcon &TRUE | jmp L9>
 PeNotFound:      mov eax NoPE
 
 L9: ;If B$Disassembling = &TRUE
@@ -1077,7 +1077,7 @@ Proc IconEditProc:
         .Else_If D@wParam = ID_ItoIco
             call WriteIcoFile
         .Else_If D@wParam = ID_iKeep
-            move D$IconEditorHandle 0
+            mov  D$IconEditorHandle 0, B$OtherMainIcon &FALSE
             call StoreIcon | call 'User32.EndDialog' D@Adressee 0
         .Else_If D@wParam = ID_Help
             call Help, B_U_AsmName, IconHelp, ContextHlpMessage
