@@ -489,6 +489,7 @@ ProgressBar height increased. KillTrailingSpaces called for disassembled source;
 for RELOCed disassms implemented CodeFromRELOCPointers, ImportReferencesRELOCToCode;
 even more preserving pointers;
 XSETBV opcode added.
+prevent SelectMainWindowProc to change VIRTUALFLAG
 
 
 

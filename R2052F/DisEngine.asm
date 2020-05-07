@@ -6887,7 +6887,7 @@ Proc SelectMainWindowProc:
         ..End_If
 
         mov edi D@WNDCLASS | sub edi D$DisImageBase | add edi D$SectionsMap
-
+        cmp B$edi VIRTUALFLAG | je P9>
         mov ecx D@N, eax FOURDATAFLAGS | rep stosd
 EndP
 
