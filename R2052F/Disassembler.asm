@@ -2956,26 +2956,25 @@ ________________________________________________________________________________
 [VirtualIsRunable: ?]
 
 CheckVirtualData:
-    mov eax D$DisSectionsHeaders | mov ecx D$DisNumberOfSections
+    mov ebx D$DisSectionsHeaders | mov ecx D$DisNumberOfSections
 
-L0: test D$eax+SECTION_FLAG &IMAGE_SCN_CNT_UNINITIALIZED_DATA | jz L3>
-        test D$eax+SECTION_FLAG &IMAGE_SCN_MEM_READ | jz L3>
-            test D$eax+SECTION_FLAG &IMAGE_SCN_MEM_WRITE | jz L3>
+L0: test D$ebx+SECTION_FLAG &IMAGE_SCN_CNT_UNINITIALIZED_DATA | jz L3>
+        test D$ebx+SECTION_FLAG &IMAGE_SCN_MEM_READ | jz L3>
+            test D$ebx+SECTION_FLAG &IMAGE_SCN_MEM_WRITE | jz L3>
 
-                test D$eax &IMAGE_SCN_MEM_EXECUTE | jz L2>
+                test D$ebx+SECTION_FLAG &IMAGE_SCN_MEM_EXECUTE | jz L2>
                     mov B$VirtualIsRunable &TRUE            ; See this pb later.
 
   ; Regular Virtual Data Section found. Check the Bytes in 'SectionMap':
-L2: mov ebx D$eax+SECTION_RVA | add ebx D$SectionsMap
-    mov edi D$SectionsMap | add edi D$eax+SECTION_RVA
-    mov edx edi | add edx D$eax+SECTION_FILESIZE
-    push edi
-        While edi < edx | mov B$edi VIRTUALFLAG | inc edi | End_While
-    pop edi
+L2:
+    mov edi D$SectionsMap | add edi D$ebx+SECTION_RVA
+    push ecx edi
+         mov ecx D$ebx+SECTION_RVASIZE | mov AL VIRTUALFLAG | REP STOSB
+    pop edi ecx
   ; Force the First Virtual Byte EVOCATED:
     sub edi D$SectionsMap | add edi D$RoutingMap | mov B$edi EVOCATED
 
-L3: add eax SECTIONHEADERSIZE | loop L0<
+L3: add ebx SECTIONHEADERSIZE | loop L0<
 ret
 
 

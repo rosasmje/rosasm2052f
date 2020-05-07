@@ -8287,7 +8287,7 @@ Proc AsciiRecognition:
         sub D$UserPeEnd 3
 
         While esi < D$UserPeEnd
-            test B$ebx IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG+CODEFLAG | jnz L2>
+            test B$ebx IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG+CODEFLAG+VIRTUALFLAG | jnz L2>
             call CheckInForcedMap esi | jz L2>
             mov al B$esi
 
@@ -8384,6 +8384,7 @@ L0:             sub ebx D$SectionsMap | add ebx D$RoutingMap | or B$ebx EVOCATED
 ;                    mov eax esi | sub eax D$SectionsMap | add eax D$RoutingMap
 ;                    or B$eax+2 EVOCATED
                     While B$ebx+1 = 0
+                        test B$esi VIRTUALFLAG | jne L2>
                         mov B$esi TEMPOFLAG | inc esi | inc ebx
                         On ebx >= D$UserPeEnd, jmp L2>
                     End_While
@@ -8413,7 +8414,7 @@ Proc UnicodeRecognition:
         sub D$UserPeEnd 3
 
         While esi < D$UserPeEnd
-            test B$ebx IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG+CODEFLAG | jnz L2>
+            test B$ebx IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG+CODEFLAG+VIRTUALFLAG | jnz L2>
             mov al B$esi
 
             ..If B$edx+eax = GOODASCII
@@ -8513,7 +8514,9 @@ L0:             sub ebx D$SectionsMap | add ebx D$RoutingMap | or B$ebx EVOCATED
                     mov eax esi | sub eax D$SectionsMap | add eax D$RoutingMap
                     or B$eax+2 EVOCATED
                     While W$ebx+2 = 0
+                        test B$esi VIRTUALFLAG | jne L2>
                         mov B$esi TEMPOFLAG | inc esi | inc ebx
+                        test B$esi VIRTUALFLAG | jne L2>
                         mov B$esi TEMPOFLAG | inc esi | inc ebx
                         On ebx >= D$UserPeEnd, jmp L2>
                     End_While
@@ -10235,7 +10238,7 @@ Proc MarkSSEdata:
                 mov D$eax FP4, D$eax+4 FP4, D$eax+8 FP4, D$eax+12 FP4
 
 L4:             sub eax D$SizesMap | add eax D$SectionsMap
-                On D$eax <> VIRTUALFLAG,
+                On B$eax <> VIRTUALFLAG,
                     mov D$eax FOURDATAFLAGS, D$eax+4 FOURDATAFLAGS,
                         D$eax+8 FOURDATAFLAGS, D$eax+12 FOURDATAFLAGS
 
