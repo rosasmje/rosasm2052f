@@ -8,23 +8,24 @@ TITLE Progress
 
 [ProgressClassName: 'msctls_progress32' 0 ; ProgressName: 'Compiling...' 0
  PWindowX: 10 PWindowY: 5 PWindowW: 300 PWindowH: 10
- PBarWindow: PBarWindowX: 0   PBarWindowY: 0   PBarWindowW: 340  PBarWindowH: 45
+ PBarWindow: PBarWindowX: 0   PBarWindowY: 0   PBarWindowW: 340  PBarWindowH: 60
  ProgressInst: 0   hwndForBar: 0 ]; ProgressTick: 0]
 
  call 'Comctl32.InitCommonControls'
 
-[Writing:       '[Writing PE__<<<<<__'
- Fixing:        'Resolving__<<<<<__'
- BuildingHeader:'PE headers__<<<<<__'
- Encoding:      'Encoding__<<<<<__'
- BuildingData:  'Data job__<<<<<__'
- BuildingRsrc:  'Resources__<<<<<__'
+[Fixing: B$     'Resolving__<<<<<__'
  BuildingImport:'Import Section__<<<<<__'
+ BuildingData:  'Data job__<<<<<__'
+ Encoding:      'Encoding__<<<<<__'
+ BuildingHeader:'PE headers__<<<<<__'
+ BuildingExport:'Exports__<<<<<__'
+ BuildingRsrc:  'Resources__<<<<<__'
+ Writing:       '[Writing PE__<<<<<__', 0
  Replacing:     'Replacing__<<<<<__'
  Storing:       'Storing Mac/Equ__<<<<<__'
  Cleaning:      'Cleaning]', 0]
 
-[PROGRESS_BAR_WIDTH 340    PROGRESS_BAR_HIGHT 45]
+[PROGRESS_BAR_WIDTH 340    PROGRESS_BAR_HIGHT 60]
 
 
 InitProgressBar:
@@ -45,15 +46,13 @@ InitProgressBar:
                                   0, 0, D$hInstance, 0
     mov D$hwndForBar eax
 
-    call 'USER32.ShowWindow' D$hwndForBar, &SW_SHOW ;&SW_SHOWNORMAL
-
-    call 'USER32.UpdateWindow' D$hwndForBar
-_____________________________
-
     call 'USER32.CreateWindowExA' 0, ProgressClassName, 0, &WS_CHILD__&WS_VISIBLE,
                                   D$PWindowX, D$PWindowY, D$PWindowW, D$PWindowH,
                                   D$hwndForBar, 0, D$hInstance, 0
     mov D$ProgressInst eax; | call 'KERNEL32.GetTickCount' | mov D$ProgressTick eax
+
+    call 'USER32.ShowWindow' D$hwndForBar, &SW_SHOW
+    call 'USER32.UpdateWindow' D$hwndForBar
 ret
 
 
@@ -71,7 +70,7 @@ BarProgress:
     pushad
     call RemoveMSGs
     ;call 'KERNEL32.GetTickCount' | sub eax D$ProgressTick | cmp eax 30 | jb L0> | add D$ProgressTick eax
-    call 'USER32.SendMessageA' D$ProgressInst &PBM_STEPIT 0 0
+    call 'USER32.SendMessageA' D$ProgressInst &PBM_STEPIT 0 0 | call RemoveMSGs
 L0: popad
 ret
 
@@ -81,7 +80,7 @@ RemoveMSGs:
     sub esp 020 | mov esi esp | jmp L1>
 L0: call 'User32.DispatchMessageA' esi
 L1: call 'User32.PeekMessageA' esi 0 0 0 &PM_REMOVE
-    test eax eax | jne L0<
+    test eax eax | jg L0<
     add esp 020
     popad | cmp D$hwndForBar 0 |  je E3>
 ret

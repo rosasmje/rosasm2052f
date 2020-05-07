@@ -2284,6 +2284,16 @@ L2:      ifnot op2 'G', L2>
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
+L3:        BadMnemonic
+L2:      ifnot op2 'S', L2>
+           ifnot op3 'E', L3>
+             ifnot op4 'T', L4>
+               ifnot op5 'B', L5>
+                 ifnot op6 'V', L6>                       ; XSETBV
+                    ToOpcode 0F, 01, 0D1 | ret
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          ;BadMnemonic
 L3:        ;BadMnemonic
 L2:      BadMnemonic
 L1:    ifnot op1 'W', L1>

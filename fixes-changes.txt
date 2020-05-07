@@ -482,6 +482,14 @@ on 'File>New' action, restore default icon.
 _24
 original Icon will preserved as possible in disasm.
 
+_25
+!!RosAsm MULTI instance! as Undo-filenames set to TimedHexA string. DeleteOldUndoFiles will work.
+Original main Icon will preserved as possible, until Icon editor will edit.
+ProgressBar height increased. KillTrailingSpaces called for disassembled source; (??IconGroup diffs);
+for RELOCed disassms implemented CodeFromRELOCPointers, ImportReferencesRELOCToCode;
+even more preserving pointers;
+XSETBV opcode added.
+
 
 
 ;fake IMPORTs! if IMPORT has no refs, disasm is messy

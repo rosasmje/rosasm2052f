@@ -630,7 +630,7 @@ DisMain: ; 'MSVBVM' 'OpenRosAsmPe', 'DisassembleProc'
 ;map
 ;    call MarkPointersFlows | call MarkAlternatedPointersFlows
 ;map
-    call DisassembleForCodeRouting
+    call DisassembleForCodeRouting | call BarProgress
 ;map
     call MarkVeryRepetitiveDataBytes ; (12 identical Bytes >>> Data)
 ;Map
@@ -643,7 +643,7 @@ DisMain: ; 'MSVBVM' 'OpenRosAsmPe', 'DisassembleProc'
 ;Map
     call UnEvocatedProcedures
 
-    call DisassembleForCodeRouting
+    call DisassembleForCodeRouting | call BarProgress
 
     mov B$Forced &TRUE
     call AsciiRecognition 25 | call UnicodeRecognition 25
@@ -669,16 +669,16 @@ DisMain: ; 'MSVBVM' 'OpenRosAsmPe', 'DisassembleProc'
     _________________________________________________________________
   ; Try&See recognitions of left Code // Negative Recognition of Data:
     call 'User32.SendMessageA' D$hwndForBar, &WM_SETTEXT, 0, PointersAnalyzes
-    call 'User32.SendMessageA' D$ProgressInst, &PBM_SETPOS, 0,0
+    call 'User32.SendMessageA' D$ProgressInst, &PBM_SETPOS, 0,0 | call BarProgress
     call CodeFromPointers
 
     If B$AttemptSuccess = &TRUE
-        call DisassembleForCodeRouting
+        call DisassembleForCodeRouting | call BarProgress
         call SmallBlanksToSameFlag
     End_If
 
     call 'User32.SendMessageA' D$hwndForBar, &WM_SETTEXT, 0, NegativeAnalyze
-    call 'User32.SendMessageA' D$ProgressInst, &PBM_SETPOS, 0,0
+    call 'User32.SendMessageA' D$ProgressInst, &PBM_SETPOS, 0,0 | call BarProgress
     call GetBiggerSectionsBlank | mov ecx D$BiggerZeroedSectionsChunk
 ;map
 
@@ -688,7 +688,7 @@ L0:     push ecx
         call TryToDisassembleEvocated ecx
         mov D$No0CC &False
             If B$AttemptSuccess = &TRUE
-                call DisassembleForCodeRouting
+                call DisassembleForCodeRouting | call BarProgress
                 call SmallBlanksToSameFlag
 ;;
   This inner loop is Bound to "jmp L9>", in 'TryToDisassembleEvocated'. When these
@@ -734,7 +734,7 @@ L9:     pop ecx
     call ReleaseDisTablesCopies ; now only release
     call FlagsCleaner
 
-    call DisassembleForCodeRouting
+    call DisassembleForCodeRouting | call BarProgress
 
     call SmallBlanksToSameFlag
 ;Map
@@ -749,7 +749,7 @@ L9:     pop ecx
 ;map
     mov B$LastDisassemblyRoutingPass &TRUE
 
-    call DisassembleForCodeRouting
+    call DisassembleForCodeRouting | call BarProgress
 ;Map
     call CheckPointersInData
 
@@ -773,7 +773,7 @@ L9:     pop ecx
 
     mov D$NextDisTITLE edi | add D$NextDisTITLE (TITLE_MAX/2) | mov W$DisTitle+12 '01'
 
-    call 'User32.SendMessageA' D$hwndForBar, &WM_SETTEXT, 0, WritingData
+    call 'User32.SendMessageA' D$hwndForBar, &WM_SETTEXT, 0, WritingData | call BarProgress
 ;Map
     If B$WithMacros = &TRUE
         On D$SavingExtension <> '.SYS', call WriteMacros
@@ -789,7 +789,7 @@ L9:     pop ecx
         call WriteMapFiles ; <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         call WriteForcedRecordsFileBase
     popad
-
+    call BarProgress
     ________________________________
   ; Preparing for the Source Editor:
     call SetDisSourceVariables
@@ -849,7 +849,7 @@ L1:     inc esi | mov W$esi 'My'
         SetWindowText
 
     .End_If
-
+    call KillTrailingSpaces
     call StartEdition | move D$UserPeStart D$CodeSource
 
     mov B$Disassembling &FALSE, B$SourceReady &TRUE
@@ -3330,52 +3330,19 @@ InitDisProgressBar:
                                   D$hwnd, 0, D$hInstance, 0
     mov D$hwndForBar eax
 
-    call 'User32.ShowWindow' D$hwndForBar, &SW_SHOWNORMAL
-    call 'User32.UpdateWindow' D$hwndForBar
-_____________________________
-
     call 'User32.CreateWindowExA' 0, ProgressClassName, 0, 050000000,
                                   D$PWindowX, D$PWindowY, D$PWindowW, D$PWindowH,
                                   D$hwndForBar, 1, D$hInstance, 0
     mov D$ProgressInst eax
+
+    call 'User32.ShowWindow' D$hwndForBar, &SW_SHOW
+    call 'User32.UpdateWindow' D$hwndForBar
 
   ; Set steping and Title:
     call 'User32.SendMessageA' D$ProgressInst, &PBM_SETRANGE, 0, (128 shl 16)
     call 'User32.SendMessageA' D$ProgressInst, &PBM_SETSTEP, 1, 0  ; 1/100
     call 'User32.SendMessageA' D$hwndForBar, &WM_SETTEXT, 0, DisPasses
 ret
-
-;InitDisProgressBar:
-  ; Center the bar:
-    call 'User32.GetSystemMetrics' &SM_CXSCREEN
-      sub eax D$PBarWindowW | shr eax 1 | mov D$PBarWindowX eax
-    call 'User32.GetSystemMetrics' &SM_CYSCREEN
-      sub eax D$PBarWindowH | shr eax 1 | mov D$PBarWindowY eax
-
-  ; WindowExStyle > 084:    80 > tool  4 > no parent notify
-    call 'User32.CreateWindowExA' D$ProgressWindowStyle, ClassName, &NULL, &WS_OVERLAPPEDWINDOW,
-                                  D$PBarWindowX, D$PBarWindowY, D$PBarWindowW, D$PBarWindowH,
-                                  D$hwnd, 0, D$hInstance, 0
-    mov D$hwndForBar eax
-
-    call 'User32.ShowWindow' D$hwndForBar, &SW_SHOWNORMAL
-    call 'User32.UpdateWindow' D$hwndForBar
-
-    call 'User32.SetWindowLongA' D$hwndForBar, &GWL_WNDPROC, ProgressProc
-    mov D$PreviousProgressProc eax
-_____________________________
-
-    call 'User32.CreateWindowExA' 0, ProgressClassName, 0, 050000000,
-                                  D$PWindowX, D$PWindowY, D$PWindowW, D$PWindowH,
-                                  D$hwndForBar, 1, D$hInstance, 0
-    mov D$ProgressInst eax
-
-  ; Set steping and Title:
-    call 'User32.SendMessageA' D$ProgressInst, &PBM_SETRANGE, 0, (128 shl 16)
-    call 'User32.SendMessageA' D$ProgressInst, &PBM_SETSTEP, 1, 0  ; 1/100
-    call 'User32.SendMessageA' D$hwndForBar, &WM_SETTEXT, 0, DisPasses
-ret
-
 
 [PreviousProgressProc: ?
  ProgressRet: ?
@@ -3589,8 +3556,8 @@ ________________________________________________________________________________
 [FollowedByCode: ?  No0CC: ?]
 
 CodeFromPointers:
+ CMP D$DisRelocPointer 0 | JA CodeFromRELOCPointers
     call InitDisTablesCopies
-
     mov B$AttemptSuccess &FALSE, B$No0CC &TRUE, B$StopAtEndOfChunk &TRUE
 
     mov esi D$SizesMap | add esi D$FirstSection
@@ -3646,7 +3613,7 @@ L4:                     push esi, ebx
                             mov esi D$ebx ;| On eax = 047E3D4, int3
                             sub esi D$DisImageBase | add esi D$SectionsMap
                             If B$esi <> 0
-                                pop edx, ebx, esi | jmp L8>>
+                                pop ebx, esi | jmp L8>>
                             End_If
                           ; Save copies the Tables states for cases of failure:
                             call SetDisTablesCopies
@@ -3679,6 +3646,102 @@ L4:                     push esi, ebx
 L7:                    ; mov eax D$ebx | sub eax D$DisImageBase | add eax D$SectionsMap
                        ; mov B$eax DATAFLAG
 
+                    .End_If
+                ..End_If
+            ...End_If
+L8:     inc esi
+    .End_While
+
+    ;call ReleaseDisTablesCopies
+    mov B$No0CC &FALSE, B$StopAtEndOfChunk &FALSE
+ret
+;
+;
+CodeFromRELOCPointers:
+    call InitDisTablesCopies
+
+    mov B$AttemptSuccess &FALSE, B$No0CC &TRUE, B$StopAtEndOfChunk &TRUE
+
+    sub esi esi ; esi D$SizesMap
+
+    .While esi < D$RelocsCount
+          ; Load RELOC Pointer:
+            mov ebx D$RelocsSorted | mov ebx D$ebx+esi*4 | add ebx D$UserPeStart
+            mov eax D$ebx
+            sub eax D$DisImageBase | add eax D$UserPeStart
+
+            ...If eax < D$UserPeStart
+;                xor B$esi POINTER
+
+            ...Else_If eax > D$UserPeEnd
+;                xor B$esi POINTER
+
+            ...Else
+              ; If the Bytes flow begins with zero, this is probably not Code:
+                On B$eax = 0, jmp L8>>
+
+              ; Kill POINTERs to the special Sections:
+                sub eax D$UserPeStart | add eax D$SectionsMap
+;                Test_If B$eax IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG
+;                    xor B$esi POINTER
+;                    jmp L8>>
+;                Test_End
+
+              ; The Section must not be flaged, yet:
+                ..If B$eax = 0
+                  ; Compute the size of the zeored Chunk:
+                    mov ecx 0 | While B$eax+ecx = 0 | inc ecx | End_While
+                    If B$eax+ecx = CODEFLAG
+                        mov B$FollowedByCode &TRUE
+                    Else
+                        mov B$FollowedByCode &FALSE
+                    End_If
+                    push esi, ebx
+                        lea ebx D$eax+ecx
+                        sub eax D$SectionsMap | add eax D$UserPeStart
+                        sub ebx D$SectionsMap | add ebx D$UserPeStart
+                        call IsItCode eax, ebx, 1
+                    pop ebx, esi
+
+                    .If eax = &TRUE
+                        If B$FollowedByCode = &FALSE
+                            On B$DisEndOfChunkEncounted = &FALSE, jmp L7>>
+                        End_If
+
+                      ; Possible Code Candidate found. Give it a try:
+L4:                     push esi, ebx
+                            mov esi D$ebx
+                            sub esi D$DisImageBase | add esi D$SectionsMap
+                            If B$esi <> 0
+                                pop ebx, esi | jmp L8>>
+                            End_If
+                          ; Save copies the Tables states for cases of failure:
+                            call SetDisTablesCopies
+
+                            mov B$esi CODEFLAG
+                            sub esi D$SectionsMap | add esi D$RoutingMap
+                            or B$esi NODE+INSTRUCTION+ACCESSED+EVOCATED+LABEL
+
+                            sub esi D$RoutingMap | add esi D$SectionsMap
+                            call DisassemblingAttempt
+                        pop ebx, esi
+
+                      ; Restore the previous Tables versions on failure cases:
+                        If B$DisFailure = &TRUE
+                      ; Arase the effect of the previous 'SetDisTablesCopies':
+                            push esi
+                            call ExchangeDisTables
+                            pop esi
+
+                            jmp L7>
+
+                        Else
+                            mov B$AttemptSuccess &TRUE
+
+                        End_If
+
+                    .Else
+L7:
                     .End_If
                 ..End_If
             ...End_If
@@ -5445,6 +5508,7 @@ popad
 ;;
         call WriteDisCodeLabel
       ; Durty: Need a version without the CRLFs:
+        DEC EDI
         While B$edi <> ':' | dec edi | End_While | inc edi
         mov B$edi ' ' | inc edi
 
@@ -5875,18 +5939,20 @@ Proc GetStringsMapSymbol:
 EndP
 
 ____
+ImportReferencesToCode:
+ CMP D$DisRelocPointer 0 | JA ImportReferencesRELOCToCode
 
-Proc ImportReferencesToCode:
+Proc ImportReferencesScanToCode:
   Local @impBase
     GetPeHeader AppBaseOfImport | mov eax D$eax | test eax eax | je P9>>
     add eax D$UserPeStart | sub eax 014 | mov D@impBase eax
 L0: add D@impBase 014 | mov eax D@impBase | cmp D$eax+0C 0 | je P9>>
-    mov esi D$eax+010 | add esi D$UserPeStart
-L5: lodsd | test eax eax | je L0< | lea eax D$esi-4 | sub eax D$UserPeStart
+    mov esi D$eax+010 | add esi D$UserPeStart | sub esi 4
+L5: add esi 4 | cmp D$esi 0 | je L0< | mov eax esi | sub eax D$UserPeStart
     add eax D$DisImageBase | mov edi D$UserPeStart | add edi D$FirstSection
     mov ecx D$UserPeEnd | sub ecx 4 | dec edi
 L1: inc edi | cmp edi ecx | ja L5< | cmp D$edi eax | jne L1<
-L2: lea edx D$edi-2 | mov bx W$edx
+    lea edx D$edi-2 | mov bx W$edx
     cmp bl 0FF | jne L4>
     cmp bh 015 | je L3> | cmp bh 025 | je L3> | cmp bh 035| je L3>| jmp L1<
 L4: cmp bl 08D | je L6>
@@ -5897,6 +5963,30 @@ L3: sub edx D$UserPeStart
     add edx D$SectionsMap | mov B$edx CODEFLAG | sub edx D$SectionsMap
     ;add edx D$SizesMap | mov D$edx+1 0 | sub edx D$SizesMap
     add edx D$RoutingMap | or B$edx ACCESSED+INSTRUCTION | add edi 3 | jmp L1<
+EndP
+;
+;
+Proc ImportReferencesRELOCToCode:
+  Local @impBase
+    GetPeHeader AppBaseOfImport | mov eax D$eax | test eax eax | je P9>>
+    add eax D$UserPeStart | sub eax 014 | mov D@impBase eax
+L0: add D@impBase 014 | mov eax D@impBase | cmp D$eax+0C 0 | je P9>>
+    mov esi D$eax+010 | add esi D$UserPeStart | sub esi 4
+L5: add esi 4 | cmp D$esi 0 | je L0<
+    mov eax esi | sub eax D$UserPeStart | add eax D$DisImageBase
+    mov edi D$RelocsSorted | mov ecx D$RelocsCount
+L1: dec ecx | js L5< | mov edx D$edi | add edi 4 | add edx D$UserPeStart
+    cmp eax D$edx | jne L1< | sub edx 2 | mov bx W$edx
+    cmp bl 0FF | jne L4>
+    cmp bh 015 | je L3> | cmp bh 025 | je L3> | cmp bh 035| je L3>| jmp L1<
+L4: cmp bl 08D | je L6>
+    cmp bl 08B | jne L4>
+L6: test bh 0C2| jne L1< | and bh 5| cmp bh 5| je L3>| jmp L1<
+L4: cmp bh 0A1 | jne L1< | inc edx
+L3: sub edx D$UserPeStart
+    add edx D$SectionsMap | mov B$edx CODEFLAG | sub edx D$SectionsMap
+    ;add edx D$SizesMap | mov D$edx+1 0 | sub edx D$SizesMap
+    add edx D$RoutingMap | or B$edx ACCESSED+INSTRUCTION | jmp L1<
 EndP
 
 ____

@@ -1381,7 +1381,7 @@ Proc isValidMZPE:
     add esi ebx | cmp D$esi 'PE' | jne @invalidPE
     cmp W$esi+FileHeader.MachineDis 014C | jne @invalidPE
     cmp W$esi+OptionalHeader.MagicDis 010B | jne @invalidPE
-    cmp W$esi+OptionalHeader.SubsystemDis 3 | ja @invalidPE
+    cmp W$esi+OptionalHeader.SubsystemDis 010 | ja @invalidPE
     movzx eax W$esi+FileHeader.SizeOfOptionalHeaderDis
     mov ebx D$esi+OptionalHeader.NumberOfRvaAndSizesDis
     shl ebx 3 | add ebx 060 | cmp eax ebx | jne @invalidPE

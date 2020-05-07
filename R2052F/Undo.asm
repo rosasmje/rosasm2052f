@@ -88,7 +88,7 @@ ReInitUndo:
     call ClearF11F12
     mov D$TiTleTable 0, D$ActualTitle 0
 ReInitUndoOnly:
-    call DeleteUndoFiles
+    call DeleteOldUndoFiles
     call KillUndo
     call InitUndo
     call CloseTree
@@ -298,7 +298,9 @@ DeleteOldUndoFiles:
 
     If eax <> &INVALID_HANDLE_VALUE
         mov D$DelUndoHandle eax
-L0:     call 'KERNEL32.DeleteFileA' DelUndo.cFileName
+L0:     mov eax D$DelUndo.cFileName+8, edx D$PointerToUndoNumber
+        mov D$edx-1 eax
+        call 'KERNEL32.DeleteFileA' UndoFile
         call 'KERNEL32.FindNextFileA' D$DelUndoHandle DelUndo
         cmp eax &TRUE | je L0<
 

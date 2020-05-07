@@ -122,6 +122,11 @@ Op01:
         mov D$edi 'xget', D$edi+4 'bv  ' | add edi 7
         mov B$DisFlag DISDONE+DISLINEOVER | ret
 
+    ..Else_If W$esi-1 = 0D101 ; 0F,01,D1 XSETBV
+        add esi 1
+        mov D$edi 'xset', D$edi+4 'bv  ' | add edi 7
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
     ..Else
         mov bl B$esi | inc esi | DigitMask bl To al
         inc D$UnLikelyCode
@@ -8376,15 +8381,15 @@ L0:             sub ebx D$SectionsMap | add ebx D$RoutingMap | or B$ebx EVOCATED
                 mov ebx esi | sub ebx D$SectionsMap | add ebx D$UserPeStart
                 On ebx >= D$UserPeEnd, jmp L2>
                 If W$ebx = 0
-                    mov eax esi | sub eax D$SectionsMap | add eax D$RoutingMap
-                    or B$eax+2 EVOCATED
+;                    mov eax esi | sub eax D$SectionsMap | add eax D$RoutingMap
+;                    or B$eax+2 EVOCATED
                     While B$ebx+1 = 0
                         mov B$esi TEMPOFLAG | inc esi | inc ebx
                         On ebx >= D$UserPeEnd, jmp L2>
                     End_While
                 Else
-                    mov eax esi | sub eax D$SectionsMap | add eax D$RoutingMap
-                    or B$eax EVOCATED
+;                    mov eax esi | sub eax D$SectionsMap | add eax D$RoutingMap
+;                    or B$eax EVOCATED
                 End_If
 
             ..End_If

@@ -456,6 +456,7 @@ ret
 OriginalDisFilePath: 0]
 
 WriteOriginalFileNameInSource:
+    mov D$edi-8 CRLF2, D$edi-4 CRLF2 ; Subedi6 dirties
     mov esi OriginalFileComment, ecx OriginalDisFilePath
     sub ecx OriginalFileComment | rep movsb
 

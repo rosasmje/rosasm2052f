@@ -2682,6 +2682,17 @@ jmp @Cleanup
 EndP
 
 
+; returns EDX:EAX ; EDX will 0 quite time
+Proc GetTime:
+ USES ebx
+    sub esp 8
+    call 'KERNEL32.GetSystemTimeAsFileTime', esp
+    pop ebx, eax
+    sub ebx &EPOCH_DIFF_SECS_INTERVAL_LOW | sbb eax &EPOCH_DIFF_SECS_INTERVAL_HIGH
+    mov ecx &NANOSECONDS | mov edx 0
+    div ecx | xchg ebx eax | div ecx | mov edx ebx
+EndP
+
 ____________________________________________________________________________________________________
 
 

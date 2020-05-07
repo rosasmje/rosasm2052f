@@ -204,9 +204,10 @@ L0:     ;call AskForRedraw
 
     ...Else_If eax = &WM_DESTROY
         On B$OnDialogEdition = &TRUE, call CloseDialogEdition
-        call DeleteUndoFiles | call KillUndo
+        mov eax D@Adressee | cmp D$hwnd eax | jne L0>
+        call DeleteOldUndoFiles | call KillUndo
         call ReleaseResourceMemory
-        call 'User32.PostQuitMessage' 0 | jmp L9>>
+L0:     call 'User32.PostQuitMessage' 0 | jmp L9>>
 
     ...Else_If D@Message = &WM_NOTIFY
         call KillCompletionList

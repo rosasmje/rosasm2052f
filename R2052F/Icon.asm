@@ -802,7 +802,7 @@ NextiRecord:
     Else
       pop esi
     End_If
-
+    cmp D$esi-4 1 | SETNE B$OtherMainIcon    ; MAINICON usually =1
     sub eax ebx                              ; - RVA
     add eax D$iStartOfResources              ; eax now points to true icon data
     mov B$PeIconFound &TRUE

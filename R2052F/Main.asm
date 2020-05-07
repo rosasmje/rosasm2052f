@@ -13,7 +13,7 @@ TITLE Main
 
 [FindString: 'commdlg_FindReplace' 0  FindStringMessage: 0]
 
-[RosAsmMutexName: B$ 'RosAsmIsRuning', 0   MultiInstance: &FALSE]
+[RosAsmMutex: D$ 0 RosAsmMutexName: B$ 'RosAsmIsRuning', 0 MultiInstance: &FALSE]
 
 [ClassName: B$ 'RosAsmWindowClass' 0   EditClassName: 'EDIT' 0
  AppName: '  RosAsm, The Bottom-Up Assembler for ReactOS -V.2.052G-' 0]
@@ -87,8 +87,8 @@ Main:
    ; For the Resurces Editor:
     call 'KERNEL32.LoadLibraryA' {'riched20.dll',0} | mov D$RichEditHandle eax
 
-  ; Ensure mono-instance:
-    call 'KERNEL32.CreateMutexA' &NULL &TRUE RosAsmMutexName
+  ; Ensure mono-instance: ! MULTI instances No more problem !
+    call 'KERNEL32.CreateMutexA' &NULL &TRUE RosAsmMutexName | mov D$RosAsmMutex eax
     call 'KERNEL32.GetLastError'
     On eax = &ERROR_ALREADY_EXISTS, mov B$MultiInstance &TRUE
 
@@ -163,7 +163,6 @@ Main:
     On D$NATION_LOGFONT@lfWeight <> 0, call LoadNationalFont
 
     call SetUndoDirectory
-    call DeleteOldUndoFiles
 
     call CheckAllMRUFile | call SetMRUmenu | On B$LoadMRU = &TRUE, call LoadLastMRUFile
 
@@ -200,7 +199,7 @@ L0: call 'User32.IsDialogMessageA' D$FindReplaceHandle Firstmsg  | On eax > 0, j
 
 L1: call 'User32.GetMessageA' FirstMsg 0 0 0
 
-    cmp eax 0 | ja L0<<
+    cmp eax 0 | jg L0<<
 
   ; call ReleaseFonts
     call UpdateRegistry
@@ -208,7 +207,7 @@ L1: call 'User32.GetMessageA' FirstMsg 0 0 0
     call 'KERNEL32.FreeLibrary' D$RichEditHandle
 
   ; call 'USER32.DestroyAcceleratorTable' D$AccelHandle
-
+    call 'Kernel32.CloseHandle' D$RosAsmMutex
     call 'Kernel32.ExitProcess' D$FWparam
 ____________________________________________________________________________________________
 
@@ -266,32 +265,24 @@ ________________________________________________________________________________
 [PointerToUndoNumber: '000.'] ; Old nUndoFile
 [AllUndoFiles2: B$ ? #&MAX_PATH]
 
-;[UndoFile: 'RosAsmUndo' nUndoFile: '000.$$$' 0  ; 17 Bytes.
-; AllUndoFiles: 'RosAsmUndo???.$$$' 0]
+;[UndoFile: TIMEHEXA_000.$$$' 0  ; 17 Bytes. Unique TimeHex for multi instances undo
+; AllUndoFiles: '51000000_???.$$$' 0]
 ;
 ; The full name looks like this:
-; 'E:\RosAsm3\RosAsmUndo\Undo000.$$$'
+; '%TEMP%\RosAsmUndo\51000000_000.$$$'
 ;
 ; 'PointerToUndoNumber' points to '000.$$$'
 ;
 ; 'AllUndoFiles', used to search for Files to be deleted, looks like this:
-; 'E:\RosAsm3\RosAsmUndo\Undo???.$$$'
+; '%TEMP%\RosAsmUndo\51000000_???.$$$'
 
-[UndoExist: "
+[UndoExist: B$ "
+         This is unexpected!
 Block-Delete Undo-Files have been found in the
 Temporary Directory (...\RosAsmUndo\).
+  Save other instances before pressing OK
+", 0]
 
-The existing Undo-Files are going to be deleted and
-the previous instance of RosAsm will no more be able to
-UnDelete its saved Blocks.
-"
-
-MultiUndo: "
-You are runing several instances of RosAsm. Do not        
-Delete/UnDelete Blocks of text [Ctrl][X] / [Ctrl][Z]
-The results could be unwished.
-
-" 0]
 
 SetUndoDirectory:
     mov edi UndoDirectory, ecx &MAX_PATH, al 0 | rep stosb
@@ -305,16 +296,9 @@ SetUndoDirectory:
         call 'KERNEL32.CreateDirectoryA' UndoDirectory &NULL | mov ebx eax
     pop edi
 
-    If B$MultiInstance = &FALSE
-        push edi
-            mov D$edi '\Und', D$edi+4 'o*.$', W$edi+8 '$$', B$edi+9 0
-            call 'KERNEL32.DeleteFileA' UndoDirectory
-        pop edi
-    End_If
-
-    mov eax '\Und' | stosd | mov eax 'o001' | stosd | mov eax '.$$$' | stosd | mov B$edi 0
-    sub edi 5
-    mov D$PointerToUndoNumber edi | sub D$PointerToUndoNumber 2
+    mov al '\' | STOSB
+    call GetTime | DwordToHex EAX | mov eax '_001' | STOSD | mov D$PointerToUndoNumber edi
+    sub D$PointerToUndoNumber 3 | mov eax '.$$$' | STOSD | mov B$edi 0
 
     mov esi UndoDirectory, edi AllUndoFiles2, ecx &MAX_PATH | rep movsb
     mov eax D$PointerToUndoNumber | sub eax UndoDirectory
@@ -324,21 +308,12 @@ SetUndoDirectory:
 
         call 'KERNEL32.FindFirstFileA' AllUndoFiles2 FindFile
         .If eax <> &INVALID_HANDLE_VALUE
+            call 'KERNEL32.FindClose' eax
             If B$MultiInstance = &TRUE
-                call 'USER32.MessageBoxA' D$hwnd, UndoExist, Argh, &MB_OKCANCEL__&MB_ICONHAND
-                cmp eax &IDCANCEL | jne L0>
-                ON D$hwnd <> 0, call 'USER32.DestroyWindow' D$hwnd ; jE!
-                call 'KERNEL32.ExitProcess' 0
-L0:
+                call 'USER32.MessageBoxA' D$hwnd, UndoExist, Argh, &MB_OK__&MB_ICONHAND
             End_If
 
             call DeleteOldUndoFiles
-
-        .Else
-            call 'KERNEL32.FindClose' eax
-            If B$MultiInstance = &TRUE
-                call 'USER32.MessageBoxA' D$hwnd, MultiUndo, Argh, 0
-            End_If
 
         .End_If
     ..End_If

@@ -338,7 +338,7 @@ IsRepetitiveBytes:
         mov esi ebx, al B$esi, ecx 0
 
         While B$esi = al
-            lodsb | inc ecx | cmp esi edx | jae L2>>
+            lodsb | inc ecx | cmp esi edx | jae L2>
         End_While
 
 L2:     If ecx > 1
@@ -364,7 +364,7 @@ IsRepetitiveWords:
         mov esi ebx, ax W$esi, ecx 0
 
         While W$esi = ax
-            lodsw | inc ecx | cmp esi edx | jae L2>>
+            lodsw | inc ecx | cmp esi edx | jae L2>
         End_While
 
 L2:     If ecx > 1
@@ -390,7 +390,7 @@ IsRepetitivedWords:
         mov esi ebx, eax D$esi, ecx 0
 
         While D$esi = eax
-            lodsd | inc ecx | cmp esi edx | jae L2>>
+            lodsd | inc ecx | cmp esi edx | jae L2>
         End_While
 
 L2:     If ecx > 1
@@ -421,6 +421,9 @@ WriteDisBytes: ; 'WriteBytesData', 'WriteAsciiData'
         add esi D$NumberOfRepetitiveData
         add ebx D$NumberOfRepetitiveData | cmp esi edx | jae L9>
         call NextDisDataLine
+        .If B$esi = POINTER
+            mov cl B$esi | ret
+        .End_If
     End_If
 
 L0: movzx eax B$ebx | push ebx | call WriteEax | pop ebx
@@ -460,6 +463,9 @@ WriteDisWords:
         mov eax D$NumberOfRepetitiveData | shl eax 1
         add esi eax | add ebx eax | cmp esi edx | jae L9>
         call NextDisDataLine
+        .If B$esi = POINTER
+            mov cl B$esi | ret
+        .End_If
     End_If
 
 L0: mov eax edx | sub eax esi

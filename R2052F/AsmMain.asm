@@ -205,6 +205,8 @@ L2: call ExtendLocalSymbols
     call BuildRelocationAndFillSymbols
 
     If B$ExportsectionWanted = &TRUE
+        call BarProgress
+        call 'User32.SendMessageA' D$hwndForBar, &WM_SETTEXT, 0, BuildingExport
         call PrepareDllVariables | call FillExportSection | call FinishDllVariables
     End_If
 
