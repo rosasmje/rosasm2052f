@@ -20,8 +20,8 @@ ________________________________________________________________________________
 ;;
 
 ; CustomList > Type/Name/Lang/Pointer/Size
-
-[CustomList: ? #MAXRESOURCE]
+; now is allocated memory ptr
+[CustomList: D$ 0 ]
 
 [RsrcType: 0    RsrcTypeStringLen: 0    RsrcTypeString: B$ 0 #33]
 [RsrcName: 0    RsrcNameStringLen: 0    RsrcNameString: B$ 0 #33]
@@ -29,18 +29,9 @@ ________________________________________________________________________________
 [WaveTypeStrLen: 5    WaveTypeStr: B$ 'WAVE', 0]
 
 ClearCustomList:
-    mov edi CustomList, eax 0, ecx MAXRESOURCE | rep stosd
+    VirtualFree D$CustomList
+    VirtualAlloc CustomList (MAXRESOURCE * Size_Of_CustomList)
 ret
-
-;;
-
-[CustomList:
- CustomList.Type: D$ 0
- CustomList.Name: D$ 0
- CustomList.Lang: D$ 0
- CustomList.Pointer: D$ 0
- CustomList.Size: D$ 0]
-;;
 
 [CustomList.TypeDis 0
  CustomList.NameDis 4
@@ -54,95 +45,129 @@ Proc ReadRosAsmResources:
 
     pushad
         call ClearCustomList
-        mov D$RsrcType 0 | mov D$RsrcTypeStringLen 0
-        call FillCustomListFromResourceTree D$UserPEStartOfResources, CustomList
+        call FillCustomListFromResourceTree D$UserPEStartOfResources, D$CustomList
         call CopyStandarTypeResources
     popad
 
 EndP
 
+
 Proc FillCustomListFromResourceTree: ; 'ResourcesStub' For infos.
     Argument @Pointer, @Output
-    Local @Array
-    Uses esi, ebx, eax
+    Local @count
 
     mov esi D@Pointer, eax 0, edi D@Output
 
     push esi
-      ; add ImgResDir.NumberOfNamedEntries to ImgResDir.NumberOfIdEntries
-      ; and copy the result to N:
         add esi ImgResDir.NumberOfNamedEntriesDis
-        lodsw | mov D@Array eax
-        lodsw | add D@Array eax
+        lodsw | mov D@count eax
+        lodsw | add D@count eax
+    pop esi
+
+    ; esi now points to the IMAGE_RESOURCE_DIRECTORY_ENTRY.
+    add esi Size_Of_IMAGE_RESOURCE_DIRECTORY
+
+L0:
+    and D$RsrcType 0 | and D$RsrcTypeStringLen 0
+    DEC D@count | js P9>
+        lodsd ; load the name TypeID to eax
+
+        Test_If eax NodeFlag ; If it is a named ID, load th resource strings
+            push esi, edi
+                mov esi eax, edi RsrcTypeString, ebx RsrcTypeStringLen
+                call LoadRsrcIDString
+            pop edi, esi
+        Test_End
+
+            mov D$RsrcType eax
+
+            ; Now, load the OffsetToTree and save it큦 value at eax
+            lodsd
+
+            and eax (NOT NodeFlag) | add eax D$UserPEStartOfResources
+            call FillCustomListFromResourceTree1 eax edi ; adjusts EDI
+    jmp L0<
+
+EndP
+;
+;
+Proc FillCustomListFromResourceTree1: ; 'ResourcesStub' For infos.
+    Argument @Pointer, @Output
+    Local @count
+    Uses esi
+
+    mov esi D@Pointer, eax 0, edi D@Output
+
+    push esi
+        add esi ImgResDir.NumberOfNamedEntriesDis
+        lodsw | mov D@count eax
+        lodsw | add D@count eax
     pop esi
 
     ; esi and ebx now points to the IMAGE_RESOURCE_DIRECTORY_ENTRY.
     add esi Size_Of_IMAGE_RESOURCE_DIRECTORY
-    add ebx Size_Of_IMAGE_RESOURCE_DIRECTORY
+;    add ebx Size_Of_IMAGE_RESOURCE_DIRECTORY
 
           ; We need to see if we have a Unicode String Name or a ID
 L0:
+    and D$RsrcName 0 | and D$RsrcNameStringLen 0
+    DEC D@count | js P9>>
             lodsd ; load the name ID to eax
-;            mov D$RsrcTypeStringLen 0 ; moved up & below
-            mov edx eax
 
-            mov D$edi+CustomList.TypeDis edx
-            If D$RsrcType = 0
-                mov D$RsrcType edx
-            End_If
 
-            add edi 4
-
-            Test_If eax 08000_0000 ; If it is a named ID, load th resource strings
+            Test_If eax NodeFlag ; If it is a named ID, load th resource strings
                 push esi, edi
-                    mov esi eax, edi RsrcTypeString, ebx RsrcTypeStringLen
+                    mov esi eax, edi RsrcNameString, ebx RsrcNameStringLen
                     call LoadRsrcIDString
                 pop edi, esi
-
             Test_End
+
+            move D$edi+CustomList.TypeDis D$RsrcType ; ID or TypeName
+            mov D$edi+CustomList.NameDis eax ; ID or Name
 
             ; Now, load the OffsetToData and save it큦 value at eax
             lodsd
 
-            .Test_If eax 08000_0000 ; If the high bit (0x80000000) is set this is a node
-                xor eax 08000_0000 | add eax D$UserPEStartOfResources
-                call FillCustomListFromResourceTree eax edi
+            and eax (NOT NodeFlag) | add eax D$UserPEStartOfResources
+            call FillCustomListFromResourceTree2 eax edi
 
-                .If D@Array > 1
-                  ; let큦 search from the rest of the array IMAGE_RESOURCE_DIRECTORY_ENTRY.
-                  ; point to the previous good datatype
-                    add edi 4
-                    dec D@Array
-                    If D$RsrcType <> 0
-                        move D$edi+CustomList.TypeDis D$RsrcType
-                        add edi 4
-                    Else
-                        move D$RsrcType D$esi
-                        move D$edi+CustomList.TypeDis D$RsrcType
-                    End_If
-                    jmp L0<<
-                .Else_If D@Array = 1
-                    mov D$RsrcType 0
-                .End_If
-
-            .Test_Else ; If the high bit (0x80000000) is not set this is a leaf
-                ; Get the size and address of the data
-                add eax D$UserPEStartOfResources
-                mov esi eax
-                lodsd | sub eax D$ResourcesRVA| add eax D$UserPEStartOfResources
-                add edi 4
-                mov ecx D$esi
-                mov D$edi ecx ; copy it to CustomList.SizeDis
-                pushad
-                    call ReadResource
-                    mov D$edi-4 eax ; copy the read address to CustomList.PointerDis
-                    mov D$RsrcTypeStringLen 0
-                popad
-            .Test_End
-
+           ; let큦 search from the rest of the array IMAGE_RESOURCE_DIRECTORY_ENTRY.
+           add edi Size_Of_CustomList
+    jmp L0<
 
 EndP
+;
+;
+Proc FillCustomListFromResourceTree2: ; 'ResourcesStub' For infos.
+    Argument @Pointer, @Output
+    Local @count
+    Uses esi edi
 
+    mov esi D@Pointer, eax 0, edi D@Output
+
+    push esi
+        add esi ImgResDir.NumberOfNamedEntriesDis
+        lodsw | mov D@count eax
+        lodsw | add D@count eax
+    pop esi
+
+    add esi Size_Of_IMAGE_RESOURCE_DIRECTORY
+
+            lodsd
+            mov D$edi+CustomList.LangDis eax
+           ; Now, load the OffsetToData and save it큦 value at eax
+            lodsd
+           ; Get the size and address of the data
+            add eax D$UserPEStartOfResources
+            mov esi eax
+            lodsd | sub eax D$ResourcesRVA| add eax D$UserPEStartOfResources
+            mov ecx D$esi
+            mov D$edi+CustomList.SizeDis ecx ; copy it to CustomList.SizeDis
+            call ReadResource
+            mov D$edi+CustomList.PointerDis eax ; copy the read address to CustomList.PointerDis
+EndP
+;
+;
 ____________________________________________________________________________________________
 ; Copy Standard Type resources from CustomList to each list (AviList, BitmapList,MenuList, etc)
 
@@ -150,11 +175,11 @@ ________________________________________________________________________________
 
 Proc CopyStandarTypeResources:
 
-    mov esi CustomList, edi esi, D$AviTypeDir 0, D$WaveTypeDir 0
+    mov esi D$CustomList, edi esi, D$AviTypeDir 0, D$WaveTypeDir 0
 L1: cmp D$esi 0 | je l5>>
     lodsd
     mov D$RsrcTypeStringLen 0
-    test eax 08000_0000 | jz L4>
+    test eax NodeFlag | jz L4>
     push esi, edi
         mov esi eax, edi RsrcTypeString, ebx RsrcTypeStringLen
         call LoadRsrcIDString
@@ -181,16 +206,16 @@ L2: mov D$AviTypeDir eax | jmp L4<
 L3: mov D$WaveTypeDir eax | jmp L4<
 L5:
 
-    call FillResourceTypeList CustomList, AviList, AviListPtr, D$AviTypeDir, MAXAVI
-    call FillResourceTypeList CustomList, WaveList, WaveListPtr, D$WaveTypeDir, MAXWAVE
-    call FillResourceTypeList CustomList, CursorList, CursorListPtr, &RT_CURSOR, MAXCURSOR
-    call FillResourceTypeList CustomList, BitmapList, BitmapListPtr, &RT_BITMAP, MAXBITMAP
-    call FillResourceTypeList CustomList, MenuList, MenuListPtr, &RT_MENU, MAXMENU
-    call FillResourceTypeList CustomList, DialogList, DialogListPtr, &RT_DIALOG, MAXDIALOG
-    call FillResourceTypeList CustomList, StringsList, StringsListPtr, &RT_STRING, MAXSTRINGS
-    call FillResourceTypeList CustomList, RCdataList, RCdataListPtr, &RT_RCDATA, MAXRCDATA
-    call FillResourceTypeList CustomList, GroupCursorList, GroupCursorListPtr, &RT_GROUP_CURSOR, MAXCURSOR
-    call FillResourceTypeList CustomList, IconList, IconListPtr, &RT_ICON, MAXICON
+    call FillResourceTypeList D$CustomList, AviList, AviListPtr, D$AviTypeDir, MAXAVI
+    call FillResourceTypeList D$CustomList, WaveList, WaveListPtr, D$WaveTypeDir, MAXWAVE
+    call FillResourceTypeList D$CustomList, CursorList, CursorListPtr, &RT_CURSOR, MAXCURSOR
+    call FillResourceTypeList D$CustomList, BitmapList, BitmapListPtr, &RT_BITMAP, MAXBITMAP
+    call FillResourceTypeList D$CustomList, MenuList, MenuListPtr, &RT_MENU, MAXMENU
+    call FillResourceTypeList D$CustomList, DialogList, DialogListPtr, &RT_DIALOG, MAXDIALOG
+    call FillResourceTypeList D$CustomList, StringsList, StringsListPtr, &RT_STRING, MAXSTRINGS
+    call FillResourceTypeList D$CustomList, RCdataList, RCdataListPtr, &RT_RCDATA, MAXRCDATA
+    call FillResourceTypeList D$CustomList, GroupCursorList, GroupCursorListPtr, &RT_GROUP_CURSOR, MAXCURSOR
+    call FillResourceTypeList D$CustomList, IconList, IconListPtr, &RT_ICON, MAXICON
     ; Erase the First Icon, Which is the Main One (elsewhere...)
     If D$IconList = 1
       cmp B$OtherMainIcon &TRUE | je I1>
@@ -198,23 +223,35 @@ L5:
         mov esi IconList, edi esi, ecx MAXICON-3 | add esi 12 | rep movsd
         On D$IconListPtr > IconList, sub D$IconListPtr 12
     End_If
-    call FillResourceTypeList CustomList, GroupIconList, GroupIconListPtr, &RT_GROUP_ICON, MAXICON
+    call FillResourceTypeList D$CustomList, GroupIconList, GroupIconListPtr, &RT_GROUP_ICON, MAXICON
     ; Erase the First GroupIcon, Which is the Main One (elsewhere...)
     If D$GroupIconList = 1
       cmp B$OtherMainIcon &TRUE | je I1>
         VirtualFree D$GroupIconList+4
         mov esi GroupIconList, edi esi, ecx MAXICON-3 | add esi 12 | rep movsd
         On D$GroupIconListPtr > GroupIconList, sub D$GroupIconListPtr 12
+    ; 'MAINICON' case + Rosasm added 1st
+    Else
+      cmp B$OtherMainIcon &TRUE | je I1>
+        mov esi GroupIconList | sub esi 12
+L0:     add esi 12 | cmp D$esi 0 | je I1> | jl L0<
+        cmp D$esi 1 | jne L0<
+        VirtualFree D$esi+4
+        mov ecx esi
+L0:     add ecx 12 | cmp D$ecx 0 | jne L0<
+        mov edi esi | add esi 12 | sub ecx esi | shr ecx 2 | rep movsd
+        sub eax eax | mov ecx 3 | REP STOSD
+        On D$GroupIconListPtr > GroupIconList, sub D$GroupIconListPtr 12
     End_If
 
 ____________________________________________________________________________________________
 ; Remove "standard" resources from CustomList:
-    mov esi CustomList, edi esi
+    mov esi D$CustomList, edi esi
 L1: cmp D$esi 0 | je L5>>
     lodsd
     mov D$RsrcTypeStringLen 0
     cmp eax 16 | jg L2>
-    test eax 08000_0000 | jz L3>
+    test eax NodeFlag | jz L3>
 
     cmp eax D$AviTypeDir | je L4>
     cmp eax D$WaveTypeDir | je L4>
@@ -270,7 +307,7 @@ LoadRsrcIDString:
 ; In ebx: dest String size ptr (including null)
 
     push eax, ecx
-        and esi 07ff_ffff | add esi D$UserPEStartOfResources
+        and esi (NOT NodeFlag) | add esi D$UserPEStartOfResources
         mov eax 0
         lodsw
         mov ecx eax, D$ebx eax | inc D$ebx
@@ -282,7 +319,6 @@ L2: mov eax &NULL | stosb
     pop ecx, eax
 
 ret
-
 ____________________________________________________________________________________________
 
 [MissingResource: ?]
@@ -334,9 +370,9 @@ NewTemporaryFillRsrcList:
   ; Now, we will fill uRsrcList with format Type/Name/Lang/Pointer/Size
   ; and then will sort it.
 
-    mov edi uRsrcList, D$TypeByName 0
+    mov edi D$uRsrcList, D$TypeByName 0
 
-    mov esi CustomList
+    mov esi D$CustomList
     If D$esi > 0
         While D$esi > 0
         mov ecx 5 | rep movsd
@@ -454,7 +490,7 @@ NewTemporaryFillRsrcList:
     sub edi 4 | mov D$uRsrcListPtr edi
 ____________________________________________________________________________________________
 ; Sort uRsrcList Table by Type, then by name and then by lang:
-    mov esi uRsrcList
+    mov esi D$uRsrcList
     push edi, esi
 
 ; First, sort by Type:
@@ -575,7 +611,7 @@ NewBuildResourceTree:
     mov ecx 1                            ; how many resources in ecx
     mov edx 1                            ; how many different resources types in edx
     mov ebx 1                            ; how many langage in ebx
-    mov esi uRsrcList+20                 ; start comparisons at second record
+    mov esi D$uRsrcList | add esi 20    ; start comparisons at second record
 L0: mov eax D$esi | cmp eax 0 | je L3>
         inc ecx                          ; count resources
         cmp eax D$esi-20 | je L1>
@@ -599,7 +635,7 @@ L3: add ecx ebx | add ecx edx | mov eax ecx | shl eax 4 | shl ecx 3
 
 ____________________________________________________________________________________________
 
-    mov ebx uRsrcList | add ebx 12 | mov edi D$CodeListPtr
+    mov ebx D$uRsrcList | add ebx 12 | mov edi D$CodeListPtr
 
   ; Clear the header (may bee corrupt by previous use of same memory)
     mov ecx eax, al 0 | rep stosb
@@ -781,12 +817,12 @@ ________________________________________________________________________________
   ; records for Languages. So, we rewrite uRsrcList:
     cld
     push edi
-        mov esi uRsrcList, edi uRsrcList
+        mov esi D$uRsrcList, edi esi
         Do
           ; keep Type / keep ID / skip Lang / keep Ptr / skip size
             movsd | movsd | lodsd | movsd | lodsd
         Loop_Until D$esi = 0
-        mov D$edi 0, esi uRsrcList, edi esi
+        mov D$edi 0, esi D$uRsrcList, edi esi
       ; type / ID??? / ptr
 L0:     movsd | Lodsd | stosd | movsd
       ; Compare Names
@@ -830,11 +866,11 @@ L4:     cmp D$esi 0 | jne L1<
   ; We do not need any more ID. So, we rewrite uRsrcList:
     cld
     push edi
-        mov esi uRsrcList, edi uRsrcList
+        mov esi D$uRsrcList, edi esi
       ; keep Type / skip ID / keep Ptr
 L0:     movsd | lodsd | movsd
         cmp D$esi 0 | jne L0<
-            mov D$edi 0, esi uRsrcList, edi esi
+            mov D$edi 0, esi D$uRsrcList, edi esi
       ; type??? / ptr
 L0:     Lodsd | stosd | movsd
 L1:     cmp D$esi eax | jne L2>
@@ -883,8 +919,8 @@ BuildRsrc:
 
   ; THIS LINE SHOULD BE UNCOMMENTED FOR TESTING WITH RsrcSTUB:
   ;  mov esi RsrcStub, edi uRsrcList, ecx D$RsrcStubLen | rep movsd | sub edi 4 | mov D$uRsrcListPtr edi
-
-    If D$uRsrcList = 0
+    mov edx D$uRsrcList
+    If D$edx = 0
         mov B$NoResources &TRUE
     Else
         mov eax D$uImageSize | Align_on 01000 eax | mov D$uBaseOfRsrc eax

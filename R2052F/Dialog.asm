@@ -6463,8 +6463,8 @@ ReleaseResourceMemory:
  ;   mov esi OtherList, D$OtherListPtr OtherList
  ;   call ReleaseOneResourceMemory
 
-    mov edi uRsrcList, D$uRsrcListPtr uRsrcList, eax 0, ecx 1000
-    rep | stosd                             ; Clear uRsrcList
+    VirtualFree D$uRsrcList
+    VirtualAlloc uRsrcList (MAXRESOURCE * Size_Of_CustomList) | add D$uRsrcList Size_Of_CustomList ;DumRL
 ret
 
 
@@ -6493,7 +6493,7 @@ L0: lodsd | cmp eax ebx | je L1>
             jmp L8>                     ; no whished resource found (possible naked PE)
 
 L1: lodsd                               ; menu "Level2Rt_Menu-StartOfRsrc+NodeFlag" in eax
-    and eax 0FFFFFFF                    ; strip node flag (0_80000000)
+    and eax (NOT NodeFlag)              ; strip node flag (0_80000000)
     add eax D$UserPEStartOfResources
 
   ; edx will be the Number of Resources in a Type:
@@ -6629,9 +6629,9 @@ SearchResourceNamedType:   ; in:  edi = Named Type pointer ('WAVE', 'AVI', ...),
 
   ; search Ptr to Name, ... in resource general header:
 
-L0: lodsd | test eax 0_8000_0000 | jz L2>
+L0: lodsd | test eax NodeFlag | jz L2>
     pushad
-        xor eax 0_8000_0000 | add eax D$UserPEStartOfResources
+        and eax (NOT NodeFlag) | add eax D$UserPEStartOfResources
         mov ecx edx, esi eax | lodsw | cmp al dl | jne L1>
         repe cmpsw | je L3>
 L1: popad
@@ -6640,7 +6640,7 @@ L2: lodsd | loop L0<
 
 L3: popad
     lodsd                                 ; menu "Level2Rt_Menu-StartOfRsrc+NodeFlag" in eax
-    and eax 0FFFFFFF                      ; strip node flag (0_80000000)
+    and eax (NOT NodeFlag)                ; strip node flag (0_80000000)
     add eax D$UserPEStartOfResources
 
     add eax 14 | mov esi eax, edx 0, dx W$esi
@@ -6677,10 +6677,10 @@ ReadResourcesRecord:
     lodsd                                  ; "Level3Rt_Menu-StartOfRsrc+NodeFlag" in eax
 
     push esi, edx
-        test eax 08000_0000 | jnz L1>
+        test eax NodeFlag | jnz L1>
             add eax D$UserPEStartOfResources | mov esi eax | jmp L5>>
 
-L1:     and eax 0FFFFFFF | add eax D$UserPEStartOfResources | add eax 20 | mov esi eax
+L1:     and eax (NOT NodeFlag) | add eax D$UserPEStartOfResources | add eax 20 | mov esi eax
       ; Language. dir:
         lodsd                    ; "Level4Rt_Menu-StartOfRsrc" in eax (no NodeFlag here
                                  ; next one is leafe ptr to true resources)

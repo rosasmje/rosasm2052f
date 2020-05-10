@@ -87,7 +87,7 @@ UndoTitleMove:
     mov eax D$TitleTable+ebx*4, D$CurrentWritingPos eax
     call GetActualPartFromPos | call SetActualPartFromPos
 
-    mov ebx D$UndoPtr | sub bx 32 | mov esi ebx
+    mov ebx D$UndoPtr | sub ebx UNDO_RECORD | mov esi ebx
     If D$esi+(7*4) <> 0
         lodsd | mov D$CaretRow eax
         lodsd | mov D$CaretLine eax

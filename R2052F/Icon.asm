@@ -767,7 +767,7 @@ L0: lodsd | cmp eax RT_ICON | je L1>
       jmp AbortIconSearch                        ; no icon found (possible naked PE)
 
 L1: lodsd                   ; icon found "Level2Rt_Icon-StartOfRsrc+NodeFlag" in eax
-    and eax 07FFFFFFF       ; strip node flag (0_80000000)
+    and eax (NOT NodeFlag)  ; strip node flag (0_80000000)
     add eax D$iStartOfResources
 
     add eax 14 | mov esi eax, edx 0, dx W$esi | sub  esi 2
@@ -782,7 +782,7 @@ NextiRecord:
     push esi
 
     lodsd                              ; "Level3Rt_Icon-StartOfRsrc+NodeFlag" in eax
-    and eax 07FFFFFFF
+    and eax (NOT NodeFlag)
     add eax D$iStartOfResources
     add eax 20 | mov esi eax
 

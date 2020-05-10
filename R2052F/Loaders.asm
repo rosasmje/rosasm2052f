@@ -9,7 +9,7 @@ ________________________________________________________________________________
 [WaveType: U$ 'WAVE'    AviType: 'AVI'] [WAVETYPELEN 4    AVITYPELEN 3] ; 'SOUND'
 
 ; read new open PE Resources:
-
+;;
 ReadRosAsmWaves:
     mov edi WaveList, eax 0, ecx 300 | rep stosd
     mov edi WaveType, edx WAVETYPELEN | call SearchResourceNamedType | On eax = 0, ret
@@ -71,7 +71,7 @@ ReadRosAsmGroupIcons:
     mov esi GroupIconList, edi esi, ecx MAXICON-3 | add esi 12 | rep movsd
     On D$GroupIconListPtr > GroupIconList, sub D$GroupIconListPtr 12
 ret
-
+;;
 [ResourcePointersSecurity: ? #10]
 
 ; Each Record of these Lists is: ID / Ptr / Size.

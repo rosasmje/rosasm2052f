@@ -121,9 +121,9 @@ Proc StoreUserAction:
         On D$BpOnTable <> 0, call AdjustBpTable D@Flag
 
       ; Prepare the Undo Table Pointer for next registration:
-        mov edi D$UndoPtr | add di 32 | mov D$UndoPtr edi
+        mov edi D$UndoPtr | add edi UNDO_RECORD | mov D$UndoPtr edi
       ; Clear the next Record:
-        mov eax 0, ecx 8 | rep stosd
+        mov eax 0, ecx (UNDO_RECORD shr 2) | rep stosd
 EndP
 
 
@@ -324,7 +324,7 @@ ControlZ:
         call KillDebugger | On eax = &IDNO, jmp L9>>
     End_If
 
-    mov ebx D$UndoPtr | sub bx UNDO_RECORD
+    mov ebx D$UndoPtr | sub ebx UNDO_RECORD
     cmp D$ebx+RECORD_FLAG 0 | je L9>>   ; depend on flag > 0 > End
         mov D$UndoPtr ebx
 
@@ -342,7 +342,7 @@ ControlZ:
         mov ecx ebx, ebx D$CurrentWritingPos
         if B$ebx-1 = LF
             call StripBackSpace
-            mov ebx D$UndoPtr | sub bx 32 | mov D$UndoPtr ebx
+            mov ebx D$UndoPtr | sub ebx UNDO_RECORD | mov D$UndoPtr ebx
             call StripBackSpace
             dec D$CurrentWritingPos, D$CaretRow
         Else

@@ -1142,8 +1142,8 @@ L0:     If D$RelocSectionSize => 8 ;jE!
 L0:         lodsb | add ebx eax | loop L0<
         End_If
     .End_If
-
-    If D$uRsrcList > 0
+    mov edx D$uRsrcList
+    If D$edx > 0
             mov esi D$RsrcSectionOrigine, ecx D$ResourcesTrueSize
 L0:         lodsb | add ebx eax | loop L0<
     End_If
@@ -1237,8 +1237,8 @@ L1:
                                    NumberOfReadBytes, 0
         End_If
     End_If
-
-    If D$uRsrcList > 0
+    mov edx D$uRsrcList
+    If D$edx > 0
         call 'KERNEL32.WriteFile' D$DestinationHandle, D$RsrcSectionOrigine, D$URsrcSize,
                                   NumberOfReadBytes, 0
     End_If
@@ -1285,8 +1285,8 @@ L0:     adc ax W$esi+ecx*2-2 | dec ecx | jnz L0<
 L0:     adc ax W$esi+ecx*2-2 | dec ecx | jnz L0<
         adc ax 0
     End_If
-
-    If D$uRsrcList > 0
+    mov edx D$uRsrcList
+    If D$edx > 0
         mov esi D$RsrcSectionOrigine, ecx D$URsrcSize
         add ebx ecx
         shr ecx 1
@@ -2408,8 +2408,8 @@ L1:
                                    NumberOfReadBytes, 0
         End_If
     End_If
-
-    If D$uRsrcList > 0
+    mov edx D$uRsrcList
+    If D$edx > 0
         call 'KERNEL32.WriteFile' D$DestinationHandle, D$RsrcSectionOrigine, D$URsrcSize,
                                   NumberOfReadBytes, 0
     End_If
@@ -7375,7 +7375,8 @@ WritePeHeaders:
   ; Compute Number of Sections (NumberOfSections):
     mov eax 1                                   ; Code Section anyway, i suppose.
     On D$uImportSize > 0, inc eax               ; If Import Section wanted.
-    On D$uRsrcList > 0, inc eax                 ; If Resources Section wanted.
+    mov edx D$uRsrcList
+    On D$edx > 0, inc eax                       ; If Resources Section wanted.
     On D$uDataSize > 0, inc eax                 ; If Data Section wanted.
                                                 ; Code section assumed.
     On B$ExportsectionWanted = &TRUE, inc eax   ; If Export Section wanted.
@@ -7489,8 +7490,8 @@ L1:     On D$RelocSectionSize => 8, inc eax      ;jE! If Reloc Section wanted.
     Else
         add edi 8
     End_If
-
-    If D$uRsrcList > 0
+    mov edx D$uRsrcList
+    If D$edx > 0
         mov eax D$uBaseOfRsrc | stosd
         mov eax D$ResourcesTrueSize | stosd
     Else
@@ -7563,8 +7564,8 @@ L1:     If D$RelocSectionSize => 8 ;jE!
                 &IMAGE_SCN_CNT_INITIALIZED_DATA__&IMAGE_SCN_MEM_READ__&IMAGE_SCN_MEM_DISCARDABLE
         End_If
     .End_If
-
-    If D$uRsrcList > 0
+    mov edx D$uRsrcList
+    If D$edx > 0
         call WriteOneSectionHeader '.rsr', 'c', D$ResourcesTrueSize,
             &IMAGE_SCN_CNT_INITIALIZED_DATA__&IMAGE_SCN_MEM_READ
     End_If
@@ -8035,16 +8036,16 @@ uMenuEnd: ]
 
 ; resource temporary list: up to 200 resource >>> to change for dynamic memory later.
 
-[DumRL: 0 0 0 0 0]  ; to stop upward search on zeros
-
-[uRsrcList:         ; RosAsm infos storage for .rsrc section building (5 dWords per resource)
-   D$ 0             ; Type
-      0             ; ID
-   0409             ; Language
-      0             ; Data pointer
-      0             ; Size
-      #MAXRESOURCE]
-[Dum2RL: 0 0 0 0 0]
+;[DumRL: 0 0 0 0 0]  ; to stop upward search on zeros
+; now is allocated memory ptr
+[uRsrcList: D$ 0 ]   ; RosAsm infos storage for .rsrc section building (5 dWords per resource)
+;   D$ 0             ; Type
+;      0             ; ID
+;   0409             ; Language
+;      0             ; Data pointer
+;      0             ; Size
+;      #MAXRESOURCE]
+;[Dum2RL: 0 0 0 0 0]
 
 [RsrcHeadPtr: 0  RsrcSectionOrigine: 0   RsrcSectionPtr: 0
               RsrcTypePtr: 0  RsrcLangPtr: 0  RsrcPtrPtr: 0

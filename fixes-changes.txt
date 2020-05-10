@@ -491,6 +491,12 @@ even more preserving pointers;
 XSETBV opcode added.
 prevent SelectMainWindowProc, MarkSSEdata ASCII/Unocode Recogn to change VIRTUALFLAG
 
+_26
+recurcive FillCustomListFromResourceTree breaked into three parts, so TypeName & IDName will be correctly handled;
+uRsrcList & CustomList are now allocated memory! (should other lists?)
+in GroupIconList, case disasmed "MAINICON" + Rosasm added 1st Icon, fixed.
+in Undo were some "add bx 32", fixed..
+
 
 
 ;fake IMPORTs! if IMPORT has no refs, disasm is messy

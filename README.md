@@ -15,6 +15,6 @@ main info about RosAsm from source:
 
 More about RosAsm: see program file "B_U_Asm.EXE"
 
-Create directory "RosAsm", unpack files from "RosAsmFiles.7z" here.
+Create directory "RosAsm", for "releases" download "RosAsmFiles.7z" & unpack here.
 Then download latest released executable and also unpack and put here.
 On first run, configure RosAsm. Menu>Tools>Configuration. Also "Create Config.bin"
