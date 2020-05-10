@@ -324,7 +324,7 @@ ControlZ:
         call KillDebugger | On eax = &IDNO, jmp L9>>
     End_If
 
-    mov ebx D$UndoPtr | sub ebx UNDO_RECORD
+    mov ebx D$UndoPtr | cmp ebx D$UndoMemory | je L9>> | sub ebx UNDO_RECORD
     cmp D$ebx+RECORD_FLAG 0 | je L9>>   ; depend on flag > 0 > End
         mov D$UndoPtr ebx
 
@@ -342,8 +342,9 @@ ControlZ:
         mov ecx ebx, ebx D$CurrentWritingPos
         if B$ebx-1 = LF
             call StripBackSpace
-            mov ebx D$UndoPtr | sub ebx UNDO_RECORD | mov D$UndoPtr ebx
-            call StripBackSpace
+            mov ebx D$UndoPtr | cmp ebx D$UndoMemory | je L0>
+            sub ebx UNDO_RECORD | mov D$UndoPtr ebx
+L0:         call StripBackSpace
             dec D$CurrentWritingPos, D$CaretRow
         Else
 L1:         push ecx

@@ -78,7 +78,7 @@ ret
 
 
 ; 'Called by 'ControlZ'.
-
+;;
 UndoTitleMove:
     push D$CaretRow D$CaretLine D$CurrentWritingPos D$UpperLine
     push ebx
@@ -98,7 +98,7 @@ UndoTitleMove:
         pop D$UpperLine D$CurrentWritingPos D$CaretLine D$CaretRow
     End_If
 ret
-
+;;
 
 [AddedSize: ?]
 [RealSourceRestored: ?]
