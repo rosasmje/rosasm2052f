@@ -9311,13 +9311,13 @@ L3: mov al B$ScaledIndex | or al B$SIBreg2                      ; reg1 is Index
 
 L4: cmp B$TwoRegsFound &TRUE | jne L5>                           ; no index, but
         mov B$SibInside &TRUE
-        If B$SIBreg1 = 00_100
-          ; Other way round, because there is no esp Index (only Base)
-            mov al B$SIBreg2 | On al = 00_100, error D$ExpressionPtr
-            shl al, 3 | or al B$SIBreg1
-        Else
-            mov al B$SIBreg1 | shl al, 3 | or al B$SIBreg2
+        mov al B$SIBreg1,  ah B$SIBreg2
+        On ax = 0404,  error D$ExpressionPtr                   ; 2 ESP forbidden
+        If AH = 00_100                                         ; put ESP 1st
+            mov B$SIBreg1 ah, B$SIBreg2 al
         End_If
+
+        mov al B$SIBreg2 | shl al, 3 | or al B$SIBreg1
 
         mov B$SIB al | jmp L9>
 
@@ -9762,7 +9762,7 @@ L4:     call SearchForSIB
 L5:   call IsItaReg | cmp ah 0 | je L6>
       mov B$secondGender reg,  B$secondReg al,  B$SecondRegGender ah
       mov al B$OneOperandwbit,  B$secondOperandwbit al
-
+L5:
       ...If B$SibInside = &TRUE
         ..If B$DisInside = &FALSE
             .If B$FirstGender = Mem
@@ -9780,7 +9780,7 @@ L5:   call IsItaReg | cmp ah 0 | je L6>
 L6:   call SearchForImm
       cmp B$ImmInside &FALSE | je L7>
       mov B$secondGender imm | mov B$PossibleImmLabel &TRUE
-    ret
+    jmp L5< ; for pending regEBP case
 
 L7: If B$ApiFound = &TRUE   ; 'NewSearchApiName'
         mov B$DisInside &TRUE, B$ApiFound &FALSE, B$SecondGender mem

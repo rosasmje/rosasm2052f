@@ -497,6 +497,12 @@ uRsrcList & CustomList are now allocated memory! (should other lists?)
 in GroupIconList, case disasmed "MAINICON" + Rosasm added 1st Icon, fixed.
 in Undo were some "add bx 32", fixed...
 
+_27
+!!Assembler failure catched for case D$EBP+REG IMM, pending EBP management was missed.
+!Assembler: positions of $REG+REG case was quite indifferrent; now exactly handled, DISASM>REASM is more like same.
+I am trying to build all instructions asm, for testing. so catched above failure.
+
+
 
 
 ;fake IMPORTs! if IMPORT has no refs, disasm is messy

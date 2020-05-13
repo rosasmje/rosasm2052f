@@ -225,16 +225,15 @@ L5:
     End_If
     call FillResourceTypeList D$CustomList, GroupIconList, GroupIconListPtr, &RT_GROUP_ICON, MAXICON
     ; Erase the First GroupIcon, Which is the Main One (elsewhere...)
+    cmp B$OtherMainIcon &TRUE | je L1>>
     If D$GroupIconList = 1
-      cmp B$OtherMainIcon &TRUE | je I1>
         VirtualFree D$GroupIconList+4
         mov esi GroupIconList, edi esi, ecx MAXICON-3 | add esi 12 | rep movsd
         On D$GroupIconListPtr > GroupIconList, sub D$GroupIconListPtr 12
     ; 'MAINICON' case + Rosasm added 1st
     Else
-      cmp B$OtherMainIcon &TRUE | je I1>
         mov esi GroupIconList | sub esi 12
-L0:     add esi 12 | cmp D$esi 0 | je I1> | jl L0<
+L0:     add esi 12 | cmp D$esi 0 | je I9> | jl L0<
         cmp D$esi 1 | jne L0<
         VirtualFree D$esi+4
         mov ecx esi
@@ -243,7 +242,7 @@ L0:     add ecx 12 | cmp D$ecx 0 | jne L0<
         sub eax eax | mov ecx 3 | REP STOSD
         On D$GroupIconListPtr > GroupIconList, sub D$GroupIconListPtr 12
     End_If
-
+L1:
 ____________________________________________________________________________________________
 ; Remove "standard" resources from CustomList:
     mov esi D$CustomList, edi esi
