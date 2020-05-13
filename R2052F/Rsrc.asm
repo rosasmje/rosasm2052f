@@ -368,7 +368,7 @@ NewTemporaryFillRsrcList:
   ; CustomList, wich is Type/Name/Lang/Pointer/Size
   ; Now, we will fill uRsrcList with format Type/Name/Lang/Pointer/Size
   ; and then will sort it.
-
+    ON D$CustomList = 0, RET
     mov edi D$uRsrcList, D$TypeByName 0
 
     mov esi D$CustomList

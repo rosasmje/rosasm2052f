@@ -501,7 +501,7 @@ _27
 !!Assembler failure catched for case D$EBP+REG IMM, pending EBP management was missed.
 !Assembler: positions of $REG+REG case was quite indifferrent; now exactly handled, DISASM>REASM is more like same.
 I am trying to build all instructions asm, for testing. so catched above failure.
-
+CustomList is empty, if no RSRC
 
 
 
