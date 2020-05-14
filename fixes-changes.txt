@@ -503,6 +503,10 @@ _27
 I am trying to build all instructions asm, for testing. so catched above failure.
 CustomList is empty, if no RSRC
 
+_28
+in DisDataTypeRouter, AlignSizeOn: clean mixed flags from StoreDisSize, causing missing parts.
+WriteDisWords: more preserving pointers;
+
 
 
 ;fake IMPORTs! if IMPORT has no refs, disasm is messy

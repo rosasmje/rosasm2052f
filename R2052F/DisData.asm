@@ -142,11 +142,10 @@ EndP
 DisDataTypeRouter:
   ; esi = SizesmapStart, edx = SizesmapEnd, cl = SizeFlag
 
- ; mov eax esi | sub eax D$SizesMap | add eax D$DisImageBase
  ; On eax = 0403000, int3 ;map
-
-    mov B$ActualSizeFlag cl, D$RealDataChunkEdx edx
-
+    and ecx 0FF | test cl BYTE | je L0>
+    and cl STRINGS+POINTER+BYTE ; clean mixed flags from StoreDisSize
+L0: mov B$ActualSizeFlag cl, D$RealDataChunkEdx edx
     call AlignSizeOn ecx
 
     If edx = esi
@@ -316,6 +315,8 @@ Proc AlignSizeOn:
                 mov ecx 8
             Else_If cl = FP10
                 mov ecx 10
+            Else
+                ExitP
             End_If
         .End_If
 
@@ -477,8 +478,8 @@ L0: mov eax edx | sub eax esi
 
     add esi 2 | add ebx 2 | cmp esi edx | jae L9>
 
-        .If B$esi <> 0
-            If B$esi <> cl
+        .If W$esi <> 0
+            If W$esi <> 0202
                 call NextDisDataLine
                 mov cl B$esi | ret
             End_If
@@ -493,7 +494,7 @@ L0: mov eax edx | sub eax esi
     jmp L0<
 L9: ret
 
-
+;;
 WriteDisdWords:
   ; esi = SizesmapStart, edx = SizesmapEnd, cl = SizeFlag
     On B$edi-2 = '$', sub edi 3
@@ -531,7 +532,7 @@ L0: mov eax D$ebx | push ebx | call WriteEax | pop ebx
 
     jmp L0<<
 L9: ret
-
+;;
 
 [WasValidPointer: ?]
 
