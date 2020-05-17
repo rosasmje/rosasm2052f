@@ -987,7 +987,7 @@ Proc AsciiToST0:
     Argument @String
     Local @Sign, @Digits
     Uses esi, edi, ebx, ecx, edx
-    [@Tempo: T$ ?]
+   ; [@Tempo: T$ ?]
 
         mov esi D@String, D@Sign &FALSE
         While B$esi <= ' ' | inc esi | End_While

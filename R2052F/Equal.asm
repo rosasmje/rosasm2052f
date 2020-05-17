@@ -2990,7 +2990,7 @@ Proc ComputeImmediateExpression:
     End_If
 
     fstp T$EPP_ImmediateResult
-    call FloatToUString EPP_ImmediateResult EPP_ImmediateResultString
+    call FloatToUString EPP_ImmediateResult EPP_ImmediateResultString 0 0
 
     .If_str EPP_ImmediateResultString = 'INF'
         jmp L1>>

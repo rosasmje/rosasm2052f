@@ -6003,7 +6003,7 @@ L0:     fld D$esi+edx*4 | fstp T$FloatBuf
         mov edi StringBuf, al 0, ecx 255
         repne scasb
         mov B$edi-1 ' '
-        call FloatToUString FloatBuf edi
+        call FloatToUString FloatBuf edi 0 0
 
         dec edx | jns L0<
 
@@ -6020,7 +6020,7 @@ L0:     fld Q$esi+edx*8 | fstp T$FloatBuf
         mov edi StringBuf, al 0, ecx 255
         repne scasb
         mov B$edi-1 ' '
-        call FloatToUString FloatBuf edi
+        call FloatToUString FloatBuf edi 0 0
 
         dec edx | jns L0<
 
@@ -6029,7 +6029,7 @@ EndP
 
 toExtended:
     mov edi StringBuf
-    call FloatToUString esi edi
+    call FloatToUString esi edi 0 0
 ret
 
 [StringBuf: B$ ? #255 StringBufTail: B$ ?]
@@ -6144,7 +6144,7 @@ Proc toFloats:
 
         While edx > 0
             fld D$esi | fstp T$FloatBuf
-            call FloatToUString FloatBuf edi
+            call FloatToUString FloatBuf edi 0 0
             add esi 4
             mov al 0, ecx 255
             repne scasb
@@ -6443,18 +6443,18 @@ L0:     On ebx < 4, jmp @Invalid
         On ebx < 4, jmp @Invalid
         mov edi @Line2
         fld F$DataBuffer | fstp T$FloatBuf
-        call FloatToUString FloatBuf edi
+        call FloatToUString FloatBuf edi 0 0
         mov al 0, ecx 0-1 | repne scasb
     .ElseIf al = 'R'
         On ebx < 8, jmp @Invalid
         mov edi @Line2
         fld R$DataBuffer | fstp T$FloatBuf
-        call FloatToUString FloatBuf edi
+        call FloatToUString FloatBuf edi 0 0
         mov al 0, ecx 0-1 | repne scasb
     .ElseIf al = 'T'
         On ebx < 10, jmp @Invalid
         mov edi @Line2
-        call FloatToUString DataBuffer edi
+        call FloatToUString DataBuffer edi 0 0
         mov al 0, ecx 0-1 | repne scasb
     .EndIf
 
