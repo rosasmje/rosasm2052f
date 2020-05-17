@@ -507,7 +507,19 @@ _28
 in DisDataTypeRouter, AlignSizeOn: clean mixed flags from StoreDisSize, causing missing parts.
 WriteDisWords: more preserving pointers;
 
+_29
+replaced FPU-title with Guga's 2055b one, as incorrect fpus were produced. now is correct.
+however, in DisEngine>WriteFP4,WriteFP8,WriteFP10 Guga attemps also to FPU_DisasmFix in target, which is out of Disassember's business.
+what if those incorrections are on purpose? will normal assembler produce invalid FPU data?
+will be wiser, to mark incorrect FPU-nums as normal data;
 
+
+
+
+; BuildTitleTable on Title Number change kills undo, fact we should know, before doing add/remove TITLE.
+; so if we cut title, then you can't undo; (but can paste it back)
+; if I disable "kill undo", it somehow works.. but problematic, because CodeSource points to current title.
+; it will need many things to remanage. hold for now.
 
 ;fake IMPORTs! if IMPORT has no refs, disasm is messy
 

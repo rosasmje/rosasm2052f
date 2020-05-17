@@ -36,7 +36,7 @@ atof:
 
       fiadd D$NumberOfDecimalPlaces          ; adjust exponent for dec. places in mantissa
       call falog                             ; raise 10 to power
-      fmul                                   ; exponent * mantissa
+      fmul ST0 ST1                           ; exponent * mantissa
 
       ; Provide information about faulty character and its position
 
@@ -371,7 +371,6 @@ L8:         mov B$edi Space         ;string terminating character
         finit | mov eax D@eSize
 EndP
 ____________________________________________________________________________________________
-Proc AsciitoFloat:
 ;;
   This procedure was written by Raymond Filiatreault, December 2002
   Modified Betov, December 2002
@@ -411,13 +410,14 @@ ________________________________________________________________________________
   you want Real8 or Real4, or when you want to go on computing with the result.
 ____________________________________________________________________________________________
 ;;
+Proc AsciitoFloat:
     Arguments @lpSrc, @lpDest
     Local @stword, @ten
     Structure @BCD 12, @bcdstr 0
     Uses ebx, ecx, edx, esi, edi
 
         mov eax 0, ebx 0, edx 0, ecx 19, D@ten 10
-        lea edi D@bcdstr | mov D$edi 0, D$edi+4 0, D$edi+8 0 | add edi 8
+        mov edi D@BCD | mov D$edi 0, D$edi+4 0, D$edi+8 0 | add edi 8
 
         mov esi D@lpSrc
         mov al B$esi
@@ -789,10 +789,21 @@ L0:     On ebx = 0, jmp @Zero
 
       ; It seems that the Binary exponent = 07FFF means something like "undefined" (...)
       ; and seems to appear when dividing. OK. But:
-      ; It also seems that Binary exponent = 0 may be given for a zero value (...).
+      ; It also seems that Binary exponent = 0 may be given for a zeor value (...).
 
-        If ebx < 03FFF ; Ex: 0.000123456...
-            While ebx < 03FFF
+        ;If ebx < 03FFF ; Ex: 0.000123456...
+        If ebx < 03FEE ; Ex: 0.000123456...
+            ;While ebx < 03FFF ; Guga Note. This is incorrect. (Check the charmap on file C:\masm32\CBLOCKC.DLL)
+                               ; It must be smaller then 03FF8. Also, to allow 0,0001 values we must use a test file
+                               ; containing 100000 Zero Bytes and one Byte (1) to result in computations of 1/100000.
+                               ; This will result us on a value of 03FF5. This allow us to compute 0,00001
+                               ; In case we have a percentage of 1e-003 (0.001)
+                               ; 03FF1 = 1 e-4 ==> 1/10000 = 0.0001. (A file with 1.000.000)
+                               ; To we divide one more time for 10. we need to subtract the value below by 4.
+                               ; So, to we allow, 0.00001 = 1e-5, the next value will be 03FF1-3 = 03FEE
+                               ; This is the same as a file with 10000000 bytes. But the percentage in ST0, result in
+                               ; 10000000 /100 = 100000, that is 1e-5. This is good if we analyse files around 10 Mb.
+            While ebx < 03FEE
                 fmul R$TenTable+8
                 fstp T@Real10 | fld T@Real10 | dec D@Exponent
                 movzx ebx W$@Real10+8 | and ebx (not 08000)
@@ -800,7 +811,8 @@ L0:     On ebx = 0, jmp @Zero
             End_While
 
         Else                                            ; Ex: 123.456...
-            While ebx > (03FFF+29)
+            ;While ebx > (03FFF+29)
+            While ebx > (03FEE+29) ;4016
                 fdiv R$TenTable+8
                 fstp T@Real10 | fld T@Real10
                 movzx ebx W$@Real10+8 | and ebx (not 08000) | inc D@Exponent
@@ -809,7 +821,8 @@ L0:     On ebx = 0, jmp @Zero
 
         End_If
 
-L1:     sub ebx 03FFF | mov eax ebx | shl eax 2
+L1:     ;sub ebx 03FFF | mov eax ebx | shl eax 2
+        sub ebx 03FFF | mov eax ebx | shl eax 2
 
       ; 'ebx' will hold the pointer to the Table of Pointers to Decimal Strings.
       ; For example, if eax = 0 (Exponent 0), ebx points to 'Fp.Bit1' Pointer,
@@ -952,11 +965,28 @@ ________________________________________________________________________________
 [TOOBIG_INTEGER 1    TOOBIG_EXPONENT 2]
 
 [CharAfterFpNumber: ?]
+[Tempo1: T$ ?]
+[Tempo2: T$ ?]
+
+[TenTable2:  TenDiv0 TenDiv1 TenDiv2 TenDiv3 TenDiv4 TenDiv5
+             TenDiv6 TenDiv7 TenDiv8 TenDiv9 TenDiv10 TenDiv11
+             TenDiv12 TenDiv13 TenDiv14]
+
+[TenDiv0: F$ 1e+0] [TenDiv1: F$ 1e+1] [TenDiv2: F$ 1e+2] [TenDiv3: F$ 1e+3] [TenDiv4: F$ 1e+4]
+[TenDiv5: F$ 1e+5] [TenDiv6: F$ 1e+6] [TenDiv7: F$ 1e+7] [TenDiv8: F$ 1e+8] [TenDiv9: F$ 1e+9]
+[TenDiv10: F$ 1e+10] [TenDiv11: F$ 1e+11] [TenDiv12: F$ 1e+12] [TenDiv13: F$ 1e+13] [TenDiv14: F$ 1e+14]
+
+[TenDiv100: F$ 1e+100]
+[TenDiv1000: F$ 1e+1000]
+
+[Teste: Q$ 0]
+
+[TenDivisor: F$ 1e+10]
 
 Proc AsciiToST0:
     Argument @String
     Local @Sign, @Digits
-    Uses esi, edi, eax, ebx, ecx, edx
+    Uses esi, edi, ebx, ecx, edx
     [@Tempo: T$ ?]
 
         mov esi D@String, D@Sign &FALSE
@@ -972,77 +1002,121 @@ Proc AsciiToST0:
         While B$esi = '0' | inc esi | End_While
 
         mov ebx 0, ecx 0, edx 0, eax 0
-L0:     lodsb
-      ; cmp al '_' | je L0<
-        cmp al '9' | ja L1>
-        cmp al '0' | jb L1>
-            lea ebx D$ebx+ebx*4 | lea ebx D$eax+ebx*2-030   ; ebx = ebx*10 + (al)-'0'
-            inc ecx | cmp ecx 10 | jb L0<
 
-L0:     lodsb
-      ; cmp al '_' | je L0<
-        cmp al '9' | ja L1>
-        cmp al '0' | jb L1>
-            lea edx D$edx+edx*4 | lea edx D$eax+edx*2-030   ; edx = edx*10 + (al)-'0'
-            inc ecx | cmp ecx 18 | jb L0<
+        .Do
+            lodsb
+                If al = ' '
+                    movzx eax B$esi | inc esi
+                Else_If al = '%'
+                    movzx eax B$esi | inc esi
+                End_If
+                cmp al '9' | ja L1>
+                cmp al '0' | jb L1>
+
+            lea ebx D$ebx+ebx*4 | lea ebx D$eax+ebx*2-030   ; ebx = ebx*10 + (al)-'0'
+            inc ecx             ; ebx is the last bytes. ecx = the amount of integer bytes
+       .Loop_Until ecx >= 10
+
+
+        .Do
+            lodsb
+                If al = ' '
+                    movzx eax B$esi | inc esi
+                Else_If al = '%'
+                    movzx eax B$esi | inc esi
+                End_If
+                cmp al '9' | ja L1>
+                cmp al '0' | jb L1>
+
+                lea edx D$edx+edx*4 | lea edx D$eax+edx*2-030   ; edx = edx*10 + (al)-'0'
+                inc ecx
+        .Loop_Until ecx >= 18
                 mov eax TOOBIG_INTEGER | ExitP
 
 L1:   ; The Integer part is now in ebx:edx. Write it in ST0:
+      ; The Higher part of the integer is stored in ebx (Ex.: 123456789102. the 1st 10 chars 1234567891 in ebx)
+      ; The lower Part of the integer is stored in  edx. (Ex.: 102 from the above example. The last chars after the 10th)
+
         mov D@Digits ecx
         mov eax ebx | or eax edx
         .If eax <> 0
-            mov D@Tempo ebx | fild D@Tempo
+            mov D$Tempo1 ebx | fild D$Tempo1
             If ecx > 10
-                sub ecx 10 | lea ecx D$TenTable+ecx*8 | fmul R$ecx
-                mov D@Tempo edx | fiadd D@Tempo
+                sub ecx 10
+                mov ecx D$TenTable2+ecx*4 | fmul F$ecx
+                mov D$Tempo1 edx | fiadd D$Tempo1
             End_If
         .Else
             fldz
         .End_If
-
       _____________________________________________________________________________
       ; Now, parse the Decimals, if any, the same way ( also limited to 18 Digits):
+      ; Uses the reverse of TenTable. TenTable2 is in reversed dword order, because we are
+      ; analysing fracional part multiples of Ten (0.1, 0.01 etc)
 
         ...If B$esi-1 = '.'
           ; Pop and save the Integer Part, in order to use only 1 Register:
-            fstp R@Tempo
 
+            fstp D$Tempo1
             mov ebx 0, ecx 0, edx 0, eax 0
-L0:         lodsb
-          ; cmp al '_' | je L0<
-            cmp al '9' | ja L1>
-            cmp al '0' | jb L1>
-                lea ebx D$ebx+ebx*4 | lea ebx D$eax+ebx*2-030    ; ebx = ebx*10 + (al)-'0'
-                inc ecx | cmp ecx 10 | jb L0<
 
-L0:         lodsb
-          ; cmp al '_' | je L0<
-            cmp al '9' | ja L1>
-            cmp al '0' | jb L1>
-                lea edx D$edx+edx*4 | lea edx D$eax+edx*2-030    ; edx = edx*10 + (al)-'0'
-                inc ecx | cmp ecx 18 | jb L0<
-                    ; Too much: No Error case for Decimals > cut off.
+        .Do
+            lodsb
+                If al = ' '
+                    movzx eax B$esi | inc esi
+                Else_If al = '%'
+                    movzx eax B$esi | inc esi
+                End_If
+                cmp al '9' | ja L1>
+                cmp al '0' | jb L1>
+
+            lea ebx D$ebx+ebx*4 | lea ebx D$eax+ebx*2-030   ; ebx = ebx*10 + (al)-'0'
+            inc ecx             ; ebx is the last bytes. ecx = the amount of integer bytes
+       .Loop_Until ecx >= 10
+
+
+       .Do
+            lodsb
+                If al = ' '
+                    movzx eax B$esi | inc esi
+                Else_If al = '%'
+                    movzx eax B$esi | inc esi
+                End_If
+                cmp al '9' | ja L1>
+                cmp al '0' | jb L1>
+
+                lea edx D$edx+edx*4 | lea edx D$eax+edx*2-030   ; edx = edx*10 + (al)-'0'
+                inc ecx
+        .Loop_Until ecx >= 18
+            ; Too much: No Error case for Decimals > cut off.
 
 L1:         mov eax ebx | or eax edx
           ; Decimal in ebx:edx, Write it in ST0:
             .If eax <> 0
-                mov D@Tempo ebx | fild D@Tempo
+                mov D$Tempo2 ebx | fild F$Tempo2
                 If ecx > 10
                     sub ecx 10
-                        lea ecx D$TenTable+ecx*8 | fmul R$ecx
-                        mov D@Tempo edx | fiadd D@Tempo
-                    add ecx 10
+                    mov ecx D$TenTable2+ecx*4 |  fld F$ecx | fld F$TenDiv10
+                    fdiv ST2 ST0
+                    fld F$Tempo1
+                    fadd ST0 ST3
+                Else
+                    mov ecx D$TenTable2+ecx*4 |  fld F$ecx
+                    fdiv ST1 ST0
+                    fld F$Tempo1
+                    fadd ST0 ST2
                 End_If
-                lea ecx D$TenTable+ecx*8 | fdiv R$ecx
-              ; Add the Integer Part previously saved in Memory:
-                fadd R@Tempo
-
+                ; Guga Note. I have also to change the debug part because for more then 8 digits it is adding an e+008 stuff
             .Else
               ; If Decimal Part = 0, load the previously saved Integer Part:
-                fld R@Tempo
+                fld F$Tempo1
 
             .End_If
         ...End_If
+        ffree ST1
+        ffree ST2
+        ffree ST3
+
       ; The Complete User Number is now in ST0.
       _____________________________________________________________
       ; Scientific Notation. (The exponent must be within +4932/-4932).
@@ -1060,34 +1134,58 @@ L1:         mov eax ebx | or eax edx
 
           ; Compute the Exponent Value:
             mov ebx 0, eax 0, ecx 0
-L0:         lodsb
-         ;  cmp al '_' | je L0<
-            cmp al '9' | ja L1>
-            cmp al '0' | jb L1>
-                lea ebx D$ebx+ebx*4 | lea ebx D$eax+ebx*2-030    ; ebx = ebx*10 + (al)-'0'
-                inc ecx | cmp ecx 10 | jb L0<
 
-L1:         If ebx > 4932
+        .Do
+            lodsb
+                If al = ' '
+                    movzx eax B$esi | inc esi
+                Else_If al = '%'
+                    movzx eax B$esi | inc esi
+                End_If
+                cmp al '9' | ja L1>
+                cmp al '0' | jb L1>
+
+            lea ebx D$ebx+ebx*4 | lea ebx D$eax+ebx*2-030   ; ebx = ebx*10 + (al)-'0'
+            inc ecx             ; ebx is the last bytes. ecx = the amount of integer bytes
+       .Loop_Until ecx >= 10
+
+
+
+L1:         ; Ebx > 4932 Exit. ebx > 0 do computations, ebx = 0 do nothing.
+            ..If ebx > 4932
                 mov eax TOOBIG_EXPONENT | ExitP
-            End_If
+            ;End_If
+            ..Else_If ebx > 0
 
           ; Negative Exponent, if edx = &TRUE // Exponent in ebx // User Number in ST0.
           ; No additional use of FPU Registers:
-            While ebx > 0
-                If ebx > 18
-                    mov eax 18
-                Else
+            ;.While ebx > 0
+                .If ebx > 14;8
+                    mov ecx 0
+                    mov D$Tempo1 1 | fild D$Tempo1; | fld F$TenDiv10
+                    Do
+                        fmul F$TenDiv1;TenDiv10
+                        inc ecx
+                    Loop_Until ecx = ebx ; Error on the debug. If i have a string like 1.25e1001 it will display only
+                                         ; 1.25e000
+                    ;mov D$Tempo1 ebx | fild D$Tempo1 | fld F$TenDiv10
+                    ;TenDiv10
+                    fmul ST0 ST1
+                .Else
                     mov eax ebx
-                End_If
+                    If edx = &TRUE
+                        mov ecx D$TenTable2+eax*4 |  fld F$ecx
+                        fdivr ST0 ST1
+                    Else
+                        mov ecx D$TenTable2+eax*4 | fmul F$ecx
+                    End_If
+                .End_If
 
-                If edx = &TRUE
-                    fdiv R$TenTable+eax*8
-                Else
-                    fmul R$TenTable+eax*8
-                End_If
+                ffree ST1
+                ffree ST2
 
-                sub ebx eax
-            End_While
+            ..End_If
+
 
         ...End_If
 
@@ -1188,12 +1286,14 @@ UsedByTheDebugger:
 
 ; From FPU to Ascii
 ;
+
+;;
 ; Procedures Originaly written by Tim Roberts.
 
-[TempoAsciiFpu: ? #5] [BCDtempo: T$ ?]
+;[TempoAsciiFpu: B$ 0 #32]; [BCDtempo: T$ ?]
 
 [ten: R$ 10.0    ten7: 1.0e6
- ten_1: T$ 1.0e1  ,    1.0e2,    1.0e3,    1.0e4,    1.0e5,    1.0e6,    1.0e7,   1.0e8
+ ten_1: T$ 1.0e1,    1.0e2,    1.0e3,    1.0e4,    1.0e5,    1.0e6,    1.0e7,   1.0e8
            1.0e9,    1.0e10,   1.0e11,   1.0e12,   1.0e13,   1.0e14,   1.0e15
  ten_16:   1.0e16,   1.0e32,   1.0e48,   1.0e64,   1.0e80,   1.0e96,   1.0e112, 1.0e128
            1.0e144,  1.0e160,  1.0e176,  1.0e192,  1.0e208,  1.0e224,  1.0e240
@@ -1201,12 +1301,28 @@ UsedByTheDebugger:
            1.0e2048, 1.0e2304, 1.0e2560, 1.0e2816, 1.0e3072, 1.0e3328, 1.0e3584, 1.0e3840
            1.0e4096, 1.0e4352, 1.0e4608, 1.0e4864]
 
-Proc PowerOf10:
-    mov ecx, eax
-    test eax 0_8000_0000 | jz L1>
-        neg eax
+[TenMax: T$ 1e+4932]
 
-L1: fld1
+; changed in 09/02/2019
+
+; Compute the power 10 of a number
+; Exponent . The power (x) you want to scale. Ex: 10^x
+
+Proc PowerOf10:
+    Arguments @Exponent
+    Structure @TempStorage 10, @pRealLimitDis 0
+    Uses ecx, edx, edi
+
+    mov eax D@Exponent
+    lea edi D@pRealLimitDis
+    xor edx edx
+    mov ecx eax
+
+    Test_If eax 0_8000_0000
+        neg eax
+    Test_End
+
+    fld1
 
     mov dl al | and edx 0f
     If edx > 0
@@ -1219,211 +1335,636 @@ L1: fld1
     End_If
 
     mov dl ah | and edx 01F
-    If edx > 0
+    .If edx > 0
         lea edx D$edx+edx*4 | fld T$ten_256+edx*2-10 | fmulp st1 st0
+        ; We need to check for the limits of 1e+4932. Since this is a power of ten, we can't have here more then 1e4932
+        ; So we must respect the limit range of 1.189731495080226e+4932  to 1.189731495357232e+4932 (from DisassemblerFloatToUString)
+        ; to avoid we have an infinit value to be computed. This happens when we are analysing values like
+        ; T$ 1e-4917 or T$ 1e-4916 for example.
+        ; The hexadecimal value on such cases is: 07FFF 080000000 00000000
+
+        fstp T$edi
+
+        If_and D$edi+4 = 080000000, W$edi+8 = 07FFF
+            fld T$TenMax
+        Else
+            fld T$edi
+        End_If
+
+    .End_If
+
+    Test_If ecx 0_8000_0000
+        fdivp st1 st0
+    Test_Else
+        fmulp st1 st0
+    Test_End
+
+EndP
+;;
+
+; Computes the power 10 of a number.
+; The inputed power (x) must be in ST0. Ex: 10^x
+; The returned value is also in ST0
+; Created in 10/02/2019
+Proc ST0PowerOf10:
+
+    fldl2t
+    fmulp ST1 ST0
+    fld ST0
+    frndint
+    fxch ST1
+    fsub ST0 ST1
+    f2xm1
+    fld1
+    faddp ST1 ST0
+    fscale
+    fstp ST1
+
+EndP
+
+; changed in 09/02/2019
+Proc FloatToBCD:
+    Arguments @Input, @Output
+    Uses esi, edi, ecx, eax
+
+    mov esi D@Input
+    add esi 9
+    mov edi D@Output
+    xor eax eax
+
+    ;  The 1st bytes of the BCD Will always be 0. So we will need to bypass them to properly
+    ; achieve a better result in case we are dealing with negative exponent values or other non
+    ; integer values that may result in more then One zero byte at the start. Example:
+    ; Sometimes when we are analysing the number 1, it can have the following starting bytes:
+    ; 00999999999999999 . So, the 1st Byte is ignored to the form in edi this: 09999999999.
+    ; On this example it is the number 0.999999999999999e-6 that is in fact 1e-6
+    If B$esi = 0
+        mov ecx 9
+        dec esi
+    Else
+        mov ecx 10
     End_If
 
-    test ecx 0_8000_0000 | jz L1>
-        fdivp st1 st0 | ExitP
-L1:     fmulp st1 st0
+    Do
+        mov al B$esi | dec esi | rol ax 12 | rol ah 4
+        and ax 0F0F
+        add ax '00'
+        mov W$edi ax
+        add edi 2
+        dec ecx
+    Loop_Until ecx = 0
+    mov B$edi 0
+
 EndP
 
-Proc FloatToBCD:
-    Uses esi, edi, ecx
 
-        fbstp T$BCDtempo
+;;
+    FloatToUString - Updated in 10/02/2019
+    
+    This function converts a FPU Number to decimal string (positive or negative) to be displayed on the debugger
 
-        lea esi D$BCDtempo+8 | mov edi TempoAsciiFpu
-        mov ecx, 9
+    Parameters:
+        
+        Float80Pointer - A pointer to a variable containing a TenByte (80 bit) value to be converted to decimal string.
+        
+        DestinationPointer - A buffer to hold the converted string. The size of the buffer must be at least 32 bytes.
+                             A maximum of 19 chars (including the dot) will be converted.
+                             If the number cannot be converted, the buffer will contain a string representing the proper
+                             category of the FPU error, such as: QNAN, SNAN, Infinite, Indefinite.
+        
+        TruncateBytes - The total amount of bytes to truncate. You can truncate a maximum of 3 numbers
+                        on the end of a string. The truncation is to prevent rounding errors of some
+                        compilers when tries to convert Floating Point Units.
+                        For Terabytes we can discard the last 3 Bytes that are related to a diference in the error mode.
+                        But, if you want to maintain accuracy, leave this parameter as 0.
+        
+        AddSubNormalMsg - A flag to enable append a warning message at the end of the number stored on the buffer at the DestinationPointer,
+                          labeling it as a "(Bad)" number (positive or negative) meaning that the number is way too below the limit for
+                          the FPU TenByte and is decreasing precision.
+                           
+                          To append the warning message, set this flag to &TRUE. Otherwise, set it to &FALSE.
+                                                      
+                          The 80-bit floating point format has a range (including subnormals) from approximately 3.65e-4951 to 1.18e4932.
+                          Normal numbers from within the range 3.36210314311209208e-4932 to 1.18e4932) keeps their accuracy.
+                          Numbers below that limit are called "SubNormal" (or denormalized) on a range from 3.65e-4951 to 3.362103...e-4932
+                           
+                          All subnormal numbers decreases their precision as they are going away from the limit of a normal number.
+                          It have an approximated amount of 2^63 subnormal numbers that are way too close to zero and decreasing precision.
+                           
+                          The limit of a normal number is: 3.36210314311209208e-4932 (equivalent to declare it as: "FPULimit: D$ 0, 080000000, W$ 01")
+                          
+                          
 
-L0:     mov al B$esi | dec esi | rol ax 12 | rol ah 4
-        and ax 0f0f | add ax 03030 | stosw | loop L0<
-EndP
+    Return Values:
 
-[NegatedReg: ?]
+        The function will return one of the following equates:
+
+        Equate                              Value   Description
+        
+        SpecialFPU_PosValid                 0       The FPU contains a valid positive number.
+        SpecialFPU_NegValid                 1       The FPU contains a valid negative number.
+        SpecialFPU_PosSubNormal             2       The FPU produced a positive Subnormal (denormalized) number.
+                                                    Although it´s range is outside the range 3.6...e-4932, the number lost it´ precision, but it is still valid
+                                                    Ex: 0000 00000000 00000000
+                                                        0000 00000000 FFFFFFFF
+                                                        0000 00000000 00008000
+                                                        0000 00000001 00000000
+                                                        0000 FFFFFFFF FFFFFFFF
+        SpecialFPU_NegSubNormal             3       The FPU produced a negative Subnormal (denormalized) number.
+                                                    Although it´s range is outside the range -3.6...e-4932, the number lost it´ precision, but it is still valid
+                                                    Ex: 8000 00000000 00000000 (0) (Negative zero must be considered only as zero)
+                                                        8000 00000000 FFFFFFFF (-0.0000000156560127730E-4933)
+                                                        8000 01000000 00000000 (-0.2626643080556322880E-4933)
+                                                        8000 FFFFFFFF 00000001 (-6.7242062846585856000E-4932)
+        SpecialFPU_Zero                     4       The FPU contains a valid zero number
+        SpecialFPU_QNAN                     5       QNAN - Quite NAN (Not a number)
+        SpecialFPU_SNAN                     6       SNAN - Signaling NAN (Not a number)
+        SpecialFPU_NegInf                   7       Negative Infinite
+        SpecialFPU_PosInf                   8       Positive Infinite
+        SpecialFPU_Indefinite               9       Indefinite
+
+        These 4 equates below are not the official ones from IEEE. They were created to represente the cases when the Integer bit of the TenByte was not
+        present by some error on compilers. A tenbyte always should have this bit settled (value = 1). When it is not settled the FPU simply will 
+        refuses to process. To handle this lack of category of error we created the 4 ones below.
+        The integer bit is the 63th bit of the tenbyte (or 31 of the 2nd dword)
+        
+        SpecialFPU_SpecialIndefQNan         10      Special INDEFINITE QNAN
+        SpecialFPU_SpecialIndefSNan         11      Special INDEFINITE SNAN
+        SpecialFPU_SpecialIndefNegInfinite  12      Special INDEFINITE Negative Infinite
+        SpecialFPU_SpecialIndefPosInfinite  13      Special INDEFINITE Positive Infinite
+
+
+    Remark:
+            Used on ComputeImmediateExpression , toFloat , toDouble , toExtended , toFloats , MouseHintDrawWindow
+
+    See also: DisassemblerFloatToUString WriteFP10 ComputeImmediateExpression RealTenFPUNumberCategory
+    
+;;
+
+[Float_Ten: R$ 10]
 
 Proc FloatToUString:
-    Arguments @Float80Pointer, @DestinationPointer
-    Local @iExp, @ControlWord, @MyControlWord
-    Uses esi, edi, edx, ecx
+    Arguments @Float80Pointer, @DestinationPointer, @TruncateBytes, @AddSubNormalMsg
+    Local @ExponentSize, @ControlWord, @ExponentHandle, @FPURoundConst, @FPUStatusHandle, @tempdw, @IsNegative, @extra10x, @FPUMode
+    Structure @TmpStringBuff 42, @pTempoAsciiFpuDis 0, @pBCDtempoDis 32
+    Uses esi, edi, edx, ecx, ebx
 
-        mov edi D@DestinationPointer, eax D@Float80Pointer
+    ; @FPUStatusHandle = 0 Default
+    ; @FPUStatusHandle = 1 Increased. Positive exponent value
+    ; @FPUStatusHandle = 2 Decreased. Negative exponent value
 
-        ..If D$eax = 0
-            .If D$eax+4 = 0
-                If W$eax+8 = 0
-                    mov B$edi '0', B$edi+1 0 | ExitP
-                End_If
-            .End_If
-        ..End_If
+    mov edi D@TmpStringBuff, ecx 42, al 0 | REP STOSB ;call 'RosMem.ZeroMemory'
+    mov D@ExponentSize 0, D@FPUStatusHandle 0, D@IsNegative &FALSE, D@extra10x 0 D@FPUMode SpecialFPU_PosValid
+    mov edi D@DestinationPointer, eax D@Float80Pointer
+    mov ebx eax ; D@Float80Pointer
 
-        mov B$NegatedReg &FALSE
-        Test B$eax+9 0_80| jz L1>
-          xor D$eax+9 0_80 | mov B$NegatedReg &TRUE | mov B$edi '-' | inc edi
-
-L1:     ;  _______________________________________________________
-        ; |        |                 |             |              |
-        ; | Bit 79 | Bit 78 ... 64   | Bit 63      | Bit 62 ... 0 |
-        ; | Sign   | Biased Exponent | Integer Bit | Fraction     |
-        ; |________|_________________|_____________|______________|
-        ;
-        ; SNaN  : S=0  E=7FFF  I=1  F=1..3FFF_FFFF_FFFF_FFFF
-        ; QNaN  : S=0  E=7FFF  I=1  F=4000_0000_0000_0000..7FFF_FFFF_FFFF_FFFF
-        ; INF   : S=0  E=7FFF  I=1  F=0
-        ; -SNaN : S=1  E=7FFF  I=1  F=1..3FFF_FFFF_FFFF_FFFF
-        ; -QNaN : S=1  E=7FFF  I=1  F=4000_0000_0000_0000..7FFF_FFFF_FFFF_FFFF
-        ; -INF  : S=1  E=7FFF  I=1  F=0
-
-        ; Add: Tiny : S=x  E=0     I=0  F<>0
-
-
-        movzx edx W$eax+8 | and edx 07FFF ; edx = E
-
-        If edx = 07FFF
-            On B$NegatedReg = &TRUE, xor B$eax+9 0_80
-            ; test lower 32 bits of fraction
-            test D$eax 0 | jnz L1>
-            ; test upper 31 bits of fraction
-            mov edx D$eax+4 | and edx 0_7FFF_FFFF | jnz L1>
-            mov D$edi 'INF'
+    .If_and D$eax = 0, D$eax+4 = 0
+        If_Or W$eax+8 = 0, W$eax+8 = 08000
+            mov W$eax+8 0
+            mov B$edi '0', B$edi+1 0
+            mov eax D@FPUMode
             ExitP
+        End_If
+    .End_If
 
-L1:         ; test most significant fraction bit
-            test B$eax+7 040 | jz L1>
-            mov D$edi 'QNaN', B$edi+4 0
+    Test_If B$ebx+9 0_80
+        call RealTenFPUNumberCategory ebx
+        mov D@FPUMode eax
+        If eax >= SpecialFPU_QNAN ; do we have any special FPU being used ? Yes, display the proper message and exit
+            mov ebx eax
+            call WriteFPUErrorMsg eax, edi
+            mov eax ebx
             ExitP
-
-L1:         mov D$edi 'SNaN', B$edi+4 0
+        End_If
+        mov D@IsNegative &TRUE | mov B$edi '-' | inc edi
+        xor B$ebx+9 0_80
+    Test_Else
+        call RealTenFPUNumberCategory eax
+        mov D@FPUMode eax
+        If eax >= SpecialFPU_QNAN ; do we have any special FPU being used ? Yes, display the proper message and exit
+            mov ebx eax
+            call WriteFPUErrorMsg eax, edi
+            mov eax ebx
             ExitP
-        EndIf
+        End_If
+    Test_End
 
-        fclex | fstcw W@ControlWord | mov W@MyControlWord 027F | fldcw W@MyControlWord
+    finit | fclex | fstcw W@ControlWord
+    fld T$ebx
+    ; extract the exponent. 1e4933
+    call GetExponentFromST0 &FPU_EXCEPTION_INVALIDOPERATION__&FPU_EXCEPTION_DENORMALIZED__&FPU_EXCEPTION_ZERODIV__&FPU_EXCEPTION_OVERFLOW__&FPU_EXCEPTION_UNDERFLOW__&FPU_EXCEPTION_PRECISION__&FPU_PRECISION_64BITS
+    mov D@ExponentSize eax
+    ffree ST0
+    .If D@ExponentSize < FPU_ROUND
 
-        fld T$eax | fld st0
+        fld T$ebx
+        fld st0 | frndint | fcomp st1 | fstsw ax
 
-        fxtract | fstp st0 | fldlg2 | fmulp st1 st0 | fistp D@iExp
+        Test_If ax &FPU_EXCEPTION_STACKFAULT
+            lea ecx D@pBCDtempoDis
+            fbstp T$ecx     ; ->TBYTE containing the packed digits
+            fwait
+            lea eax D@pTempoAsciiFpuDis
+            lea ecx D@pBCDtempoDis
+            call FloatToBCD ecx, eax
+            mov eax FPU_MAXDIGITS+1 | mov ecx D@ExponentSize | sub eax ecx | inc ecx
+            lea esi D@pTempoAsciiFpuDis | add esi eax
 
-        .If D@iExp L 16
-            fld st0 | frndint | fcomp st1 | fstsw ax
-            Test ax 040 | jz L1>
-                call FloatToBCD
+            If B$esi = '0'
+                inc esi | dec ecx
+            End_If
 
-                mov eax 17 | mov ecx D@iExp | sub eax ecx | inc ecx
-                lea esi D$TempoAsciiFpu+eax
+            mov eax 0
+            rep movsb | jmp L9>>
+        Test_End
 
-                If B$esi = '0'
-                    inc esi | dec ecx
-                End_If
+        ffree ST0
 
-                mov eax 0
-                rep movsb | jmp L9>>
+    .End_If
 
-        .End_If
-
-L1:     mov eax, 6 | sub eax D@iExp
-
-        call PowerOf10
-
-        fcom Q$ten7 | fstsw ax | Test ah 1 | jz L1>
-            fmul Q$ten | dec D@iExp
-
-L1:     call FloatToBCD
-
-        lea esi D$TempoAsciiFpu+11 | mov ecx D@iExp
-
-        If ecx = 0-1
-            mov B$edi '0' | inc edi
+L1:      ; Necessary for FPU 80 Bits. If it is 0, the correct is only 0 and not 0.e+XXXXX.
+        If D@ExponentSize = 080000000
+            mov D@ExponentSize 0
+        Else_If D@ExponentSize = 0
+            mov D@ExponentSize 0
         End_If
 
+        ; multiply the number by the power of 10 to generate required integer and store it as BCD
+
+        ; We need to extract here all the exponents of a given number and multiply the result by the power of FPU_MAXDIGITS+1 (1e17)
+        ; So, if our number is 4.256879e9, the result must be 4.256879e17. If we have 3e-2 the result is 3e17.
+        ; If we have 0.1 the result is 1e17 and so on.
+        ; If we have as a result a power of 1e16. It means that we need to decrease the iExp by 1, because the original
+        ; exponential value is wrong.
+        ; This result will be stored in ST0
+
+        ..If D@ExponentSize <s 0
+            mov eax D@ExponentSize | neg eax | add eax FPU_MAXDIGITS ; always add MaxDigits-1
+            mov edx D@ExponentSize | lea edx D$eax+edx
+            .If eax > 4932
+                mov edx eax | sub edx 4932 | sub edx FPU_MAXDIGITS
+                mov D@extra10x edx | add D@extra10x FPU_MAXDIGITS
+                mov eax 4932
+                If D@extra10x >= FPU_MAXDIGITS
+                    inc D@ExponentSize
+                End_If
+            .Else_If edx >= FPU_MAXDIGITS
+                inc D@ExponentSize
+            .End_If
+        ..Else_If D@ExponentSize > 0
+            mov eax FPU_MAXDIGITS+1 | sub eax D@ExponentSize
+            ;If D@ExponentSize > FPU_MAXDIGITS+1
+             ;   mov eax eax
+            ;End_if
+        ..Else ; Exponent size = 0
+            mov eax FPU_MAXDIGITS+1
+        ..End_If
+        mov D@tempdw eax
+
+        fild D@tempdw
+        call ST0PowerOf10
+        fld T$ebx | fmulp ST0 ST1
+
+        If D@extra10x > 0
+            ; Calculate the exponencial value of the extrabytes
+            fild F@extra10x
+            call ST0PowerOf10
+            fmulp ST0 ST1 ; and multiply it to we get XXe17 or xxe16
+        End_If
+
+        ; now we must get the power of FPU_MAXDIGITS+1. In this case, we will get the value 1e17.
+        mov D@FPURoundConst FPU_MAXDIGITS+1
+
+        ; Calculate the exponencial value accordying to the value in @FPURoundConst
+        fild F@FPURoundConst
+        call ST0PowerOf10
+        fxch ; exchange the values ST0 = 4.294967e16 ST1 = 1e17
+
+        ; let's see if ST0 is smaller then ST1
+;        Fpu_If Q$ten < T@RealDivision
+            fcom
+            fstsw ax    ; retrieve exception flags from FPU
+            fwait
+                mov D@FPUStatusHandle eax ; save exception flags
+            sahf | jnb L0> | fmul R$Float_Ten | dec D@ExponentSize | L0:
+;        Fpu_End_If
+
+        lea ecx D@pBCDtempoDis
+        fbstp T$ecx             ; ->TBYTE containing the packed digits
+        fwait
+
+        lea ecx D@pBCDtempoDis
+        lea eax D@pTempoAsciiFpuDis
+        call FloatToBCD ecx, eax
+        ffree ST0
+
+        ; Adjust the Exponent when some Exceptions occurs and try to Fix whenever is possible the rounding numbers
+        lea eax D@pTempoAsciiFpuDis
+        call FPURoundFix eax, D@FPUStatusHandle D@ExponentSize, D@TruncateBytes
+        mov D@ExponentSize eax
+
+        lea esi D@pTempoAsciiFpuDis | mov ecx D@ExponentSize
         inc ecx
 
-        If ecx <= 7
+        ..If_And ecx <= FPU_ROUND, ecx > 0
             mov eax 0
-            rep movsb | mov B$edi '.' | inc edi
-            mov ecx 6 | sub ecx D@iExp | rep movsb
 
-            While B$edi-1 = '0' | dec edi | End_While
-            On B$edi-1 = '.', dec edi
+            While B$esi <= ' ' | inc esi | End_While
+            While B$esi = '0'
+                inc esi
+                ; It may happens that on rare cases where we had an ecx = 0-1, we have only '0' on esi.
+                ; So while we are cleaning it, if all is '0', we set edi to one single '0', to avoid we have a
+                ; Empty String.
+                If B$esi = 0
+                    mov B$edi '0' | inc edi
+                    jmp L9>>
+                End_If
+            End_While
 
-            jmp L9>>
-        Else
-            movsb | mov B$edi '.' | inc edi | movsd | movsw
+            Do
+                On B$esi = 0, Jmp L1>
+                movsb
+                dec ecx
+            Loop_Until ecx = 0
+            L1:
 
-            mov B$edi 'e' | mov eax D@iExp
-            mov B$edi+1 '+'
-            Test eax 0_8000_0000 | jz L1>
-                neg eax | mov B$edi+1 '-'
+            If B$esi <> 0
+                mov B$edi '.' | inc edi
+                mov ecx FPU_MAXDIGITS+2
 
-L1:         mov ecx 10, edx 0 | div ecx | add dl '0' | mov B$edi+4 dl
-            mov edx 0 | div ecx | add dl '0' | mov B$edi+3 dl
-            mov edx 0 | div ecx | add dl, '0' | mov B$edi+2 dl
-            add edi 5
-        End_If
+            Do
+                On B$esi = 0, Jmp L1>
+                movsb
+                dec ecx
+            Loop_Until ecx = 0
+            L1:
+
+                While B$edi-1 = '0' | dec edi | End_While
+                On B$edi-1 = '.', dec edi
+
+            End_If
+
+        ..Else
+            While B$esi <= ' ' | inc esi | End_While
+            While B$esi = '0' | inc esi | End_While
+
+            .If B$esi <> 0
+                movsb | mov B$edi '.' | inc edi
+                mov ecx FPU_MAXDIGITS+2
+
+                Do
+                    On B$esi = 0, Jmp L1>
+                    movsb
+                    dec ecx
+                Loop_Until ecx = 0
+                L1:
+
+                ; Clean last Zeros at the end of the Number String.
+                While B$edi-1 = '0' | dec edi | End_While
+
+                If B$edi-1 = '.'
+                    dec edi
+                End_If
+
+                mov B$edi 'e' | mov eax D@ExponentSize
+                mov B$edi+1 '+'
+
+                Test_If eax 0_8000_0000
+                    neg eax | mov B$edi+1 '-'
+                Test_End
+
+                inc edi | inc edi
+
+                push edi
+                push ecx
+                push esi
+                push eax
+                    mov D@ExponentHandle eax
+                    lea esi D@ExponentHandle
+                    mov ecx 4
+                    call toUDword
+                    mov esi edi, edi DecimalBuffer
+                    Do | movsb | LoopUntil B$esi-1 = 0
+                pop eax
+                pop esi
+                pop ecx
+                pop edi
+                call SimpleStringCopy DecimalBuffer, edi
+                add edi eax
+
+            .Else
+                mov B$edi '0' | inc edi
+            .End_If
+
+        ..End_If
+
+        ; For developers only:
+        ; Uncomment these function if you want to analyse the Exceptions modes of the FPU Data.
+
+            ;call TestingFPUExceptions D@FPUStatusHandle ; Control Word exceptions
+            ;call TestingFPUStatusRegister D@FPUStatusHandle ; Status Registers envolved on the operation
 
 L9:     mov B$edi 0 | fldcw W@ControlWord | fwait
 
-        If B$NegatedReg = &TRUE
-            mov eax D@Float80Pointer | xor D$eax+9 0_80
+    If D@IsNegative = &TRUE
+        mov eax D@Float80Pointer | xor B$eax+9 0_80
+    End_If
+
+    .If D@AddSubNormalMsg = &TRUE
+        If_Or D@FPUMode = SpecialFPU_PosSubNormal, D@FPUMode = SpecialFPU_NegSubNormal
+            call SimpleStringCopy {B$ " (Bad)", 0}, edi
         End_If
+    .End_If
+    mov eax D@FPUMode
+
 EndP
 
+;;
+    This function will return the exponent of a power of 10 on a TenByte data
+;;
+Proc GetExponentFromST0:
+    Arguments @CWFlag
+    Local @OldControlWord, @truncw, @ExponentSize
 
-[SpecialFPU: ?]
+    ; log10(x)
+    fldlg2  ; log10(2)
+    fld ST1 ; copy Src
+    fabs    ; insures a positive value
+    fyl2x   ;->[log2(Src)]*[log10(2)] = log10(Src)
+
+    fstcw W@OldControlWord
+    wait
+    movzx eax W@OldControlWord
+    or eax D@CWFlag ; code it for The necessary Flags. &FPU_ROUNDINGMODE_TRUNCATE, &FPU_EXCEPTION_INVALIDOPERATION, &FPU_EXCEPTION_DENORMALIZED, &FPU_EXCEPTION_ZERODIV, &FPU_EXCEPTION_OVERFLOW, &FPU_EXCEPTION_UNDERFLOW, &FPU_EXCEPTION_PRECISION, &FPU_PRECISION_64BITS etc
+    mov W@truncw ax
+    fldcw W@truncw   ; insure rounding code of FPU to the ones on our flag
+    fist D@ExponentSize     ; store characteristic of logarithm
+    fldcw W@OldControlWord  ; load back the former control word
+
+    ftst                    ; test logarithm for its sign
+    fstsw ax                ; get result
+    wait
+    sahf                    ; transfer to CPU flags
+    sbb D@ExponentSize 0    ; decrement ExponentSize if log is negative
+    fstp ST0                ; get rid of the logarithm
+
+    mov eax D@ExponentSize
+
+EndP
+
+_______________________________________________________________________________________________
+
+;;
+FPU Control Registers
+
+The FPU Control Word. Accordying to The FPU Control Register in B_U_Asm, we need to perfectly set the Control
+word register in order to we gain precision of the math operation envolved.
+To do that i (guga) built a serie of new equates related to the Bit settings of the Control Registers.
+All of the equates originally uses a shl operation, but to make our life easier i built the equates based
+on the bits they are settled. Like:
+
+Exception Masks - Uses Bits 0 to 5
+
+FPU_EXCEPTION_INVALIDOPERATION 01 ; Invalid Operation. Value: 01. Bit0 used. (Value: 1 shl 0 = 0)
+FPU_EXCEPTION_DENORMALIZED 02 ; Denormalized. Value: 01. Bit1 used. (Value: 1 shl 1 = 02)
+FPU_EXCEPTION_ZERODIV 04 ; Zero divide. Value: 01. Bit2 used. (Value: 1 shl 2 = 04)
+FPU_EXCEPTION_OVERFLOW 08 ; Overflow. Value: 01. Bit3 used. (Value: 1 shl 3 = 08)
+FPU_EXCEPTION_UNDERFLOW 010 ; Underflow. Value: 01. Bit4 used. (Value: 1 shl 4 = 010)
+FPU_EXCEPTION_PRECISION 020 ; Precision. Value: 01. Bit5 used. (Value: 1 shl 05 = 020)
+
+; Reserved - Bits 6 to 7
+FPU_RESERVEDBIT6 040 ; Reserved Bit6. Value: 01. Bit6 reserved. (Value: 1 shl 6) = 040
+FPU_RESERVEDBIT7 080 ; Reserved Bit7. Value: 01. Bit7 reserved. (Value: 1 shl 7) = 080
+
+; Precision Control - Bits 8 to 9
+FPU_PRECISION_24BITS 0 ; 24 Bits. Value: 0. Bit8 used. (Value: 0 shl 08 = 0)
+FPU_PRECISION_RESERVED 0100 ; Reserved. Value: 01. Bit8 used. (Value: 1 shl 08 = 0100)
+FPU_PRECISION_53BITS 0200 ; 53 Bits. Value: 02 (0000_0010). Bit9 used. (Value: 2 shl 08 = 0200)
+FPU_PRECISION_64BITS 0300 ; 64 Bits. Value: 03 (0000_0011). Bit9 used. (Value: 3 shl 08 = 0300)
+
+; Rounding Mode - Bits 10 to 11
+FPU_ROUNDINGMODE_NEAREST_EVEN 0 ; Nearest or even. Value: 0. Bit10 used. (Value: 0 shl 10 = 0)
+FPU_ROUNDINGMODE_DOWN 0400 ; Down. Value: 01. Bit10 used. (Value: 1 shl 10 = 0400)
+FPU_ROUNDINGMODE_UP 0800 ; Up. Value: 02 (0000_0010). Bit10 used. (Value: 2 shl 10 = 0800)
+FPU_ROUNDINGMODE_TRUNCATE 0C00 ; Truncate. Value: 03 (0000_0011). Bit10 used. (Value: 3 shl 10 = 0C00)
+
+; Reserved - Bits 12 to 15
+FPU_RESERVEDBIT12 01000 ; Reserved Bit12. Value: 01. Bit12 reserved. (Value: 1 shl 12 = 01000)
+FPU_RESERVEDBIT13 02000 ; Reserved Bit13. Value: 01. Bit13 reserved. (Value: 1 shl 13 = 02000)
+FPU_RESERVEDBIT14 04000 ; Reserved Bit14. Value: 01. Bit14 reserved. (Value: 1 shl 14 = 04000)
+FPU_RESERVEDBIT15 08000 ; Reserved Bit15. Value: 01. Bit15 reserved. (Value: 1 shl 15 = 08000)
+
+The control word commonly uses a combination of the above equates. Like in this functin where we had originally:
+
+mov W@MyControlWord 027F | fldcw W@MyControlWord
+
+That is:
+
+mov W@MyControlWord &FPU_EXCEPTION_INVALIDOPERATION__&FPU_EXCEPTION_DENORMALIZED__&FPU_EXCEPTION_ZERODIV__&FPU_EXCEPTION_OVERFLOW__&FPU_EXCEPTION_UNDERFLOW__&FPU_EXCEPTION_PRECISION__&FPU_RESERVEDBIT6__&FPU_PRECISION_53BITS
+fldcw W@MyControlWord
+
+So, the MyControlWord uses the following equates:
+    &FPU_EXCEPTION_INVALIDOPERATION
+    &FPU_EXCEPTION_DENORMALIZED
+    &FPU_EXCEPTION_ZERODIV
+    &FPU_EXCEPTION_OVERFLOW
+    &FPU_EXCEPTION_UNDERFLOW
+    &FPU_EXCEPTION_PRECISION
+    &FPU_RESERVEDBIT6 ; This makes absolutelly no difference at all. It is not used by the processor. (PIII)
+    &FPU_PRECISION_53BITS
+;;
+
+;[SpecialFPU: ?]
+
+[FPU_ROUND 7]
+[FPU_MAXDIGITS 16]
+
+;;
+    DisassemblerFloatToUString
+    
+    This function converts a FPU Number to decimal string. A total of 17 digits can be converted
+
+    Parameters:
+        Float80Pointer - A pointer to a variable containing a TenByte (80 bit) value
+
+        DestinationPointer - A buffer to hold the converted string. The size of the buffer
+                             must be 32 bytes.
+
+        TruncateBytes - The total amount of bytes to truncate. You can truncate a maximum of 3 numbers
+                        on the end of a string. The truncation is to prevent rounding errors of some
+                        compilers when tries to convert Floating Point Units.
+                        For Terabytes we can discard the last 3 Bytes that are related to a diference in the error mode.
+                        But, if you want to maintain accuracy, leave this parameter as 0.
+
+    Return Values:
+        The function will return one of the following equates:
+
+        Equate                          Value   Description
+        
+        DisSpecialFPU_ValidNormal         0       The FPU contains a valid positive or negative number.
+        DisSpecialFPU_ValidSubNormal      1       The FPU contains a positive or negative Subnormal (denormalized) number. Although it´s range is outside the range 3.6...e-4932, the number lost it´s precision, but it is still valid
+        DisSpecialFPU_Invalid             2       The FPU contains a Invalid number: QNAN, SNAN, Infinite, Indefinite etc. But even on failure cases, the function will try to fix it
+            
+
+    See also: FloatToUString WriteFP10 ComputeImmediateExpression
+
+;;
 
 Proc DisassemblerFloatToUString:
-    Arguments @Float80Pointer, @DestinationPointer
-    Local @iExp, @ControlWord, @MyControlWord
-    Uses esi, edi, edx, ecx
+    Arguments @Float80Pointer, @DestinationPointer, @TruncateBytes
+    Local @ExponentSize, @ControlWord, @ExponentHandle, @FPURoundConst, @FPUStatusHandle, @IsNegative, @tempdw, @extra10x, @FPUMode
+    Structure @TmpStringBuff 42, @pTempoAsciiFpuDis 0, @pBCDtempoDis 32
+    Uses esi, edi, edx, ecx, ebx
 
-        mov B$SpecialFPU &FALSE
-        mov edi D@DestinationPointer, eax D@Float80Pointer
+    ; @FPUStatusHandle = 0 Default
+    ; @FPUStatusHandle = 1 Increased. Positive exponent value
+    ; @FPUStatusHandle = 2 Decreased. Negative exponent value
 
-        ..If D$eax = 0
-            .If D$eax+4 = 0
-                If W$eax+8 = 0
-                    mov B$edi '0', B$edi+1 0 | ExitP
-                End_If
-            .End_If
-        ..End_If
+    mov edi D@TmpStringBuff, ecx 42, al 0 | REP STOSB ;call 'RosMem.ZeroMemory' D@TmpStringBuff, 42
+    mov D@ExponentSize 0, D@FPUStatusHandle 0, D@IsNegative &FALSE, D@extra10x 0, D@FPUMode SpecialFPU_PosValid
+    mov edi D@DestinationPointer, eax D@Float80Pointer
+    mov ebx eax
 
-        mov B$NegatedReg &FALSE
-        Test B$eax+9 0_80| jz L1>
-          xor D$eax+9 0_80 | mov B$NegatedReg &TRUE | mov B$edi '-' | inc edi
 
-L1:     ;  _______________________________________________________
-        ; |        |                 |             |              |
-        ; | Bit 79 | Bit 78 ... 64   | Bit 63      | Bit 62 ... 0 |
-        ; | Sign   | Biased Exponent | Integer Bit | Fraction     |
-        ; |________|_________________|_____________|______________|
-        ;
-        ; SNaN  : S=0  E=7FFF  I=1  F=1..3FFF_FFFF_FFFF_FFFF
-        ; QNaN  : S=0  E=7FFF  I=1  F=4000_0000_0000_0000..7FFF_FFFF_FFFF_FFFF
-        ; INF   : S=0  E=7FFF  I=1  F=0
-        ; -SNaN : S=1  E=7FFF  I=1  F=1..3FFF_FFFF_FFFF_FFFF
-        ; -QNaN : S=1  E=7FFF  I=1  F=4000_0000_0000_0000..7FFF_FFFF_FFFF_FFFF
-        ; -INF  : S=1  E=7FFF  I=1  F=0
+    .If_and D$eax = 0, D$eax+4 = 0
+        If_Or W$eax+8 = 0, W$eax+8 = 08000
+            mov W$eax+8 0
+            mov B$edi '0', B$edi+1 0
+            mov eax D@FPUMode
+            ExitP
+        End_If
+    .End_If
 
-        ; Add: Tiny : S=x  E=0     I=0  F<>0
+    Test_If B$eax+9 0_80
+        xor B$eax+9 0_80 | mov D@IsNegative &TRUE | mov B$edi '-' | inc edi
+    Test_End
 
-        movzx edx W$eax+8 | and edx 07FFF ; edx = E
+    ; This function will fix eventual FPU errors for the disasembler. It will check for NAN, Indefinite, Infinite
+    ; SNAN, QNAN, etc and will fix to the proper value.
+    call FPU10DisasmFix eax
+    mov D@FPUMode eax
 
-        If edx = 07FFF
-            mov B$SpecialFPU &TRUE | ExitP
-        EndIf
+    finit | fclex | fstcw W@ControlWord
+    fld T$ebx
+    ; extract the exponent. 1e4933
+    call GetExponentFromST0 &FPU_EXCEPTION_INVALIDOPERATION__&FPU_EXCEPTION_DENORMALIZED__&FPU_EXCEPTION_ZERODIV__&FPU_EXCEPTION_OVERFLOW__&FPU_EXCEPTION_UNDERFLOW__&FPU_EXCEPTION_PRECISION__&FPU_PRECISION_64BITS
+    mov D@ExponentSize eax
+    ffree ST0
 
-        fclex | fstcw W@ControlWord | mov W@MyControlWord 027F | fldcw W@MyControlWord
-
-        fld T$eax | fld st0
-
-        fxtract | fstp st0 | fldlg2 | fmulp st1 st0 | fistp D@iExp
-
-        .If D@iExp L 16
+        .If D@ExponentSize < FPU_ROUND
+            fld T$ebx
             fld st0 | frndint | fcomp st1 | fstsw ax
-            Test ax 040 | jz L1>
-                call FloatToBCD
+            Test_If ax &FPU_EXCEPTION_STACKFAULT
 
-                mov eax 17 | mov ecx D@iExp | sub eax ecx | inc ecx
-                lea esi D$TempoAsciiFpu+eax
+                lea ecx D@pBCDtempoDis
+                fbstp T$ecx     ; ->TBYTE containing the packed digits
+                fwait
+
+                lea eax D@pTempoAsciiFpuDis
+                lea ecx D@pBCDtempoDis
+                call FloatToBCD ecx, eax
+                mov eax FPU_MAXDIGITS+1 | mov ecx D@ExponentSize | sub eax ecx | inc ecx
+                lea esi D@pTempoAsciiFpuDis | add esi eax
 
                 If B$esi = '0'
                     inc esi | dec ecx
@@ -1431,55 +1972,1452 @@ L1:     ;  _______________________________________________________
 
                 mov eax 0
                 rep movsb | jmp L9>>
-
+            Test_End
+            ffree ST0
         .End_If
 
-L1:     mov eax, 6 | sub eax D@iExp
-
-        call PowerOf10
-
-        fcom Q$ten7 | fstsw ax | Test ah 1 | jz L1>
-            fmul Q$ten | dec D@iExp
-
-L1:     call FloatToBCD
-
-        lea esi D$TempoAsciiFpu+11 | mov ecx D@iExp
-
-        If ecx = 0-1
-            mov B$edi '0' | inc edi
+L1:      ; Necessary for FPU 80 Bits. If it is 0, the correct is only 0 and not 0.e+XXXXX.
+        If D@ExponentSize = 080000000
+            mov D@ExponentSize 0
+        Else_If D@ExponentSize = 0
+            mov D@ExponentSize 0
         End_If
 
+        ; We need to extract here all the exponents of a given number and multiply the result by the power of FPU_MAXDIGITS+1 (1e17)
+        ; So, if our number is 4.256879e9, the result must be 4.256879e17. If we have 3e-2 the result is 3e17.
+        ; If we have 0.1 the result is 1e17 and so on.
+        ; If we have as a result a power of 1e16. It means that we need to decrease the iExp by 1, because the original
+        ; exponential value is wrong.
+        ; This result will be stored in ST0
+
+
+        ..If D@ExponentSize <s 0
+            mov eax D@ExponentSize | neg eax | add eax FPU_MAXDIGITS ; always add MaxDigits-1
+            mov edx D@ExponentSize | lea edx D$eax+edx
+            .If eax > 4932
+                mov edx eax | sub edx 4932 | sub edx FPU_MAXDIGITS
+
+                mov D@extra10x edx | add D@extra10x FPU_MAXDIGITS
+                mov eax 4932
+                If D@extra10x >= FPU_MAXDIGITS
+                    inc D@ExponentSize
+                End_If
+            .Else_If edx >= FPU_MAXDIGITS
+                inc D@ExponentSize
+            .End_If
+        ..Else_If D@ExponentSize > 0
+            mov eax FPU_MAXDIGITS+1 | sub eax D@ExponentSize
+            ;If D@ExponentSize > FPU_MAXDIGITS+1
+             ;   mov eax eax
+            ;End_if
+        ..Else ; Exponent size = 0
+            mov eax FPU_MAXDIGITS+1
+        ..End_If
+        mov D@tempdw eax
+
+        fild D@tempdw
+        call ST0PowerOf10
+        fld T$ebx | fmulp ST0 ST1
+
+        If D@extra10x > 0
+            ; Calculate the exponencial value of the extrabytes
+            fild F@extra10x
+            call ST0PowerOf10
+            fmulp ST0 ST1 ; and multiply it to we get XXe17 or xxe16
+        End_If
+
+        ; now we must get the power of FPU_MAXDIGITS+1. In this case, we will get the value 1e17.
+        mov D@FPURoundConst FPU_MAXDIGITS+1
+
+        ; Calculate the exponencial value accordying to the value in @iExp
+        fild F@FPURoundConst
+        call ST0PowerOf10
+        fxch ; exchange the values ST0 = 4.294967e16 ST1 = 1e17
+
+        ; let's see if ST0 is smaller then ST1
+;        Fpu_If Q$ten < T@RealDivision
+            fcom
+            fstsw ax    ; retrieve exception flags from FPU
+            fwait
+                mov D@FPUStatusHandle eax ; save exception flags
+            sahf | jnb L0> | fmul R$Float_Ten | dec D@ExponentSize | L0:
+;        Fpu_End_If
+
+        lea ecx D@pBCDtempoDis
+        fbstp T$ecx     ; ->TBYTE containing the packed digits
+        fwait
+
+        lea ecx D@pBCDtempoDis
+        lea eax D@pTempoAsciiFpuDis
+        call FloatToBCD ecx, eax
+        ffree ST0
+
+        ; Adjust the Exponent when some Exceptions occurs and try to Fix whenever is possible the rounding numbers
+        lea eax D@pTempoAsciiFpuDis
+        call FPURoundFix eax, D@FPUStatusHandle, D@ExponentSize, D@TruncateBytes
+        mov D@ExponentSize eax
+
+        lea esi D@pTempoAsciiFpuDis | mov ecx D@ExponentSize
         inc ecx
 
-        If ecx <= 7
+        ..If_And ecx <= FPU_ROUND, ecx > 0
             mov eax 0
-            rep movsb | mov B$edi '.' | inc edi
-            mov ecx 6 | sub ecx D@iExp | rep movsb
 
-            While B$edi-1 = '0' | dec edi | End_While
-            On B$edi-1 = '.', dec edi
+            While B$esi <= ' ' | inc esi | End_While
+            While B$esi = '0'
+                inc esi
+                ; It may happens that on rare cases where we had an ecx = 0-1, we have only '0' on esi.
+                ; So while we are cleaning it, if all is '0', we set edi to one single '0', to avoid we have a
+                ; Empty String.
+                If B$esi = 0
+                    mov B$edi '0' | inc edi
+                    jmp L9>>
+                End_If
+            End_While
 
-            jmp L9>>
-        Else
-            movsb | mov B$edi '.' | inc edi | movsd | movsw
+            Do
+                On B$esi = 0, Jmp L1>
+                movsb
+                dec ecx
+            Loop_Until ecx = 0
+            L1:
 
-            mov B$edi 'e' | mov eax D@iExp
-            mov B$edi+1 '+'
-            Test eax 0_8000_0000 | jz L1>
-                neg eax | mov B$edi+1 '-'
+            If B$esi <> 0
+                mov B$edi '.' | inc edi
+                mov ecx FPU_MAXDIGITS+2
 
-L1:         mov ecx 10, edx 0 | div ecx | add dl '0' | mov B$edi+4 dl
-            mov edx 0 | div ecx | add dl '0' | mov B$edi+3 dl
-            mov edx 0 | div ecx | add dl, '0' | mov B$edi+2 dl
-            add edi 5
-        End_If
+            Do
+                On B$esi = 0, Jmp L1>
+                movsb
+                dec ecx
+            Loop_Until ecx = 0
+            L1:
+
+                While B$edi-1 = '0' | dec edi | End_While
+                On B$edi-1 = '.', dec edi
+
+            End_If
+
+        ..Else
+            While B$esi <= ' ' | inc esi | End_While
+            While B$esi = '0' | inc esi | End_While
+
+            .If B$esi <> 0
+                movsb | mov B$edi '.' | inc edi
+                mov ecx FPU_MAXDIGITS+2
+
+                Do
+                    On B$esi = 0, Jmp L1>
+                    movsb
+                    dec ecx
+                Loop_Until ecx = 0
+                L1:
+
+                ; Clean last Zeros at the end of the Number String.
+                While B$edi-1 = '0' | dec edi | End_While
+
+                If B$edi-1 = '.'
+                    dec edi
+                End_If
+
+
+                mov B$edi 'e' | mov eax D@ExponentSize
+                mov B$edi+1 '+'
+
+                Test_If eax 0_8000_0000
+                    neg eax | mov B$edi+1 '-'
+                Test_End
+
+                inc edi | inc edi
+
+                push edi
+                push ecx
+                push esi
+                push eax
+                    mov D@ExponentHandle eax
+                    lea esi D@ExponentHandle
+                    mov ecx 4
+                    call toUDword
+                    mov esi edi, edi DecimalBuffer
+                    Do | movsb | LoopUntil B$esi-1 = 0
+                pop eax
+                pop esi
+                pop ecx
+                pop edi
+                ;push esi | ZCopy DecimalBuffer | pop esi
+                call SimpleStringCopy DecimalBuffer, edi
+                add edi eax
+            .Else
+                mov B$edi '0' | inc edi
+            .End_If
+
+        ..End_If
+
+        ; For developers only:
+        ; Uncomment these function if you want to analyse the Exceptions modes of the FPU Data.
+
+            ;call TestingFPUExceptions D@FPUStatusHandle ; Control Word exceptions
+            ;call TestingFPUStatusRegister D@FPUStatusHandle ; Status Registers envolved on the operation
 
 L9:     mov B$edi 0 | fldcw W@ControlWord | fwait
 
-        If B$NegatedReg = &TRUE
-            mov eax D@Float80Pointer | xor D$eax+9 0_80
-        End_If
+    If D@IsNegative = &TRUE
+        mov eax D@Float80Pointer | xor B$eax+9 0_80
+    End_If
+
+    mov eax D@FPUMode
+
 EndP
+
+
+_________________________________________________________________________
+
+; Updated 09/02/2019
+
+Proc FPURoundFix:
+    Arguments @pTmpFPUString, @Flag, @iExp, @TruncateBytes
+    Local @CountChar, @Truncating
+    Uses esi, edi, ecx
+
+    mov D@CountChar 0
+    mov esi D@pTmpFPUString
+    mov edi esi
+
+    While B$esi = '0' | inc esi | End_While
+    On B$esi = 0, ExitP
+
+    mov ecx 32
+
+    Do
+        On B$esi = 0, jmp L1>
+        inc D@CountChar
+        inc esi
+        dec ecx
+    Loop_Until ecx <= 0
+
+   L1:
+
+    mov eax D@TruncateBytes
+    If eax > 3
+        mov eax 3
+    End_if
+    inc eax
+    mov D@Truncating eax
+
+    mov esi edi
+    mov ecx D@CountChar
+
+    ; 1st Locate all exceptions, except &FPU_EXCEPTION_PRECISION
+    ;.Test_If_And D@Flag &FPU_EXCEPTION_DENORMALIZED__&FPU_EXCEPTION_OVERFLOW
+    ;.Test_If_And D@Flag &FPU_EXCEPTION_DENORMALIZED__&FPU_EXCEPTION_OVERFLOW__&FPU_EXCEPTION_UNDERFLOW
+    .Test_If_And D@Flag &FPU_EXCEPTION_DENORMALIZED__&FPU_EXCEPTION_UNDERFLOW
+        dec D@iExp
+        jmp L0>
+    .Test_Else_If_And D@Flag &FPU_EXCEPTION_DENORMALIZED__&FPU_EXCEPTION_OVERFLOW
+        jmp L0>
+    .Test_Else_If_And D@Flag &FPU_EXCEPTION_OVERFLOW
+
+   L0:
+        ; All of such cases we need to increase iexp
+        inc D@iExp
+        ; 1st Locate all nearest "10" with positive or negative exponentials. Like:
+        ; 9.9999999999999981e-4917 that have a value of &FPU_EXCEPTION_OVERFLOW
+        ; All of such cases we don't need to do anything because we already increased iExp.
+
+        sub ecx D@Truncating ; for Terabyte we discard the last 3 Bytes that are related to a diference in the error mode
+        ;sub ecx 4 ; for Terabyte we discard the last 3 Bytes that are related to a diference in the error mode
+        .If B$esi = '9'
+            inc esi ; go to the next char
+            Do
+                If B$esi <> '9'
+                    jmp L1>
+                End_If
+                inc esi
+                dec ecx
+            Loop_Until ecx <= 0
+
+            mov D$edi '1000', D$edi+4 '0000', D$edi+8 '0000', D$edi+12 '0000', W$edi+16 '00', B$edi+18 0
+            L1:
+
+            ; 2nd Locate all nearest "1" with positive or negative exponentials. Like:
+            ; 1.0000000000000001e-859 that have a value of &FPU_EXCEPTION_PRECISION
+            ; 5.0000000000000011e-4909 that have a value of &FPU_EXCEPTION_PRECISION
+            ; 1.0000000000000001e-640 that have a value of &FPU_EXCEPTION_PRECISION
+            ; All of such cases we don't need to do anything because we already increased iExp.
+
+        .Else_If_And B$esi >= '1', B$esi <= '9'
+
+            inc esi ; go to the next char
+            Do
+                If B$esi <> '0'
+                    jmp L1>
+                End_If
+                inc esi
+                dec ecx
+            Loop_Until ecx <= 0
+
+            mov W$edi+16 '00', B$edi+18 0
+            L1:
+
+        .End_If
+
+    .Test_Else ; Only the ones with &FPU_EXCEPTION_PRECISION alone or with  &FPU_PRECISION_64BITS, for example.
+
+            ; 1st Locate all nearest "10" with positive or negative exponentials. Like:
+            ; 9.9999999999999999e-1 that have a value of &FPU_EXCEPTION_PRECISION  &FPU_PRECISION_64BITS
+            ; 9.9999999999999999e-5 that have a value of &FPU_EXCEPTION_PRECISION  &FPU_PRECISION_64BITS
+            ; 9.99999999999999888e-1121 that have a value of &FPU_EXCEPTION_PRECISION  &FPU_PRECISION_64BITS
+            ; All of such cases we need to increase iexp
+
+        sub ecx D@Truncating ; for Terabyte we discard the last 3 Bytes that are related to a diference in the error mode
+        ;sub ecx 4 ; for Terabyte
+        .If B$esi = '9'
+            inc esi ; go to the next char
+            Do
+                If B$esi <> '9'
+                    jmp L1>
+                End_If
+                inc esi
+                dec ecx
+            Loop_Until ecx <= 0
+
+            mov D$edi '1000', D$edi+4 '0000', D$edi+8 '0000', D$edi+12 '0000', W$edi+16 '00', B$edi+18 0
+            inc D@iExp
+            L1:
+
+            ; 2nd Locate all nearest "1" with positive or negative exponentials. Like:
+            ; 1.0000000000000001e-859 that have a value of &FPU_EXCEPTION_PRECISION
+            ; 5.0000000000000011e-4909 that have a value of &FPU_EXCEPTION_PRECISION
+            ; 1.0000000000000001e-640 that have a value of &FPU_EXCEPTION_PRECISION
+            ; All of such cases we don't need to do anything.
+
+        .Else_If_And B$esi >= '1', B$esi <= '9'
+
+            inc esi ; go to the next char
+            Do
+                If B$esi <> '0'
+                    jmp L1>
+                End_If
+                inc esi
+                dec ecx
+            Loop_Until ecx <= 0
+
+            mov W$edi+16 '00', B$edi+18 0
+            L1:
+
+        .End_If
+
+    .Test_End
+
+    mov eax D@iExp
+
+EndP
+
+_________________________________________________________________________
+
+; see RealTenFPUNumberCategory
+; Fixed in 10/02/2019
+
+[DisSpecialFPU_ValidNormal 0] ; The FPU contains a valid positive or negative result
+[DisSpecialFPU_ValidSubNormal 1] ; The FPU produced a positive or negative Subnormal (denormalized) number. So, although it´ range is outside the range 3.6...e-4932, the number lost it´ precision, but it is still valid
+[DisSpecialFPU_Invalid 2] ; The FPU number is invalid. QNAN, SNAN, Infinite, Indefinite
+
+Proc FPU10DisasmFix:
+    Arguments @Float80Pointer
+    Local @FPUErrorMode
+    Uses ebx
+
+    mov D@FPUErrorMode DisSpecialFPU_ValidNormal
+    mov ebx D@Float80Pointer
+
+    ; Based on RealTenFPUNumberCategory function
+    ; Note: The denormalized values do not need to be fixed on this function
+
+    ..If_And W$ebx+8 = 0, D$ebx+4 >= 0 ; This is denormalized, but it is possible. (Valid Positive SubNormal)
+
+        mov D@FPUErrorMode DisSpecialFPU_ValidSubNormal
+
+    ..Else_If_And W$ebx+8 > 0, W$ebx+8 < 07FFF; This is ok only if the fraction Dword is bigger or equal to 080000000
+        .If D$ebx+4 < 080000000
+        ; On this error, we need to check the next good value. Ex.: We have the number:
+        ; 07ED 13900F00 00000000
+        ; This will generate a NAN category number. To fix we need to check the immediate next good value, that is:
+        ; 07ED 80000000 00000000 (1.0361967820008025600E-4321)
+        ; Of course, that we could also look for the previous imemdiatelly good value that is:
+        ; 07EC FFFFFFFF FFFFFFFF (1.0361967820008025600E-4321). So the values are the same and we can assume that
+        ; our NAN is, in fact, 1.0361967820008025600E-4321 (07ED 80000000 00000000). For the disassembler point
+        ; of view this is logical, because the values that preceed and forward the "GAP" (The NAN) are exactly the same
+        ; Like on the following diagram:
+        ;    Previous Good Value               NAN - Not calculated             Next Good Value
+        ; 07EC FFFFFFFF FFFFFFFF        -->   07ED 13900F00 00000000   -->  07ED 80000000 00000000
+        ; (1.0361967820008025600E-4321)                                    (1.0361967820008025600E-4321)
+        ; Between the last and next good value we have a GAP of 80000000 00000001 unused bytes. Like:
+        ; 07ED 80000000 00000000 - 07EC FFFFFFFF FFFFFFFF = 80000000 00000001
+        ; This GAP is used for Debugging and error mode only. For example, defining the NANs, or checking for zero divisions etc
+        ; but for the disassembler point of view, this is useless, because we are analysing a defined value with
+        ; certain Bytes that certainly was badly generated due to an error on the linker/compiler that failed to check for
+        ; the NANs or error mode values or by any other unknown error. For example, if the user was trying to build things like:
+        ; T$ 1.0361967820008025600E-4321, instead the compiler output this bytes: 07ED 80000000 00000000, it outputed
+        ; bad ones, like 07ED 7FFFFFFF 00000000, or 07ED 13900F00 00000000 like in our example.
+
+            mov D$ebx+4 080000000, D$ebx 0
+            mov D@FPUErrorMode DisSpecialFPU_Invalid
+        .End_If
+
+    ..Else_If W$ebx+8 = 07FFF
+        ; This is infinite
+        ; Last good one: 7FFE FFFFFFFF FFFFFFFF (1.1897314953572319232E+4932)
+        ; Next Good one: 8000 00000000 00000000 (0)
+        ; Accordying to our example : AllFPUVAlues3.exe i settled them as 1e+4933 1e+4934 etc etc.
+        ; The generated value was: 7FFF 80000000 00000000
+        ; So, the limit is 1.1897314953572319232E+4932. We also should fix this on the assembler.
+        mov W$ebx+8 07FFE, D$ebx+4 0FFFFFFFF, D$ebx 0FFFFFFFF
+        mov D@FPUErrorMode DisSpecialFPU_Invalid
+
+        ; Below is similar to W$ebx+8 = 0, bit it will generate a negative 0 that does not exists
+    ..Else_If_And W$ebx+8 = 08000, D$ebx+4 = 0, D$ebx = 0
+            ; 8000 00000000 00000000 (-0)
+        mov W$ebx+8 0
+        mov D@FPUErrorMode DisSpecialFPU_Invalid
+
+    ..Else_If_And W$ebx+8 = 08000, D$ebx+4 >= 0 ; This is denormalized, but possible. Valid Negative Subnormal
+
+        mov D@FPUErrorMode DisSpecialFPU_ValidSubNormal
+
+    ..Else_If_And W$ebx+8 > 08000, W$ebx+8 < 0FFFF
+        .If D$ebx+4 < 080000000
+        ; 87ED 13900F00 00000000
+        ; Previous good value: 87EC FFFFFFFF FFFFFFFF (-1.0361967820008025600E-4321)
+        ; Next Good value: 87ED 80000000 00000000 (-1.0361967820008025600E-4321)
+            mov D$ebx+4 080000000, D$ebx 0
+            mov D@FPUErrorMode DisSpecialFPU_Invalid
+        .End_If
+
+    ..Else_If W$ebx+8 = 0FFFF
+        ; This is indefinite
+        ; Last good one: FFFE FFFFFFFF FFFFFFFF (-1.1897314953572319232E+4932)
+        ; Next Good one: 0000 00000000 00000000 (0)
+        ; The same logical conclusion as in 07FFF
+        mov W$ebx+8 0FFFE, D$ebx+4 0FFFFFFFF, D$ebx 0FFFFFFFF
+        mov D@FPUErrorMode DisSpecialFPU_Invalid
+
+    ..End_If
+
+    mov eax D@FPUErrorMode
+
+EndP
+_________________________________________________________________________
+
+
+Proc FPU8DisasmFix:
+    Arguments @Float80Pointer
+    Uses ebx
+
+    mov ebx D@Float80Pointer
+    ; Based on RealEightFPUNumberCategory
+    ; Note: The denormalized values do not need to be fixed on this function
+
+    ..If_And D$ebx+4 = 080000000, D$ebx = 0
+        ; This is a signed Zero. There is no such a thing. Fix it to zero only
+        mov D$ebx 0
+
+    ; Check for NAN. Bits 52 to 62 are settled to 1 (Including the sign bit)
+    ; Bit 63 is also settled to 1.
+    ..Else_If_And B$ebx+6 >= 0F0, B$ebx+7 >= 07F ; NAN
+
+        .If B$ebx+7 = 07F; NAN
+            ; (1st fraction bit = 1) All exponents bits = 1, Sign bit = 0
+            ; This can be +infinite, QNAN, SNAN
+            ; Last good one: 7FEF FFFF FFFFFFFF (1.797693134862316E+308)
+            ; Next Good one: 8000 0000 00000000 (0)
+            ; Accordying to our example : AllFpuValuesr8.exe i settled them as 1e+308 1e+309 etc etc.
+            ; The generated value was: 7FF00000 00000000
+            ; So, the limit is 1.797693134862316E+308. We also should fix this on the assembler.
+            mov D$ebx 0FFFFFFFF, D$ebx+4 07FEFFFFF
+        .Else_If B$ebx+7 = 0FF; NAN
+            ; (1st fraction bit = 1) All exponents bits = 1, Sign bit = 1
+            ; This can be +infinite, QNAN, SNAN
+            ; Last good one: FFEF FFFF FFFFFFFF (-1.797693134862316E+308)
+            ; Next Good one: 0000 0000 00000000 (0)
+            ; Accordying to our example : AllFpuValuesR8Neg.exe i settled them as 1e+308 1e+309 etc etc.
+            ; The generated value was: FFF00000 00000000
+            ; So, the limit is -1.797693134862316E+308. We also should fix this on the assembler.
+            mov D$ebx 0FFFFFFFF, D$ebx+4 0FFEFFFFF
+
+        .End_If
+    ..End_If
+
+EndP
+
+_________________________________________________________________________
+
+
+Proc FPU4DisasmFix:
+    Arguments @Float80Pointer
+    Uses ebx
+
+    mov ebx D@Float80Pointer
+
+    ; Based on RealFourFPUNumberCategory
+    ; Note: The denormalized values do not need to be fixed on this function
+
+    .If D$ebx = 080000000
+    ; This is a signed Zero. There is no such a thing. Fix it to zero only
+        mov D$ebx 0
+
+    ; Check for NAN. Bits 31 to 24 are settled to 1 (Including the sign bit)
+    ; Bit 23 is also settled to 1.
+    .Else_If_And B$ebx+3 >= 07F, B$ebx+2 >= 080 ; NAN
+
+        If B$ebx+3 = 07F ; NAN
+            ; This can be +infinite, QNAN, SNAN
+            ; Last good one: 7F7F FFFF (3.4028234663852886e+38)
+            ; Next Good one: 8000 0000 (0)
+            ; Accordying to our example : AllFpuValuesF8.exe i settled them as 1e+38 1e+39 etc etc.
+            ; The generated value was: 07F800000
+            ; So, the limit is 3.4028234663852886e+38. We also should fix this on the assembler.
+            mov D$ebx 07F7FFFFF
+
+        Else_If B$ebx+3 = 0FF ; NAN
+            ; This can be -infinite, indefinite, Special QNAN/SNAN Indefinite Categories
+            ; Last good one: FF7F FFFF (-3.4028234663852886e+38)
+            ; Next Good one: 0000 0000 (0)
+            ; Accordying to our example : AllFpuValuesF8.exe i settled them as -1e+38 -1e+39 etc etc.
+            ; The generated value was: 0FF800000
+            ; So, the limit is -3.4028234663852886e+38. We also should fix this on the assembler.
+            mov D$ebx 0FF7FFFFF
+
+        End_If
+    .End_If
+
+EndP
+_________________________________________________________________________
+
+Proc RealFourFPUNumberCategory:
+    Arguments @Float80Pointer
+    Uses ebx
+
+    mov ebx D@Float80Pointer
+
+    ; Bits 31 to 24 are settled to 0 (Including the sign bit)
+    ; Bit 23 is also settled to 0.
+    ..If_And B$ebx+3 = 0, B$ebx+2 <= 07F
+    ; This is denormalized, but it is possible
+    ..Else_If_And B$ebx+3 = 080, B$ebx+2 <= 07F
+    ; This is signed denormalized, but it is possible
+    ..Else_If D$ebx = 080000000
+    ; This is a signed Zero. There is no such a thing. Fix it to zero only
+        ;mov D$ebx 0
+
+    ; Check for NAN. Bits 31 to 24 are settled to 1 (Including the sign bit)
+    ; Bit 23 is also settled to 1.
+    ..Else_If_And B$ebx+3 >= 07F, B$ebx+2 >= 080 ; NAN
+        ; All Fraction Bits = 0, Sign Bit = 0, Exponent Bits = 1
+        .If D$ebx = 07F800000;W$ebx = 0, B$ebx+2 = 080, B$ebx+3 = 07F
+            ;+INFINITE
+        ; All Fraction Bits = 0, Sign Bit = 1, Exponent Bits = 1
+        .Else_If D$ebx = 0FF800000;W$ebx = 0, B$ebx+2 = 080, B$ebx+3 = 0FF
+            ;-INFINITE
+        ; All Fraction bits = 0 (1st fraction bit = 1) All exponents bits = 1, Sign bit = 1
+        .Else_If D$ebx = 0FFC00000
+            ; INDEFINITE
+
+        .Else_If B$ebx+3 = 07F;, B$ebx+2 >= 0C0 ; NAN
+            ; (1st fraction bit = 1) All exponents bits = 1, Sign bit = 0
+            If B$ebx+2 >= 0C0
+                ; QNAN
+            Else ; (1st fraction bit = 0) All exponents bits = 1, Sign bit = 0
+                ; SNAN
+            End_If
+
+        .Else_If B$ebx+3 = 0FF;, B$ebx+2 >= 0C0 ; NAN
+            ; (1st fraction bit = 1) All exponents bits = 1, Sign bit = 1
+            If B$ebx+2 >= 0C0
+                ; Special INDEFINITE QNAN
+            Else ; (1st fraction bit = 0) All exponents bits = 1, Sign bit = 1
+                ; Special INDEFINITE SNAN
+            End_If
+
+        .End_If
+    ..End_If
+
+EndP
+_________________________________________________________________________
+
+Proc RealEightFPUNumberCategory:
+    Arguments @Float80Pointer
+    Uses ebx
+
+    mov ebx D@Float80Pointer
+
+    ; Bits 52 to 62 are settled to 0 (Including the sign bit)
+    ; Bit 63 is also settled to 0.
+    ..If_And B$ebx+6 <= 0F, B$ebx+7 = 0
+    ; This is denormalized, but it is possible
+
+    ; Bits 52 to 62 are settled to 0
+    ; Bit 63 is also settled to 1. (Sign bit = 1)
+    ..Else_If_And B$ebx+6 <= 0F, B$ebx+7 = 080;B$ebx+3 = 080, B$ebx+2 <= 07F
+    ; This is signed denormalized, but it is possible
+
+    ..Else_If_And D$ebx+4 = 080000000, D$ebx = 0
+    ; This is a signed Zero. There is no such a thing. Fix it to zero only
+        ;mov D$ebx 0
+
+    ; Check for NAN. Bits 52 to 62 are settled to 1 (Including the sign bit)
+    ; Bit 63 is also settled to 1.
+    ..Else_If_And B$ebx+6 >= 0F0, B$ebx+7 >= 07F ; NAN
+        ; All Fraction Bits = 0, Sign Bit = 0, Exponent Bits = 1
+        .If_And D$ebx = 0, D$ebx+4 = 07FF00000
+            ;+INFINITE
+        ; All Fraction Bits = 0, Sign Bit = 1, Exponent Bits = 1
+        .Else_If_And D$ebx = 0, D$ebx+4 = 0FFF00000
+            ;-INFINITE
+        ; All Fraction bits = 0 (1st fraction bit = 1) All exponents bits = 1, Sign bit = 1
+        .Else_If_And D$ebx = 0, D$ebx+4 = 0FFF80000;D$ebx = 0FFC00000
+            ; INDEFINITE
+
+        .Else_If B$ebx+7 = 07F; NAN
+            ; (1st fraction bit = 1) All exponents bits = 1, Sign bit = 0
+            If B$ebx+6 >= 0F8
+                ; QNAN
+            Else ; (1st fraction bit = 0) All exponents bits = 1, Sign bit = 0
+                ; SNAN
+            End_If
+
+        .Else_If B$ebx+7 = 0FF; NAN
+            ; (1st fraction bit = 1) All exponents bits = 1, Sign bit = 1
+            If B$ebx+6 >= 0F8
+                ; Special INDEFINITE QNAN
+            Else ; (1st fraction bit = 0) All exponents bits = 1, Sign bit = 1
+                ; Special INDEFINITE SNAN
+            End_If
+
+        .End_If
+    ..End_If
+
+EndP
+_________________________________________________________________________
+
+;;
+    Updated in 16/02/2019 (Gustavo Trigueiros - aka: Guga)
+
+    RealTenFPUNumberCategory
+        This function identifies the Errors existant in a Real10 FPU data.
+
+    Parameters:
+        Float80Pointer - A pointer to a variable containing a TenByte (80 bit) value
+
+    Returned Values:
+    
+        The function will return one of the following equates:
+
+        Equate                              Value   Description
+        
+        SpecialFPU_PosValid                 0       The FPU contains a valid positive number.
+        SpecialFPU_NegValid                 1       The FPU contains a valid negative number.
+        SpecialFPU_PosSubNormal             2       The FPU produced a positive Subnormal (denormalized) number.
+                                                    Although it´s range is outside the range 3.6...e-4932, the number lost it´ precision, but it is still valid
+                                                    A denormal(Subnormal) value the integer bit is not set
+                                                    Ex: 0000 00000000 00000000
+                                                        0000 00000000 FFFFFFFF
+                                                        0000 00000000 00008000
+                                                        0000 00000001 00000000
+                                                        0000 FFFFFFFF FFFFFFFF
+        SpecialFPU_NegSubNormal             3       The FPU produced a negative Subnormal (denormalized) number.
+                                                    Although it´s range is outside the range -3.6...e-4932, the number lost it´ precision, but it is still valid
+                                                    A denormal(Subnormal) value the integer bit is not set
+                                                    Ex: 8000 00000000 00000000 (0) (Negative zero must be considered only as zero)
+                                                        8000 00000000 FFFFFFFF (-0.0000000156560127730E-4933)
+                                                        8000 01000000 00000000 (-0.2626643080556322880E-4933)
+                                                        8000 FFFFFFFF 00000001 (-6.7242062846585856000E-4932)
+        SpecialFPU_Zero                     4       The FPU contains a valid zero number
+        SpecialFPU_QNAN                     5       QNAN - Quite NAN (Not a number)
+        SpecialFPU_SNAN                     6       SNAN - Signaling NAN (Not a number)
+        SpecialFPU_NegInf                   7       Negative Infinite
+        SpecialFPU_PosInf                   8       Positive Infinite
+        SpecialFPU_Indefinite               9       Indefinite
+
+        These 4 equates below are not the official ones from IEEE. They were created to represente the cases when the Integer bit of the TenByte was not
+        present by some error on compilers. A tenbyte always should have this bit settled (value = 1). When it is not settled the FPU simply will 
+        refuses to process. To handle this lack of category of error we created the 4 ones below.
+        The integer bit is the 63th bit of the tenbyte (or 31 of the 2nd dword)
+        
+        SpecialFPU_SpecialIndefQNan         10      Special INDEFINITE QNAN (Same as QNAN, but happened on an TenByte without the integer bit set)
+        SpecialFPU_SpecialIndefSNan         11      Special INDEFINITE SNAN (Same as SNAN, but happened on an TenByte without the integer bit set)
+        SpecialFPU_SpecialIndefNegInfinite  12      Special INDEFINITE Negative Infinite (Same as Negative Infinite, but happened on an TenByte without the integer bit set)
+        SpecialFPU_SpecialIndefPosInfinite  13      Special INDEFINITE Positive Infinite (Same as Positive Infinite, but happened on an TenByte without the integer bit set)
+
+    Remarks: For better analyse what a TenByte looks like, it is better you think on it as a Structure formed by 10 bytes containing 2 dword (the fraction bits) followed
+             by a Word containing the exponent plus the Sign bit. Like this:
+
+            [TenByteFormat:
+                TenByteFormat.Significand1: D$ 0
+                TenByteFormat.Significand2: D$ 0
+                TenByteFormat.Exponent: W$ 0] ; including the sign on the last bit
+
+            And the pseudo equates that may represent the "Tenbyte structure"
+            
+            TenByteFormat.Significand1Dis 0
+            TenByteFormat.Significand2Dis 4
+            TenByteFormat.ExponentDis 8
+
+            Size_Of_TenByteFormat 10
+
+            According to this site https://www.doc.ic.ac.uk/~eedwards/compsys/float/nan.html , the ranges (In little endian) for better categorize NANs and other errors on a Real4 and Real8 are:
+
+            For single-precision values (Real4):
+
+                Positive infinity is represented by the bit pattern 7F800000
+                Negative infinity is represented by the bit pattern FF800000
+
+                A signalling NaN (SNAN) is represented by any bit pattern
+                between 7F800001 and 7FBFFFFF or between FF800001 and FFBFFFFF
+
+                A quiet NaN (QNAN) is represented by any bit pattern 
+                between 7FC00000 and 7FFFFFFF or between FFC00000 and FFFFFFFF
+
+            For double-precision values (Real4):
+
+                Positive infinity is represented by the bit pattern 7FF0000000000000
+                Negative infinity is represented by the bit pattern FFF0000000000000
+
+                A signalling NaN is represented by any bit pattern 
+
+                between 7FF0000000000001 and 7FF7FFFFFFFFFFFF or 
+                between FFF0000000000001 and FFF7FFFFFFFFFFFF
+
+                A quiet NaN is represented by any bit pattern 
+
+                between 7FF8000000000000 and 7FFFFFFFFFFFFFFF or 
+                between FFF8000000000000 and FFFFFFFFFFFFFFFF
+
+
+            Thus, for Extended-precision values (Real10):
+
+                Positive INFINITY is represented by the bit pattern 7FFF_80000000_00000000
+                Negative INFINITY is represented by the bit pattern FFFF_80000000_00000000
+
+                INDEFINITE is represented by the bit pattern FFFF_C0000000_00000000
+
+                A Quiet NaN would be represented by any bit pattern 
+
+                between 7FFF_C0000000_00000001 and 7FFF_FFFFFFFF_FFFFFFFF or 
+                between FFFF_C0000000_00000001 and FFFF_FFFFFFFF_FFFFFFFF
+
+                A Signaling NaN would be represented by any bit pattern 
+
+                between 7FFF_80000000_00000001 and 7FFF_BFFFFFFF_FFFFFFFF or 
+                between FFFF_80000000_00000001 and FFFF_BFFFFFFF_FFFFFFFF
+
+            
+            The explicit 1 in bit 63 (bit 31 of the second dword = 080000000) always remains set for the REAL10 format, including all the NANs.
+            Otherwise, the FPU seems to reject it as an unknown format.
+
+
+        Additional Info:
+
+        D$ 0, 080000000, W$ 01 3.36210314311209208e-4932
+
+        ; Allowed Ranges:
+        ; W$ebx+8 = 0, D$ebx+4 = any value . Ex.: 0000 30000000 00000000 (2.9355023956557458e-4942)
+        ;       0000 00000000 00000000 (0) to 0000 FFFFFFF FFFFFFFF (4.2026289288901166080E-4933)
+        ;       Weird: 0000 80000000 00000000 (3.3621031431120931840E-4932)
+        ; W$ebx+8 > 0 < 07FFF, D$ebx+4 >= 080000000. Ex.: 0001 80000000 00000000 | 7FFE 80000000 00000000
+        ; Ranges:   0001 80000000 00000000 (3.3621031431120931840E-4932)
+        ;           7FFE FFFFFFFF 00000000 (1.1897314950802259968E+4932)
+        ;           7FFE FFFFFFFF FFFFFFFF (1.1897314953572319232E+4932)
+        ; W$ebx+8 = 07FFF, error in any case  (+INF = 7FFF 80000000 00000000)
+        ;                                     (+NAN = all other values up to 7FFF 80000000 00000000)
+        ; W$ebx+8 = 08000, D$ebx+4 = any value . Ex.: 0000 30000000 00000000
+        ;       8000 00000000 00000000 (-0) to 8000 FFFFFFFF FFFFFFFF (-6.7242062862241863680E-4932)
+        ;       Weird: 8000 80000000 00000000 (-3.3621031431120931840E-4932)
+        ; W$ebx+8 > 08000 < FFFF, D$ebx+4 >= 080000000. Ex.: 8FF1 F00F0000 00000000
+        ;           8001 80000000 00000000 (-3.3621031431120931840E-4932)
+        ;           FFFE FFFFFFFF FFFFFFFF (-1.1897314953572319232E+4932)
+        ; W$ebx+8 = 0FFFF, error in any case. (-INF = FFFF 80000000 00000000)
+        ;                                     (-NAN = all other values up or equal to FFFF 80000000 00000000)
+        ;                                     (INDEFINITE = all other values below to FFFF 80000000 00000000)
+        ; FFFF 80000000 00400000 QNAN
+
+    See also:
+        FloatToUString
+
+    References:
+    
+        http://www.ray.masmcode.com/tutorial/fpuchap2.htm
+        https://www.doc.ic.ac.uk/~eedwards/compsys/float/nan.html
+        Intel® 64 and IA-32 Architectures Software Developer’s Manual pg 89-92
+
+    Many Thanks to Raymond Filiatreault to help clarify all of this.
+
+;;
+
+
+[SpecialFPU_PosValid 0] ; The FPU contains a valid positive result
+[SpecialFPU_NegValid 1] ; The FPU contains a valid negative result
+[SpecialFPU_PosSubNormal 2] ; The FPU produced a positive Subnormal (denormalized) number. So, although it´ range is outside the range 3.6...e-4932, the number lost it´ precision, but it is still valid
+[SpecialFPU_NegSubNormal 3] ; The FPU produced a negative Subnormal (denormalized) number. So, although it´ range is outside the range -3.6...e-4932, the number lost it´ precision, but it is still valid
+[SpecialFPU_Zero 4] ; The FPU contains a valid zero number
+[SpecialFPU_QNAN 5] ; QNAN
+[SpecialFPU_SNAN 6] ; SNAN
+[SpecialFPU_NegInf 7] ; Negative Infinite
+[SpecialFPU_PosInf 8] ; Positive Infinite
+[SpecialFPU_Indefinite 9] ; Indefinite
+[SpecialFPU_SpecialIndefQNan 10] ; Special INDEFINITE QNAN
+[SpecialFPU_SpecialIndefSNan 11] ; Special INDEFINITE SNAN
+[SpecialFPU_SpecialIndefNegInfinite 12] ; Special INDEFINITE Negative Infinite
+[SpecialFPU_SpecialIndefPosInfinite 13] ; Special INDEFINITE Positive Infinite
+
+Proc RealTenFPUNumberCategory:
+    Arguments @Float80Pointer
+    Local @FPUErrorMode
+    Uses ebx
+
+
+    mov ebx D@Float80Pointer
+    mov D@FPUErrorMode SpecialFPU_PosValid
+
+    ; 1st located all zero numbers (no bits settled on the whole TenByte or, only the Sign bit (15th of the last word = 79th bit of the Tenbyte ) was settled.
+    ; Ex: D$ 0, 0, W$ 0 ; (0)
+    ; Ex: D$ 0, 0, W$ 08000 ; negative zero is only zero
+    .If_and D$ebx = 0, D$ebx+4 = 0
+        ; ebx+8 = 08000 means a negative zero. But, there´s no such a thing as a negative zero, thus, it should be considered only 0
+        If_Or W$ebx+8 = 0, W$ebx+8 = 08000
+            mov eax SpecialFPU_Zero ; eax wil exist as Zero
+            ExitP
+        End_If
+    .End_If
+
+
+
+    ; Possible NANs contains always the 1st 2 bits of the 2nd word settled and the last 2 bit settled (pg 91/100 on Intel Manual)
+    ; The biased exponent is on this form for NAN 11..11
+
+     ; 2nd located all denormalized, but possible positive numbers.
+     ; Ex: D$ 0FFFFFFFF, 0, W$ 0         ; (1.56560127731845315e-4941)
+     ; Ex: D$ 0, 01, W$ 0                ; (1.56560127768297311e-4941)
+     ; Ex: D$ 0FFFFFFFF, 0FFFFFFFF, W$ 0 ; (6.72420628622418417e-4932)
+                                         ; (6.7242062862241870120e-4932) (Olly)
+
+    ...If_And W$ebx+8 = 0, D$ebx+4 >= 0 ; On denormal (Subnormal) values, the integer bit is not set
+
+        mov D@FPUErrorMode SpecialFPU_PosSubNormal
+
+    ...Else_If_And W$ebx+8 = 08000, D$ebx+4 >= 0 ; On denormal (Subnormal) values, the integer bit is not set
+
+    ; 3rd located all denormalized, but possible negative numbers. Bit 15th of the last word (Bit79 of the tenbyte) is settled
+    ; Ex: D$ 0FFFFFFFF, 0, W$ 08000 ; (-1.56560127731845315e-4941)
+    ; Ex: D$ 0, 01000000, W$ 08000  ; (-2.626643080565632194e-4934)  in olly dbg = (-0.2626643080556323050e-4933)
+    ; Ex: D$ 01, 0FFFFFFFF, W$ 08000 ; (-6.72420628465858289e-4932)  in olly dbg = (-6.7242062846585857350e-4932)
+
+        mov D@FPUErrorMode SpecialFPU_NegSubNormal
+
+    ...Else_If W$ebx+8 = 07FFF ; Locate all positive infinite, QNAN, Special indefinite 00__0111_1111__1111_1111
+    ; 00__0110_0000__0000_0011 06003 ; error happen here
+    ; 00__0111_1111__1111_1111 07FFF ; error happen here
+
+    ; 00__0111_1111__1111_1110 07FFE ; ok normal
+    ; 00__0110_0000__0000_0010 06002 ; ok normal
+    ; 00__0000_0000__0000_0001 01 ; ok normal
+
+        ; locate all: Positive Infinite (Bit 15 of the last word is not set), the second dword are zero and the 1st dword contains only the integer bit 00__1000_0000__0000_0000
+        ; Ex: D$ 0, 0, W$ 07FFF  ; 07FFF 00000000 00000000 when bit15 is not set it is positive 00__0111_1111__1111_1111
+        ;.If_And D$ebx+4 = 0, D$ebx = 0 ; Error when 31th bit is not set to 1 (compiler error ?), but still related to Positive infinite
+
+            ;mov D@FPUErrorMode SpecialFPU_PosInf
+
+        .If_And D$ebx+4 = 080000000, D$ebx = 0; 2nd dword = 00__1000_0000__0000_0000__0000_0000__0000_0000 1st dword = 0
+
+            mov D@FPUErrorMode SpecialFPU_PosInf
+
+        .Else_If_And D$ebx+4 >= 0C0000000, D$ebx >= 01
+
+            mov D@FPUErrorMode SpecialFPU_QNAN
+
+        .Else_If_And D$ebx+4 >= 080000000, D$ebx >= 01
+
+            mov D@FPUErrorMode SpecialFPU_SNAN
+
+        .Else_If_And D$ebx+4 >= 040000000, D$ebx >= 01
+            ; 00__0100_0000__0000_0000__0000_0000__0000_0000 If the compiler made an error and didn´t inserted the integer bit (bit 63 of the tenbyte or 31 of the 2nd dword)
+            mov D@FPUErrorMode SpecialFPU_SpecialIndefQNan
+
+        .Else_If D$ebx >= 01
+            ; 2nd Dword = 0, and at least 1 bit settled on the 1st dword. If the compiler made an error and didn´ inserted the integer bit (bit 63 of the tenbyte or 31 of the 2nd dword)
+
+            mov D@FPUErrorMode SpecialFPU_SpecialIndefSNan
+
+        .Else
+            ; all remaining cases, result only in D$ebx = 0. The lack of the 63th bit on this case could represente also a Indefinite Positive, but we are here labeling it as Indefinite infinite to be more
+            ; logical with the Indefinite category
+            mov D@FPUErrorMode SpecialFPU_SpecialIndefPosInfinite
+
+        .End_If
+
+    ...Else_If W$ebx+8 = 0FFFF ; Locate all negative infinite, QNAN, indefinite
+
+        .If_And D$ebx+4 = 080000000, D$ebx = 0; 2nd dword = 00__1000_0000__0000_0000__0000_0000__0000_0000 1st dword = 0
+
+            mov D@FPUErrorMode SpecialFPU_NegInf
+
+        .Else_If_And D$ebx+4 >= 0C0000000, D$ebx >= 01
+
+            mov D@FPUErrorMode SpecialFPU_QNAN
+
+        .Else_If_And D$ebx+4 >= 080000000, D$ebx >= 01
+
+            mov D@FPUErrorMode SpecialFPU_SNAN
+
+        .Else_If_And D$ebx+4 = 0C0000000, D$ebx = 0
+
+            mov D@FPUErrorMode SpecialFPU_Indefinite
+
+        .Else_If_And D$ebx+4 >= 040000000, D$ebx >= 01
+            ; 00__0100_0000__0000_0000__0000_0000__0000_0000 If the compiler made an error and didn´t inserted the integer bit (bit 63 of the tenbyte or 31 of the 2nd dword)
+            mov D@FPUErrorMode SpecialFPU_SpecialIndefQNan
+
+        .Else_If D$ebx >= 01
+            ; 2nd Dword = 0, and at least 1 bit settled on the 1st dword. If the compiler made an error and didn´ inserted the integer bit (bit 63 of the tenbyte or 31 of the 2nd dword)
+
+            mov D@FPUErrorMode SpecialFPU_SpecialIndefSNan
+
+        .Else
+            ; all remaining cases, result only in D$ebx = 0.
+
+            mov D@FPUErrorMode SpecialFPU_SpecialIndefNegInfinite
+
+        .End_If
+
+    ...Else
+
+        ; Now we must analyse the cases where the integer Bit (Bit 63 of tenbyte or 31th of the 2nd dword) is not settled by some error
+        ; and the FPU will simply refuse to process
+        ; Ex: [NumTest18: D$ 0, 013900F00, W$ 07ED]
+        ..If D$ebx+4 < 080000000 ; Integer bit is never settled
+
+            .If_And D$ebx+4 >= 040000000, D$ebx >= 01
+                ; 00__0100_0000__0000_0000__0000_0000__0000_0000 If the compiler made an error and didn´t inserted the integer bit (bit 63 of the tenbyte or 31 of the 2nd dword)
+                mov D@FPUErrorMode SpecialFPU_SpecialIndefQNan
+
+            .Else_If D$ebx >= 01
+                ; 2nd Dword = 0, and at least 1 bit settled on the 1st dword. If the compiler made an error and didn´ inserted the integer bit (bit 63 of the tenbyte or 31 of the 2nd dword)
+
+                mov D@FPUErrorMode SpecialFPU_SpecialIndefSNan
+
+            .Else
+                ; all remaining cases, result only in D$ebx = 0 and we must only check if it is positive or negative
+                ; Sign bit is settled
+                Test_If B$ebx+9 0_80
+                    mov D@FPUErrorMode SpecialFPU_SpecialIndefNegInfinite
+                Test_Else
+                    ; Sign bit is never settled
+                    mov D@FPUErrorMode SpecialFPU_SpecialIndefPosInfinite
+                Test_End
+            .End_If
+        ..End_If
+
+    ...End_If
+
+    .If D@FPUErrorMode = SpecialFPU_PosValid
+        Test_If B$ebx+9 0_80
+            mov D@FPUErrorMode SpecialFPU_NegValid
+        Test_End
+    .End_If
+
+    mov eax D@FPUErrorMode
+
+EndP
+
+;;
+
+Proc RealTenFPUNumberCategory_Old:
+    Arguments @Float80Pointer
+    Local @FPUErrorMode
+    Uses edi, ebx
+
+
+    mov ebx D@Float80Pointer
+    mov D@FPUErrorMode SpecialFPU_PosValid
+
+    ...If_And W$ebx+8 = 0, D$ebx+4 = 0 ; This is denormalized, but it is possible.
+        ; 0000 00000000 00000000
+        ; 0000 00000000 FFFFFFFF
+        ;mov eax eax
+        mov D@FPUErrorMode SpecialFPU_PosSubNormal
+    ...Else_If_And W$ebx+8 = 0, D$ebx+4 > 0 ; This is Ok.
+        ; 0000 00000001 00000000
+        ; 0000 FFFFFFFF FFFFFFFF
+        ;mov eax eax
+        mov D@FPUErrorMode SpecialFPU_PosSubNormal
+    ...Else_If_And W$ebx+8 > 0, W$ebx+8 < 07FFF; This is ok only if the fraction Dword is bigger or equal to 080000000
+        .If D$ebx+4 < 080000000
+            .Test_If D$ebx+4 040000000
+                ; QNAN 40000000
+                mov D@FPUErrorMode SpecialFPU_QNAN
+            .Test_Else
+                If_And D$ebx+4 > 0, D$ebx > 0
+                    ; SNAN only if at least 1 bit is set
+                    mov D@FPUErrorMode SpecialFPU_SNAN
+                Else ; All fraction Bits are 0
+                    ; Bit 15 is never reached. The bit is 0 from W$ebx+8
+                    ; -INFINITE ; Bit15 = 0
+                    mov D@FPUErrorMode SpecialFPU_NegInf
+                End_If
+            .Test_End
+        .End_If
+    ...Else_If W$ebx+8 = 07FFF; This is ok only if the fraction Dword is bigger or equal to 080000000
+        .Test_If D$ebx+4 040000000
+            ; QNAN 40000000
+            mov D@FPUErrorMode SpecialFPU_QNAN
+        .Test_Else
+            If_And D$ebx+4 > 0, D$ebx > 0
+                ; SNAN only if at least 1 bit is set
+                mov D@FPUErrorMode SpecialFPU_SNAN
+            Else ; All fraction Bits are 0
+                ; Bit 15 is never reached. The bit is 0 from W$ebx+8
+                ; -INFINITE ; Bit15 = 0
+;               Test_If W$ebx+8 = 0FFFF ; we need to see if Bit 15 is set
+ ;                  ; -INFINITE ; Bit15 = 0
+  ;             Test_Else
+   ;                ; +INFINITE ; Bit15 = 1
+    ;           Test_End
+                ;mov D$edi '-INF', B$edi+4 0
+                mov D@FPUErrorMode SpecialFPU_NegInf
+            End_If
+        .Test_End
+        ; Below is similar to W$ebx+8 = 0
+    ...Else_If_And W$ebx+8 = 08000, D$ebx+4 = 0 ; This is denormalized, but possible.
+        ; 8000 00000000 00000000 (0)
+        ; 8000 00000000 FFFFFFFF (-0.0000000156560127730E-4933)
+        mov D@FPUErrorMode SpecialFPU_NegSubNormal
+    ...Else_If_And W$ebx+8 = 08000, D$ebx+4 > 0 ; This is Ok.
+        ; 8000 01000000 00000000 (-0.2626643080556322880E-4933)
+        ; 8000 FFFFFFFF 00000001 (-6.7242062846585856000E-4932)
+        mov D@FPUErrorMode SpecialFPU_NegSubNormal
+    ...Else_If_And W$ebx+8 > 08000, W$ebx+8 < 0FFFF; This is ok only if the fraction Dword is bigger or equal to 080000000
+        .If D$ebx+4 < 080000000
+            .Test_If D$ebx+4 040000000
+                ; QNAN 40000000
+                mov D@FPUErrorMode SpecialFPU_QNAN
+            .Test_Else
+                If_And D$ebx+4 > 0, D$ebx > 0
+                    ; SNAN only if at least 1 bit is set
+                    ;mov D$edi 'SNaN', B$edi+4 0
+                    mov D@FPUErrorMode SpecialFPU_SNAN
+                Else ; All fraction Bits are 0
+                    ; Bit 15 is always reached. The bit is 1 from W$ebx+8
+                    ; +INFINITE ; Bit15 = 1
+                    ;mov D$edi '+INF', B$edi+4 0
+                    mov D@FPUErrorMode SpecialFPU_PosInf
+                End_If
+            .Test_End
+        .End_If
+
+    ...Else_If W$ebx+8 = 0FFFF; This is to we identify indefined or other NAN values
+
+        .If_And D$ebx+4 >= 040000000, D$ebx = 0
+            ; INDEFINITE
+            mov D@FPUErrorMode SpecialFPU_Indefinite
+        .Else
+            .Test_If D$ebx+4 040000000
+                ; Special INDEFINITE QNAN 40000000
+                mov D@FPUErrorMode SpecialFPU_SpecialIndefQNan
+            .Test_Else
+                If_And D$ebx+4 > 0, D$ebx > 0
+                    ; Special INDEFINITE SNAN only if at least 1 bit is set
+                    mov D@FPUErrorMode SpecialFPU_SpecialIndefSNan
+                Else ; All fraction Bits are 0
+                    ; Bit 15 is always reached. The bit is 1 from W$ebx+8
+                    ; Special INDEFINITE +INFINITE ; Bit15 = 1
+                    mov D@FPUErrorMode SpecialFPU_SpecialIndefInfinite
+                End_If
+            .Test_End
+        .End_If
+    ...End_If
+
+    .If D@FPUErrorMode = SpecialFPU_PosValid
+        Test_If B$ebx+9 0_80
+            mov D@FPUErrorMode SpecialFPU_NegValid
+        Test_End
+    .End_If
+
+    mov eax D@FPUErrorMode
+
+EndP
+;;
+
+Proc WriteFPUErrorMsg:
+    Arguments @FPUcategoryID, @pOutputBuff
+
+    .If D@FPUcategoryID = SpecialFPU_PosValid
+        call SimpleStringCopy {B$ "Valid Normal Positive", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_NegValid
+        call SimpleStringCopy {B$ "Valid Normal Negative", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_PosSubNormal
+        call SimpleStringCopy {B$ "Valid Subnormal Positive", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_NegSubNormal
+        call SimpleStringCopy {B$ "Valid Subnormal Negative", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_Zero
+        call SimpleStringCopy {B$ "Valid Zero Number", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_QNAN
+        call SimpleStringCopy {B$ "QNAN", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_SNAN
+        call SimpleStringCopy {B$ "SNAN", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_NegInf
+        call SimpleStringCopy {B$ "-INFINITE", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_PosInf
+        call SimpleStringCopy {B$ "+INFINITE", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_Indefinite
+        call SimpleStringCopy {B$ "INDEFINITE", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_SpecialIndefQNan
+        call SimpleStringCopy {B$ "Special INDEFINITE QNAN", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_SpecialIndefSNan
+        call SimpleStringCopy {B$ "Special INDEFINITE SNAN", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_SpecialIndefNegInfinite
+        call SimpleStringCopy {B$ "Special INDEFINITE -INFINITE", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_SpecialIndefPosInfinite
+        call SimpleStringCopy {B$ "Special INDEFINITE +INFINITE", 0}, D@pOutputBuff
+    .Else
+        call SimpleStringCopy {B$ "Unknown FPU error", 0}, D@pOutputBuff
+    .End_If
+
+EndP
+;;
+Proc WriteFPUErrorMsg_Old:
+    Arguments @FPUcategoryID, @pOutputBuff
+
+    .If D@FPUcategoryID = SpecialFPU_PosValid
+        call SimpleStringCopy {B$ "Valid Normal Positive", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_NegValid
+        call SimpleStringCopy {B$ "Valid Normal Negative", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_PosSubNormal
+        call SimpleStringCopy {B$ "Valid Subnormal Positive", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_NegSubNormal
+        call SimpleStringCopy {B$ "Valid Subnormal Negative", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_QNAN
+        call SimpleStringCopy {B$ "QNAN", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_SNAN
+        call SimpleStringCopy {B$ "SNAN", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_NegInf
+        call SimpleStringCopy {B$ "-INFINITE", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_PosInf
+        call SimpleStringCopy {B$ "+INFINITE", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_Indefinite
+        call SimpleStringCopy {B$ "INDEFINITE", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_SpecialIndefQNan
+        call SimpleStringCopy {B$ "Special INDEFINITE QNAN", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_SpecialIndefSNan
+        call SimpleStringCopy {B$ "Special INDEFINITE SNAN", 0}, D@pOutputBuff
+    .Else_If D@FPUcategoryID = SpecialFPU_SpecialIndefInfinite
+        call SimpleStringCopy {B$ "Special INDEFINITE +INFINITE", 0}, D@pOutputBuff
+    .Else
+        call SimpleStringCopy {B$ "Unknown FPU error", 0}, D@pOutputBuff
+    .End_If
+
+EndP
+;;
+
+; simple routine to copy a null termninated string to a buffer 12/02/2019
+; Return Values. Eax contains the total amount of bytes copied
+Proc SimpleStringCopy:
+    Arguments @Input, @Output
+    Uses edi, esi
+
+    mov esi D@Input
+    mov edi D@Output
+    xor eax eax
+    While B$esi <> 0
+        movsb
+        inc eax
+    End_While
+    mov B$edi 0
+
+EndP
+
+_________________________________________________________________
+
+;;
+
+When the equate is set to FPU_STATUSREG_C0 it means that we have an rounding error.
+The Value found in ST0 is smaller then the one in ST1 (in the functionality we are using)
+;;
+Proc TestingFPUStatusRegister:
+    Arguments @StatusReg
+    Uses esi, eax
+
+    mov eax D@StatusReg
+
+    Test_If eax &FPU_EXCEPTION_INVALIDOPERATION
+        ZCopy {" &FPU_EXCEPTION_INVALIDOPERATION ", 0}
+    Test_End
+
+    Test_If eax &FPU_EXCEPTION_DENORMALIZED
+        ZCopy {" &FPU_EXCEPTION_DENORMALIZED ", 0}
+    Test_End
+
+    Test_If eax &FPU_EXCEPTION_ZERODIV
+        ZCopy {" &FPU_EXCEPTION_ZERODIV ", 0}
+    Test_End
+
+    Test_If eax &FPU_EXCEPTION_OVERFLOW
+        ZCopy {" &FPU_EXCEPTION_OVERFLOW ", 0}
+    Test_End
+
+    Test_If eax &FPU_EXCEPTION_UNDERFLOW
+        ZCopy {" &FPU_EXCEPTION_UNDERFLOW ", 0}
+    Test_End
+
+    Test_If eax &FPU_EXCEPTION_PRECISION
+        ZCopy {" &FPU_EXCEPTION_PRECISION ", 0}
+    Test_End
+
+    Test_If eax &FPU_EXCEPTION_STACKFAULT
+        ZCopy {" &FPU_EXCEPTION_STACKFAULT ", 0}
+    Test_End
+
+    Test_If eax &FPU_EXCEPTION_XFLAG
+        ZCopy {" &FPU_EXCEPTION_XFLAG ", 0}
+    Test_End
+
+    Test_If eax &FPU_STATUSREG_C0
+        ZCopy {" &FPU_STATUSREG_C0 ", 0}
+    Test_End
+
+    Test_If eax &FPU_STATUSREG_C1
+        ZCopy {" &FPU_STATUSREG_C1 ", 0}
+    Test_End
+
+    Test_If eax &FPU_STATUSREG_C2
+        ZCopy {" &FPU_STATUSREG_C2 ", 0}
+    Test_End
+
+    ; Are the ST(x) registers not empty ? We will show only the used Stack registers, ST0, ST1, ST2...ST7
+    Test_If_Not eax &FPU_STATUSREG_ST0
+        ZCopy {" &FPU_STATUSREG_ST0 ", 0}
+    Test_End
+
+    Test_If_Not eax &FPU_STATUSREG_ST1
+        ZCopy {" &FPU_STATUSREG_ST1 ", 0}
+    Test_End
+
+    Test_If_Not eax &FPU_STATUSREG_ST2
+        ZCopy {" &FPU_STATUSREG_ST2 ", 0}
+    Test_End
+
+    Test_If_Not eax &FPU_STATUSREG_ST3
+        ZCopy {" &FPU_STATUSREG_ST3 ", 0}
+    Test_End
+
+    Test_If_Not eax &FPU_STATUSREG_ST4
+        ZCopy {" &FPU_STATUSREG_ST4 ", 0}
+    Test_End
+
+    Test_If_Not eax &FPU_STATUSREG_ST5
+        ZCopy {" &FPU_STATUSREG_ST5 ", 0}
+    Test_End
+
+    Test_If_Not eax &FPU_STATUSREG_ST6
+        ZCopy {" &FPU_STATUSREG_ST6 ", 0}
+    Test_End
+
+    Test_If_Not eax &FPU_STATUSREG_ST7
+        ZCopy {" &FPU_STATUSREG_ST7 ", 0}
+    Test_End
+
+    Test_If eax &FPU_STATUSREG_C3
+        ZCopy {" &FPU_STATUSREG_C3 ", 0}
+    Test_End
+
+    Test_If eax &FPU_STATUSREG_RESERVED
+        ZCopy {" &FPU_STATUSREG_RESERVED ", 0}
+    Test_End
+
+EndP
+
+_________________________________________________________________
+
+;;
+    This Function displays the FPU control registers used on the arithmetic operation used to store the
+    value of the Control Word. It will output at edi the String related to the equate used on the operation.
+    So, at edi you must have enough Buffer Size to the String be stored.
+    
+    Parameter:
+    
+    ControlWord - The inputed Control Word Value to be analysed.
+    
+    Note: This function is to be used to analyse if a given FPU value stored in eax have some relationship
+    with the rounding mode, or eventual errors in the result of a certain value.
+    Although the proper function to be used for such analysis is TestingFPUStatusRegister , we can use this function
+    to display if we have variances on the precision or in the rounding mode, and compare the results with
+    the ones provided in the TestingFPUStatusRegister function.
+    
+    Check in B_U_Asm at "The FPU Control Register" for further usage of the envolved equates.
+    
+    Usage example:
+        
+        xor eax eax
+        fld R$SomeValue    
+        FSTSW AX
+        call TestingFPUExceptions eax
+;;
+
+Proc TestingFPUExceptions:
+    Arguments @ControlWord
+    Uses esi, eax
+
+    mov eax D@ControlWord
+
+    Test_If eax &FPU_EXCEPTION_INVALIDOPERATION
+        ZCopy {" FPU_EXCEPTION_INVALIDOPERATION ", 0}
+    Test_End
+
+    Test_If eax &FPU_EXCEPTION_DENORMALIZED
+        ZCopy {" &FPU_EXCEPTION_DENORMALIZED ", 0}
+    Test_End
+
+    Test_If eax &FPU_EXCEPTION_ZERODIV
+        ZCopy {" &FPU_EXCEPTION_ZERODIV ", 0}
+    Test_End
+
+    Test_If eax &FPU_EXCEPTION_OVERFLOW
+        ZCopy {" &FPU_EXCEPTION_OVERFLOW ", 0}
+    Test_End
+
+    Test_If eax &FPU_EXCEPTION_UNDERFLOW
+        ZCopy {" &FPU_EXCEPTION_UNDERFLOW ", 0}
+    Test_End
+
+    Test_If eax &FPU_EXCEPTION_PRECISION
+        ZCopy {" &FPU_EXCEPTION_PRECISION ", 0}
+    Test_End
+
+;;
+    Test_If eax &FPU_RESERVEDBIT6
+        ZCopy {" &FPU_RESERVEDBIT6 ", 0}
+    Test_End
+    
+    Test_If eax &FPU_RESERVEDBIT7
+        ZCopy {" &FPU_RESERVEDBIT7 ", 0}
+    Test_End
+;;
+
+    Test_If eax &FPU_PRECISION_24BITS
+        ZCopy {" &FPU_PRECISION_24BITS ", 0}
+    Test_End
+
+;;
+    Test_If eax &FPU_PRECISION_RESERVED
+        ZCopy {" &FPU_PRECISION_RESERVED ", 0}
+    Test_End
+;;
+
+    Test_If eax &FPU_PRECISION_53BITS
+        ZCopy {" &FPU_PRECISION_53BITS ", 0}
+    Test_End
+
+    Test_If eax &FPU_PRECISION_64BITS
+        ZCopy {" &FPU_PRECISION_64BITS ", 0}
+    Test_End
+
+    Test_If eax &FPU_ROUNDINGMODE_NEAREST_EVEN
+        ZCopy {" &FPU_ROUNDINGMODE_NEAREST_EVEN ", 0}
+    Test_End
+
+    Test_If eax &FPU_ROUNDINGMODE_DOWN
+        ZCopy {" &FPU_ROUNDINGMODE_DOWN ", 0}
+    Test_End
+
+    Test_If eax &FPU_ROUNDINGMODE_UP
+        ZCopy {" &FPU_ROUNDINGMODE_UP ", 0}
+    Test_End
+
+    Test_If eax &FPU_ROUNDINGMODE_TRUNCATE
+        ZCopy {" &FPU_ROUNDINGMODE_TRUNCATE ", 0}
+    Test_End
+
+;;
+    Test_If eax &FPU_RESERVEDBIT12
+        ZCopy {" &FPU_RESERVEDBIT12 ", 0}
+    Test_End
+    
+    Test_If eax &FPU_RESERVEDBIT13
+        ZCopy {" &FPU_RESERVEDBIT13 ", 0}
+    Test_End
+
+    Test_If eax &FPU_RESERVEDBIT14
+        ZCopy {" &FPU_RESERVEDBIT14 ", 0}
+    Test_End
+
+    Test_If eax &FPU_RESERVEDBIT15
+        ZCopy {" &FPU_RESERVEDBIT15 ", 0}
+    Test_End
+;;
+
+EndP
+
+
+
+; Guga FPUIF macros
+
+
+[Fpu_If | fld #1 | fld #3 | fcompp | fstsw ax | fwait | sahf | jn#2 R0>>]
+[Fpu_Else_If | jmp R5>> | R0: | fld #1 | fld #3 | fcompp | fstsw ax | fwait | sahf | jn#2 R0>>]
+[Fpu_Else | jmp R5>> | R0:]
+[Fpu_End_If | R0: | R5:]
+
+[.Fpu_If | fld #1 | fld #3 | fcompp | fstsw ax | fwait | sahf | jn#2 R1>>]
+[.Fpu_Else_If | jmp R6>> | R1: | fld #1 | fld #3 | fcompp | fstsw ax | fwait | sahf | jn#2 R1>>]
+[.Fpu_Else | jmp R6>> | R1:]
+[.Fpu_End_If | R1: | R6:]
+
+[..Fpu_If | fld #1 | fld #3 | fcompp | fstsw ax | fwait | sahf | jn#2 R2>>]
+[..Fpu_Else_If | jmp R7>> | R2: | fld #1 | fld #3 | fcompp | fstsw ax | fwait | sahf | jn#2 R2>>]
+[..Fpu_Else | jmp R7>> | R2:]
+[..Fpu_End_If | R2: | R7:]
+
+[...Fpu_If | fld #1 | fld #3 | fcompp | fstsw ax | fwait | sahf | jn#2 R3>>]
+[...Fpu_Else_If | jmp R8>> | R3: | fld #1 | fld #3 | fcompp | fstsw ax | fwait | sahf | jn#2 R3>>]
+[...Fpu_Else | jmp R8>> | R3:]
+[...Fpu_End_If | R3: | R8:]
+
+[Fpu_If_And    | Fpu_If #1 #2 #3    | #+3]
+[.Fpu_If_And   | .Fpu_If #1 #2 #3   | #+3]
+[..Fpu_If_And  | ..Fpu_If #1 #2 #3  | #+3]
+[...Fpu_If_And | ...Fpu_If #1 #2 #3 | #+3]
+
+[Fpu_Else_If_And    | Fpu_Else    | Fpu_If_And    #F>L]
+[.Fpu_Else_If_And   | .Fpu_Else   | .Fpu_If_And   #F>L]
+[..Fpu_Else_If_And  | ..Fpu_Else  | ..Fpu_If_And  #F>L]
+[...Fpu_Else_If_And | ...Fpu_Else | ...Fpu_If_And #F>L]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

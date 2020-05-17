@@ -7644,7 +7644,7 @@ Proc ShowYou:
     Arguments @Pointer
 
     pushad
-        call 'MessageBoxA'  &NULL  D@Pointer  MessageTitle  &MB_SYSTEMMODAL__&MB_OK
+        call 'User32.MessageBoxA'  &NULL  D@Pointer  MessageTitle  &MB_SYSTEMMODAL__&MB_OK
     popad
 EndP
 
@@ -8045,6 +8045,9 @@ ret
 ; ecx = how many Bytes
 [ST0trash: T$ ?]
 [SourceOfSpecialFPU: ?  SourceOfSpecialFPUSize: ?]
+[DISASM_ROUND_MODE 3]
+
+[SpecialFPU: D$ ?]
 
 WriteFP4:
     mov D$SourceOfSpecialFPU ebx, D$SourceOfSpecialFPUSize 4
@@ -8064,35 +8067,44 @@ L0: add edi 3
         push edi
             mov eax 0, ecx 10 | rep stosd
         pop edi
-
-        fstp T$ST0trash | call DisassemblerFloatToUString ST0trash edi
+        and D$SpecialFPU 0
+        fstp T$ST0trash | call DisassemblerFloatToUString ST0trash edi, DISASM_ROUND_MODE
+        mov D$SpecialFPU eax
     popad
 
     While B$edi > 0 | inc edi | End_While
 
-    .If B$SpecialFPU = &TRUE
+    ; Are we sure we wants this ? Seems unecessary
+    ; Whenever a subnormal number is found, it looses precision but is still valid. To prevent errors, we will display the correspondent bytes (commented)
+    .If D$SpecialFPU = DisSpecialFPU_ValidSubNormal ; changed in 09/02/2019 DisassemblerFloatToUString must return this flag. See also FloatToUString RealTenFPUNumberCategory
         push ecx
-            While B$edi <> '$' | dec edi | End_While | dec edi
-            mov D$edi 'B$  ' | add edi 3
+            call SimpleStringCopy {B$ "; Found Bad number (subnormal/imprecise number). Bytes correspondent are: B$ ", 0}, edi
+            add edi eax
+            ;While B$edi <> '$' | dec edi | End_While | dec edi
+            ;mov D$edi '; B$' | add edi 4 | mov B$edi ' ' | inc edi
             mov ecx D$SourceOfSpecialFPUSize, ebx D$SourceOfSpecialFPU
 
-L0:         mov al B$ebx
-            mov B$edi '0' | inc edi
-            If al = 0
-              ; Done above
-            Else_If al > 0F
-                shr al 4 | and eax 0F | mov al B$HexaTable+eax | stosb
+;L0:
+            .Do
                 mov al B$ebx
-                and eax 0F | mov al B$HexaTable+eax | stosb
-            Else
-                and eax 0F | mov al B$HexaTable+eax | stosb
-            End_If
+                mov B$edi '0' | inc edi
+                If al = 0
+                    ; Done above
+                Else_If al > 0F
+                    shr al 4 | and eax 0F | mov al B$HexaTable+eax | stosb
+                    mov al B$ebx
+                    and eax 0F | mov al B$HexaTable+eax | stosb
+                Else
+                    and eax 0F | mov al B$HexaTable+eax | stosb
+                End_If
 
-            mov W$edi ', ' | add edi 2
+                mov W$edi ', ' | add edi 2
 
-            inc ebx | loop L0<
+                inc ebx; | loop L0<
+                dec ecx
+            .Loop_Until ecx <= 0
 
-            sub edi 2
+            mov W$edi-2 CRLF | mov B$edi 0
         pop ecx
 
     .End_If

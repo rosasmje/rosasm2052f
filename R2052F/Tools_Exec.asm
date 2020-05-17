@@ -798,6 +798,7 @@ ShowSourceImports:
     If D$ImportDialogHandle = 0
         call 'USER32.DialogBoxParamA' D$hinstance, 1100, &NULL,
                                       ViewSourceImportsProc, &NULL
+        and D$ImportDialogHandle 0
     End_If
 ret
 
@@ -806,6 +807,7 @@ ShowSourceExports:
     If D$ExportDialogHandle = 0
         call 'USER32.DialogBoxParamA' D$hinstance, 1101, &NULL,
                                       ViewSourceExportsProc, &NULL
+        and D$ExportDialogHandle 0
     End_If
 ret
 
@@ -839,7 +841,6 @@ Proc ViewSourceImportsProc:
     ...If D@Message = &WM_COMMAND
         mov eax D@wParam | and eax 0FFFF
         ..If eax = &IDCANCEL
-            mov D$ImportDialogHandle 0
             call 'User32.EndDialog' D@Adressee, 0
 
         ..Else
@@ -1256,7 +1257,6 @@ Proc ViewSourceExportsProc:
         mov eax D@wParam | and eax 0FFFF
 
         ..If eax = &IDCANCEL
-            mov D$ExportDialogHandle 0
             call 'User32.EndDialog' D@Adressee, 0
 
         ..Else

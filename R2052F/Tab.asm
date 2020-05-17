@@ -339,7 +339,7 @@ SetActualPartFromPos:
     If eax >= D$SourceEnd
 L1:     move D$CurrentWritingPos D$CodeSource
         move D$UpperLine D$CodeSource
-        mov B$BlockInside &FALSE | jmp L9>>
+        mov B$BlockInside &FALSE | ret ; jmp L9>> ?
     Else_If eax < D$CodeSource
         jmp L1<
     End_If
