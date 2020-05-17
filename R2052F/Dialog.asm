@@ -6430,10 +6430,10 @@ ret
 ReleaseResourceMemory:
   ; All Lists are: ID / Pointer to Mem / Size.
 
-    mov esi DialogList, D$DialogListPtr DialogList
+    mov esi CursorList, D$CursorListPtr CursorList
     call ReleaseOneResourceMemory
 
-    mov esi MenuList, D$MenuListPtr MenuList
+    mov esi GroupCursorList, D$GroupCursorListPtr GroupCursorList
     call ReleaseOneResourceMemory
 
     mov esi IconList, D$IconListPtr IconList
@@ -6442,13 +6442,13 @@ ReleaseResourceMemory:
     mov esi GroupIconList, D$GroupIconListPtr GroupIconList
     call ReleaseOneResourceMemory
 
-    mov esi CursorList, D$CursorListPtr CursorList
+    mov esi MenuList, D$MenuListPtr MenuList
     call ReleaseOneResourceMemory
 
-    mov esi GroupCursorList, D$GroupCursorListPtr GroupCursorList
+    mov esi DialogList, D$DialogListPtr DialogList
     call ReleaseOneResourceMemory
 
-    mov esi BitMapList, D$BitMapListPtr BitMapList
+    mov esi StringsList, D$StringsListPtr StringsList
     call ReleaseOneResourceMemory
 
     mov esi WaveList, D$WaveListPtr WaveList
@@ -6460,8 +6460,13 @@ ReleaseResourceMemory:
     mov esi RcDataList, D$RcDataListPtr RcDataList
     call ReleaseOneResourceMemory
 
+    mov esi BitMapList, D$BitMapListPtr BitMapList
+    call ReleaseOneResourceMemory
+
  ;   mov esi OtherList, D$OtherListPtr OtherList
  ;   call ReleaseOneResourceMemory
+
+    call InitCustomList
 
     VirtualFree D$uRsrcList
     VirtualAlloc uRsrcList (MAXRESOURCE * Size_Of_CustomList) | add D$uRsrcList Size_Of_CustomList ;DumRL

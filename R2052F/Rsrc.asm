@@ -28,9 +28,11 @@ ________________________________________________________________________________
 [AviTypeStrLen: 4     AviTypeStr: B$ 'AVI', 0]
 [WaveTypeStrLen: 5    WaveTypeStr: B$ 'WAVE', 0]
 
-ClearCustomList:
-    VirtualFree D$CustomList
-    VirtualAlloc CustomList (MAXRESOURCE * Size_Of_CustomList)
+InitCustomList:
+    mov ebx D$CustomList | test ebx ebx | je L1>
+L0: mov eax D$ebx+CustomList.PointerDis | test eax eax | je L0> | call VirtFree eax | add ebx Size_Of_CustomList | jmp L0<
+L0: VirtualFree D$CustomList
+L1: VirtualAlloc CustomList (MAXRESOURCE * Size_Of_CustomList)
 ret
 
 [CustomList.TypeDis 0
@@ -44,7 +46,7 @@ ret
 Proc ReadRosAsmResources:
 
     pushad
-        call ClearCustomList
+        call InitCustomList
         call FillCustomListFromResourceTree D$UserPEStartOfResources, D$CustomList
         call CopyStandarTypeResources
     popad

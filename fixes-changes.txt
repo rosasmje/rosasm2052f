@@ -513,6 +513,8 @@ however, in DisEngine>WriteFP4,WriteFP8,WriteFP10 Guga attemps also to FPU_Disas
 what if those incorrections are on purpose? will normal assembler produce invalid FPU data?
 will be wiser, to mark incorrect FPU-nums as normal data;
 
+_30
+not all old resources was released and it was fun, when they appeared in new ones.
 
 
 

@@ -1038,9 +1038,6 @@ StartNewFile:
 
     mov D$TitleTable 0, D$PreviousPartialSourceLen 0
 
-  ; Clear possible previous resources:
-    call ClearCustomList
-
     call AskForRedraw
 ret
 
