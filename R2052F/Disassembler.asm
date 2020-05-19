@@ -1310,16 +1310,15 @@ MarkProcedures:
         ...If B$esi = 055               ; OpCode for "push ebp"  Op55
             ..If B$esi-1 <> 0F          ; No Escape Prefix wanted.
                 .If W$esi+1 = 0EC8B      ; 08B 0EC >  "mov ebp esp"
-L1:                 sub eax D$SectionsMap | add eax D$SectionsMap
-                    If B$eax = 0
+L1:                 If B$eax = 0
                         mov B$eax CODEFLAG
                         sub eax D$SectionsMap | add eax D$RoutingMap
                         or B$eax PUSH_EBP+NODE+INSTRUCTION+ACCESSED+EVOCATED+LABEL
                     Else
-L2:                     sub eax D$SectionsMap | add eax D$RoutingMap
+                        sub eax D$SectionsMap | add eax D$RoutingMap
                         or B$eax EVOCATED+LABEL
                     End_If
-
+                    add esi 2
                 .Else_If W$esi+1 = 0E589 ; Alternate for "mov ebp esp" op89 / op8B
                     jmp L1<
                 .End_If
@@ -1354,23 +1353,46 @@ L2:                     sub eax D$SectionsMap | add eax D$RoutingMap
                         sub eax D$SectionsMap | add eax D$RoutingMap
                         or B$eax PUSH_EBP+NODE+INSTRUCTION+ACCESSED+EVOCATED+LABEL
                     Else
-L2:                     sub eax D$SectionsMap | add eax D$RoutingMap
+                        sub eax D$SectionsMap | add eax D$RoutingMap
                         or B$eax EVOCATED+LABEL
                     End_If
 
              .Else_If B$esi-1 = 081    ; 081 EC: OPcode for sub esp imm32
                 sub eax D$SectionsMap | add eax D$RoutingMap
-                lea ebx D$eax+5 | call IsItPushRegister ebx | cmp eax &FALSE | je L5>
+                lea ebx D$eax+5 | call IsItPushRegister ebx | cmp eax &FALSE | je L5>>
                     mov eax esi | sub eax D$UserPeStart | add eax D$SectionsMap
                     If B$eax = 0
                         mov B$eax CODEFLAG
                         sub eax D$SectionsMap | add eax D$RoutingMap
                         or B$eax PUSH_EBP+NODE+INSTRUCTION+ACCESSED+EVOCATED+LABEL
                     Else
-L2:                     sub eax D$SectionsMap | add eax D$RoutingMap
+                        sub eax D$SectionsMap | add eax D$RoutingMap
                         or B$eax EVOCATED+LABEL
                     End_If
              .End_If
+      ; MOV EDI EDI = 08B 0FF
+        ...Else_If W$esi = 0FF8B
+            ..If B$esi+2 = 055
+                .If W$esi+3 = 0EC8B
+L1:                 If B$eax = 0
+                        mov B$eax CODEFLAG
+                        sub eax D$SectionsMap | add eax D$RoutingMap
+                        or B$eax PUSH_EBP+NODE+INSTRUCTION+ACCESSED+EVOCATED+LABEL
+                    Else
+                        sub eax D$SectionsMap | add eax D$RoutingMap
+                        or B$eax EVOCATED+LABEL
+                    End_If
+                    add esi 4
+                .Else_If W$esi+3 = 0E589
+                    jmp L1<
+                .End_If
+            ..Else
+                sub eax D$SectionsMap | add eax D$RoutingMap
+                test B$eax LABEL+EVOCATED | je L0>
+                or B$eax NODE+INSTRUCTION+ACCESSED+EVOCATED+LABEL
+                sub eax D$RoutingMap | add eax D$SectionsMap | mov B$eax CODEFLAG
+L0:
+            ..End_If
 
         ...End_If
 
@@ -1401,7 +1423,11 @@ UnEvocatedProcedures:
         ...If B$esi = 055               ; OpCode for "push ebp"  Op55
             ..If B$esi-1 <> 0F          ; No Escape Prefix wanted.
                 .If W$esi+1 = 0EC8B      ; 08B 0EC >  "mov ebp esp"
-L1:                 push esi
+L1:                 cmp W$esi-2 0FF8B | jne L0>
+                    sub eax D$SectionsMap | add eax D$RoutingMap
+                    cmp B$eax-2 PUSH_EBP+NODE+INSTRUCTION+ACCESSED+EVOCATED+LABEL | jne L0> ; MOV EDI EDI already marked
+                    add esi 2 | jmp L5>>
+L0:                 push esi
                         mov eax esi | add eax 50
                         call IsItCode esi, eax, 8 ;20
                     pop esi
@@ -1421,9 +1447,9 @@ L1:                 push esi
                         sub eax D$SectionsMap | add eax D$RoutingMap
                         mov B$eax EVOCATED+LABEL
                     End_If
-
+                    add esi 2
                 .Else_If W$esi+1 = 0E589 ; Alternate for "mov ebp esp" op89 / op8B
-                    jmp L1<
+                    jmp L1<<
 
                 .End_If
             ..End_If
@@ -1443,8 +1469,7 @@ ________________________________________________________________________________
 
 MarkJumpsTables:
     mov esi D$UserPeStart | add esi D$FirstSection
-    mov edx D$UserPeEnd | sub edx 4
-    mov ecx 0
+    mov edx D$UserPeEnd | sub edx 6
 
     .While esi < edx
        ; OpFF, 'Dis_rm32_rm16', 'WriteEffectiveAddressFromModRm'
@@ -1462,7 +1487,7 @@ L1:             ModMask bl To al
                     RmMask bl To al
                     If al = 4 ; 1 on 4
                         call CheckPointersTable
-                        On eax = &TRUE, add esi 7
+                        On eax = &TRUE, add esi 6
                     End_If
                 .End_If
             ..End_If
@@ -1482,26 +1507,58 @@ ret
 CheckPointersTable:
     push esi, edx
 
-    sub D$UserPeEnd 4 | mov eax D$esi+3
+    sub D$UserPeEnd 8 | mov eax D$esi+3
     sub eax D$DisImageBase | add eax D$UserPeStart
 
-    ..If eax > D$UserPeStart
-        .If eax < D$UserPeEnd
+    .If eax > D$UserPeStart
+        CMP eax D$UserPeEnd | ja L5>>
             mov ebx eax
             sub eax D$UserPeStart | add eax D$SectionsMap
             test B$eax IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jnz L5>>
           ; OK: 'Label' is a valid Pointer to a supposed Jumps Table.
           ; Now, are the two first dWords valid Pointers ?
             mov eax ebx, ebx D$eax | sub ebx D$DisImageBase | add ebx D$UserPeStart
-            cmp ebx D$UserPeStart | jb L5>>
-            cmp ebx D$UserPeEnd | ja L5>>
+            cmp ebx D$UserPeStart | jb L1>>
+            cmp ebx D$UserPeEnd | ja L1>>
+            sub ebx D$UserPeStart | add ebx D$SectionsMap
+            test B$ebx IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jnz L5>>
 
             mov ebx D$eax+4 | sub ebx D$DisImageBase | add ebx D$UserPeStart
             cmp ebx D$UserPeStart | jb L5>>
             cmp ebx D$UserPeEnd | ja L5>>
+            sub ebx D$UserPeStart | add ebx D$SectionsMap
+            test B$ebx IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jnz L5>>
 
               ; OK, this is a Table of Code Pointers. Flag everything:
-L0:             mov ebx D$eax | call CheckInForcedMap ebx | je L2> ;ops, can be DATA
+L0:             mov ebx D$eax | call CheckInForcedMap ebx | je L2>> ;ops, can be DATA
+                sub ebx D$DisImageBase | add ebx D$UserPeStart
+                cmp ebx D$UserPeStart | jb L2>>
+                cmp ebx D$UserPeEnd | ja L2>>
+                    mov edx eax | sub edx D$UserPeStart | add edx D$SizesMap
+                    or B$edx POINTER
+                    sub edx D$SizesMap | add edx D$SectionsMap
+                    mov D$edx FOURDATAFLAGS
+
+                    sub ebx D$UserPeStart | add ebx D$SectionsMap
+                    mov B$ebx CODEFLAG
+                    sub ebx D$SectionsMap | add ebx D$RoutingMap
+                    mov B$ebx PUSH_EBP+NODE+INSTRUCTION+ACCESSED+EVOCATED+LABEL
+                add eax 4 | jmp L0<
+L1:   ; try Negative index!
+            mov ebx D$eax-4 | sub ebx D$DisImageBase | add ebx D$UserPeStart
+            cmp ebx D$UserPeStart | jb L5>>
+            cmp ebx D$UserPeEnd | ja L5>>
+            sub ebx D$UserPeStart | add ebx D$SectionsMap
+            test B$ebx IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jnz L5>>
+
+            mov ebx D$eax-8 | sub ebx D$DisImageBase | add ebx D$UserPeStart
+            cmp ebx D$UserPeStart | jb L5>>
+            cmp ebx D$UserPeEnd | ja L5>>
+            sub ebx D$UserPeStart | add ebx D$SectionsMap
+            test B$ebx IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jnz L5>>
+
+L0:             sub eax 4
+                mov ebx D$eax | call CheckInForcedMap ebx | je L2> ;ops, can be DATA
                 sub ebx D$DisImageBase | add ebx D$UserPeStart
                 cmp ebx D$UserPeStart | jb L2>
                 cmp ebx D$UserPeEnd | ja L2>
@@ -1514,14 +1571,14 @@ L0:             mov ebx D$eax | call CheckInForcedMap ebx | je L2> ;ops, can be 
                     mov B$ebx CODEFLAG
                     sub ebx D$SectionsMap | add ebx D$RoutingMap
                     mov B$ebx PUSH_EBP+NODE+INSTRUCTION+ACCESSED+EVOCATED+LABEL
+               jmp L0<
+    .Else
+        jmp L5>
+    .End_If
 
-                add eax 4 | jmp L0<
-        .End_If
-    ..End_If
+L2: pop edx, esi | add D$UserPeEnd 8 | mov eax &TRUE | ret
 
-L2: pop edx, esi | add D$UserPeEnd 4 | mov eax &TRUE | ret
-
-L5: pop edx, esi | add D$UserPeEnd 4 | mov eax &FALSE | ret
+L5: pop edx, esi | add D$UserPeEnd 8 | mov eax &FALSE | ret
 
 ____________________________________________________________________________________________
 ____________________________________________________________________________________________

@@ -516,7 +516,21 @@ will be wiser, to mark incorrect FPU-nums as normal data;
 _30
 not all old resources was released and it was fun, when they appeared in new ones.
 
+_31
+!REP_W prefix disasm fix: case with first 66 then F3 was missed.
+fix WriteDisUnicode: it was eating other cases bytes.
+CheckPointersTable: Negative index JUMP tables discovery added. target 'aescrypt'
+MOV EDI EDI as procedure start case support in MarkProcedures UnEvocatedProcedures.
+WriteDisFP(xx): return from next case, if not flagged as same.
 
+
+
+; WriteDisRelative rejecting REL to Imm32 if no Code bit set in sections.
+; (subnormal/imprecise number) closing ]in comment
+; let's TruthUnicodeTable!?
+; where should stop unaligned Unicode?
+
+;? should be added REPNE OUTS/INS, like (undoc) F2 A4 REPNE MOVSB
 
 ; BuildTitleTable on Title Number change kills undo, fact we should know, before doing add/remove TITLE.
 ; so if we cut title, then you can't undo; (but can paste it back)

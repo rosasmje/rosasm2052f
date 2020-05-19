@@ -4900,31 +4900,31 @@ OpF2:
     ..Else_If W$esi = 0A566 ; F2 66 A5 REPNE MOVSW (undoc)
         add esi 2 | mov D$edi 'repn', D$edi+4 'e mo', D$edi+8 'vsw ' | add edi 11
     ..Else_If B$esi = 0A5   ; F2 A5 REPNE MOVSD (undoc)
-        inc esi | mov D$edi 'repn', D$edi+4 'e mo', D$edi+8 'vsd ' | add edi 11
+        inc esi | mov D$edi 'repn', D$edi+4 'e mo', D$edi+8 'vsd ' | add edi 11 | On B$OperandSizeOverride = &TRUE, mov B$edi-1 'w'
     ..Else_If B$esi = 0A6   ; F2 A6 REPNE CMPS m8, m8
         inc esi | mov D$edi 'repn', D$edi+4 'e cm', D$edi+8 'psb ' | add edi 11
     ..Else_If W$esi = 0A766   ; F2 A7 REPNE CMPS m16, m16 ; F2 A7 REPNE CMPS m32, m32
         add esi 2 | mov D$edi 'repn', D$edi+4 'e cm', D$edi+8 'psw ' | add edi 11
     ..Else_If B$esi = 0A7   ; F2 A7 REPNE CMPS m16, m16 ; F2 A7 REPNE CMPS m32, m32
-        inc esi | mov D$edi 'repn', D$edi+4 'e cm', D$edi+8 'psd ' | add edi 11
+        inc esi | mov D$edi 'repn', D$edi+4 'e cm', D$edi+8 'psd ' | add edi 11 | On B$OperandSizeOverride = &TRUE, mov B$edi-1 'w'
     ..Else_If B$esi = 0AA       ; F2 AA REPNE STOSB (undoc)
         inc esi | mov D$edi 'repn', D$edi+4 'e st', D$edi+8 'osb ' | add edi 11
     ..Else_If W$esi = 0AB66       ; F2 AB REPNE STOSW (undoc)
         add esi 2 | mov D$edi 'repn', D$edi+4 'e st', D$edi+8 'osw ' | add edi 11
     ..Else_If B$esi = 0AB       ; F2 AB REPNE STOSD (undoc)
-        inc esi | mov D$edi 'repn', D$edi+4 'e st', D$edi+8 'osd ' | add edi 11
+        inc esi | mov D$edi 'repn', D$edi+4 'e st', D$edi+8 'osd ' | add edi 11 | On B$OperandSizeOverride = &TRUE, mov B$edi-1 'w'
     ..Else_If B$esi = 0AC       ; F2 AC REPNE LODSB (undoc)
         inc esi | mov D$edi 'repn', D$edi+4 'e lo', D$edi+8 'dsb ' | add edi 11
     ..Else_If W$esi = 0AD66       ; F2 AD REPNE LODSW (undoc)
         add esi 2 | mov D$edi 'repn', D$edi+4 'e lo', D$edi+8 'dsw ' | add edi 11
     ..Else_If B$esi = 0AD       ; F2 AD REPNE LODSD (undoc)
-        inc esi | mov D$edi 'repn', D$edi+4 'e lo', D$edi+8 'dsd ' | add edi 11
+        inc esi | mov D$edi 'repn', D$edi+4 'e lo', D$edi+8 'dsd ' | add edi 11 | On B$OperandSizeOverride = &TRUE, mov B$edi-1 'w'
     ..Else_If B$esi = 0AE   ; F2 AE REPNE SCAS m8
         inc esi | mov D$edi 'repn', D$edi+4 'e sc', D$edi+8 'asb ' | add edi 11
     ..Else_If W$esi = 0AF66   ; F2 AF REPNE SCAS m16 ; F2 AF REPNE SCAS m32
         add esi 2 | mov D$edi 'repn', D$edi+4 'e sc', D$edi+8 'asw ' | add edi 11
     ..Else_If B$esi = 0AF   ; F2 AF REPNE SCAS m16 ; F2 AF REPNE SCAS m32
-        inc esi | mov D$edi 'repn', D$edi+4 'e sc', D$edi+8 'asd ' | add edi 11
+        inc esi | mov D$edi 'repn', D$edi+4 'e sc', D$edi+8 'asd ' | add edi 11 | On B$OperandSizeOverride = &TRUE, mov B$edi-1 'w'
     ..Else
         .If B$EscapePrefix = &TRUE
           ; 0F F2 /r PSLLD mm, mm/m64   ;  66 0F F2 /r PSLLD xmm1, xmm2/m128
@@ -5039,52 +5039,52 @@ OpF3:
         inc esi | mov D$edi 'paus', B$edi+4 'e' | add edi 5
     ..Else_If B$esi = 06C       ; F3 6C REP INS r/m8, DX
         inc D$UnLikelyCode
-        inc esi | mov D$edi 'rep ', D$edi+4 'insb' | add edi 8 ; | jmp Dis_rm8_dx
-    ..Else_If B$esi = 06D       ; F3 6D REP INS r/m16, DX ; F3 6D REP INS r/m32, DX
-        inc D$UnLikelyCode
-        inc esi | mov D$edi 'rep ', D$edi+4 'insd' | add edi 8 ; | jmp Dis_rm32_rm16__dx
+        inc esi | mov D$edi 'rep ', D$edi+4 'insb' | add edi 8
     ..Else_If W$esi = 06D66       ; F3 6D REP INS r/m16, DX ; F3 6D REP INS r/m32, DX
         inc D$UnLikelyCode
-        add esi 2 | mov D$edi 'rep ', D$edi+4 'insw' | add edi 8 ; | jmp Dis_rm32_rm16__dx
+        add esi 2 | mov D$edi 'rep ', D$edi+4 'insw' | add edi 8
+    ..Else_If B$esi = 06D       ; F3 6D REP INS r/m16, DX ; F3 6D REP INS r/m32, DX
+        inc D$UnLikelyCode
+        inc esi | mov D$edi 'rep ', D$edi+4 'insd' | add edi 8 | On B$OperandSizeOverride = &TRUE, mov B$edi-1 'w'
     ..Else_If B$esi = 06E       ; F3 6E REP OUTS DX, r/m8
         inc D$UnLikelyCode
-        inc esi | mov D$edi 'rep ', D$edi+4 'outs', B$edi+8 'b' | add edi 9 ;| jmp Dis_dx_rm8
+        inc esi | mov D$edi 'rep ', D$edi+4 'outs', B$edi+8 'b' | add edi 9
     ..Else_If W$esi = 06F66       ; F3 6F REP OUTS DX, r/m16 ; F3 6F REP OUTS DX, r/m32
         inc D$UnLikelyCode
         add esi 2 | mov D$edi 'rep ', D$edi+4 'outs', B$edi+8 'w' | add edi 9
     ..Else_If B$esi = 06F       ; F3 6F REP OUTS DX, r/m16 ; F3 6F REP OUTS DX, r/m32
         inc D$UnLikelyCode
-        inc esi | mov D$edi 'rep ', D$edi+4 'outs', B$edi+8 'd' | add edi 9 ;| jmp Dis_dx__rm32_rm16
+        inc esi | mov D$edi 'rep ', D$edi+4 'outs', B$edi+8 'd' | add edi 9 | On B$OperandSizeOverride = &TRUE, mov B$edi-1 'w'
     ..Else_If B$esi = 0A4       ; F3 A4 REP MOVS m8, m8
         inc esi | mov D$edi 'rep ', D$edi+4 'movs', B$edi+8 'b' | add edi 9
     ..Else_If W$esi = 0A566       ; F3 66 A5 REP MOVS m16, m16 ; F3 66 A5 REP MOVS m32, m32
         add esi 2 | mov D$edi 'rep ', D$edi+4 'movs', B$edi+8 'w' | add edi 9
     ..Else_If B$esi = 0A5       ; F3 A5 REP MOVS m16, m16 ; F3 A5 REP MOVS m32, m32
-        inc esi | mov D$edi 'rep ', D$edi+4 'movs', B$edi+8 'd' | add edi 9
+        inc esi | mov D$edi 'rep ', D$edi+4 'movs', B$edi+8 'd' | add edi 9 | On B$OperandSizeOverride = &TRUE, mov B$edi-1 'w'
     ..Else_If B$esi = 0A6       ; F3 A6 REPE CMPS m8, m8
         inc esi | mov D$edi 'rep ', D$edi+4 'cmps', B$edi+8 'b' | add edi 9
     ..Else_If W$esi = 0A766       ; F3 66 A7 REPE CMPS m16, m16 ; F3 A7 REPE CMPS m32, m32
         add esi 2 | mov D$edi 'rep ', D$edi+4 'cmps', B$edi+8 'w' | add edi 9
     ..Else_If B$esi = 0A7       ; F3 A7 REPE CMPS m16, m16 ; F3 A7 REPE CMPS m32, m32
-        inc esi | mov D$edi 'rep ', D$edi+4 'cmps', B$edi+8 'd' | add edi 9
+        inc esi | mov D$edi 'rep ', D$edi+4 'cmps', B$edi+8 'd' | add edi 9 | On B$OperandSizeOverride = &TRUE, mov B$edi-1 'w'
     ..Else_If B$esi = 0AA       ; F3 AA REP STOS m8
         inc esi | mov D$edi 'rep ', D$edi+4 'stos', B$edi+8 'b' | add edi 9
     ..Else_If W$esi = 0AB66       ; F3 66 AB REP STOS m16 ; F3 66 AB REP STOS m32
         add esi 2 | mov D$edi 'rep ', D$edi+4 'stos', B$edi+8 'w' | add edi 9
     ..Else_If B$esi = 0AB       ; F3 AB REP STOS m16 ; F3 AB REP STOS m32
-        inc esi | mov D$edi 'rep ', D$edi+4 'stos', B$edi+8 'd' | add edi 9
+        inc esi | mov D$edi 'rep ', D$edi+4 'stos', B$edi+8 'd' | add edi 9 | On B$OperandSizeOverride = &TRUE, mov B$edi-1 'w'
     ..Else_If B$esi = 0AC       ; F3 AC REP LODS AL
         inc esi | mov D$edi 'rep ', D$edi+4 'lods', B$edi+8 'b' | add edi 9
     ..Else_If W$esi = 0AD66       ; F3 66 AD REP LODS AX ; F3 66 AD REP LODS EAX
         add esi 2 | mov D$edi 'rep ', D$edi+4 'lods', B$edi+8 'w' | add edi 9
     ..Else_If B$esi = 0AD       ; F3 AD REP LODS AX ; F3 AD REP LODS EAX
-        inc esi | mov D$edi 'rep ', D$edi+4 'lods', B$edi+8 'd' | add edi 9
+        inc esi | mov D$edi 'rep ', D$edi+4 'lods', B$edi+8 'd' | add edi 9 | On B$OperandSizeOverride = &TRUE, mov B$edi-1 'w'
     ..Else_If B$esi = 0AE       ; F3 AE REPE SCAS m8
         inc esi | mov D$edi 'rep ', D$edi+4 'scas', B$edi+8 'b' | add edi 9
     ..Else_If W$esi = 0AF66       ; F3 66 AF REPE SCAS m16 ; F3 66 AF REPE SCAS m32
         add esi 2 | mov D$edi 'rep ', D$edi+4 'scas', B$edi+8 'w' | add edi 9
     ..Else_If B$esi = 0AF       ; F3 AF REPE SCAS m16 ; F3 AF REPE SCAS m32
-        inc esi | mov D$edi 'rep ', D$edi+4 'scas', B$edi+8 'd' | add edi 9
+        inc esi | mov D$edi 'rep ', D$edi+4 'scas', B$edi+8 'd' | add edi 9 | On B$OperandSizeOverride = &TRUE, mov B$edi-1 'w'
     ..Else
         If B$EscapePrefix = &TRUE
             ; 0F F3 /r PSLLQ mm, mm/m64     ; 66 0F F3 /r PSLLQ xmm1, xmm2/m128
@@ -8523,8 +8523,8 @@ L0:             sub ebx D$SectionsMap | add ebx D$RoutingMap | or B$ebx EVOCATED
                 mov ebx esi | sub ebx D$SectionsMap | add ebx D$UserPeStart
                 On ebx >= D$UserPeEnd, jmp L2>
                 If W$ebx = 0
-                    mov eax esi | sub eax D$SectionsMap | add eax D$RoutingMap
-                    or B$eax+2 EVOCATED
+;                    mov eax esi | sub eax D$SectionsMap | add eax D$RoutingMap
+;                    or B$eax+2 EVOCATED
                     While W$ebx+2 = 0
                         test B$esi VIRTUALFLAG | jne L2>
                         mov B$esi TEMPOFLAG | inc esi | inc ebx
@@ -8533,8 +8533,8 @@ L0:             sub ebx D$SectionsMap | add ebx D$RoutingMap | or B$ebx EVOCATED
                         On ebx >= D$UserPeEnd, jmp L2>
                     End_While
                 Else
-                    mov eax esi | sub eax D$SectionsMap | add eax D$RoutingMap
-                    or B$eax EVOCATED
+;                    mov eax esi | sub eax D$SectionsMap | add eax D$RoutingMap
+;                    or B$eax EVOCATED
                 End_If
 
             ..End_If

@@ -738,16 +738,17 @@ WriteDisUnicode:
 
     mov ebx esi | sub ebx D$Sizesmap | add ebx D$UserPeStart
 
-L0: movzx eax B$ebx
+L0: movzx eax W$ebx ; load as word
 
     push ebx, ecx
         mov ecx ebx, ebx D$TruthAsciiTable
+        cmp AH 0 | jne L2>
         ..If B$ebx+eax = GOODASCII
             On al = '"', jmp L2>
             If al = CR
-                On B$ecx+2 <> LF, jmp L2>
+                On W$ecx+2 <> LF, jmp L2>
             Else_If al = LF
-                On B$ecx-2 <> CR, jmp L2>
+                On W$ecx-2 <> CR, jmp L2>
             End_If
             If B$InsideQuotes = &FALSE
                 mov B$edi '"' | inc edi
@@ -815,12 +816,12 @@ L0: mov eax edx | sub eax esi
 
     add esi 4
 
-    .If B$esi <> 0
+;    .If B$esi <> 0
         If B$esi <> cl
             call NextDisDataLine
             mov cl B$esi | ret
         End_If
-    .End_If
+;    .End_If
 
     .If esi < edx
         If edi > D$NextDataOutputBreak
@@ -852,12 +853,12 @@ L0: mov eax edx | sub eax esi
 
     add esi 8
 
-    .If B$esi <> 0
+;    .If B$esi <> 0
         If B$esi <> cl
             call NextDisDataLine
             mov cl B$esi | ret
         End_If
-    .End_If
+;    .End_If
 
     .If esi < edx
         If edi > D$NextDataOutputBreak
@@ -889,12 +890,12 @@ L0: mov eax edx | sub eax esi
 
     add esi 10
 
-    .If B$esi <> 0
+;    .If B$esi <> 0
         If B$esi <> cl
             call NextDisDataLine
             mov cl B$esi | ret
         End_If
-    .End_If
+;    .End_If
 
     .If esi < edx
         If edi > D$NextDataOutputBreak
