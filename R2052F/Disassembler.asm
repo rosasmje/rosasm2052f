@@ -1528,7 +1528,8 @@ CheckPointersTable:
             cmp ebx D$UserPeEnd | ja L5>>
             sub ebx D$UserPeStart | add ebx D$SectionsMap
             test B$ebx IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jnz L5>>
-
+L3:
+            mov ebx eax | sub ebx D$UserPeStart | add ebx D$RoutingMap | or B$ebx EVOCATED+LABEL+INDIRECT
               ; OK, this is a Table of Code Pointers. Flag everything:
 L0:             mov ebx D$eax | call CheckInForcedMap ebx | je L2>> ;ops, can be DATA
                 sub ebx D$DisImageBase | add ebx D$UserPeStart
@@ -1538,16 +1539,16 @@ L0:             mov ebx D$eax | call CheckInForcedMap ebx | je L2>> ;ops, can be
                     or B$edx POINTER
                     sub edx D$SizesMap | add edx D$SectionsMap
                     mov D$edx FOURDATAFLAGS
-
+                    sub edx D$SectionsMap | add edx D$RoutingMap | or B$edx INDIRECT
                     sub ebx D$UserPeStart | add ebx D$SectionsMap
                     mov B$ebx CODEFLAG
                     sub ebx D$SectionsMap | add ebx D$RoutingMap
                     mov B$ebx PUSH_EBP+NODE+INSTRUCTION+ACCESSED+EVOCATED+LABEL
-                add eax 4 | jmp L0<
+                add eax 4 | jmp L0<<
 L1:   ; try Negative index!
             mov ebx D$eax-4 | sub ebx D$DisImageBase | add ebx D$UserPeStart
-            cmp ebx D$UserPeStart | jb L5>>
-            cmp ebx D$UserPeEnd | ja L5>>
+            cmp ebx D$UserPeStart | jb L1>>
+            cmp ebx D$UserPeEnd | ja L1>>
             sub ebx D$UserPeStart | add ebx D$SectionsMap
             test B$ebx IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jnz L5>>
 
@@ -1557,21 +1558,35 @@ L1:   ; try Negative index!
             sub ebx D$UserPeStart | add ebx D$SectionsMap
             test B$ebx IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jnz L5>>
 
+            mov ebx eax | sub ebx 4 | sub ebx D$UserPeStart | add ebx D$RoutingMap | or B$ebx EVOCATED+LABEL+INDIRECT
 L0:             sub eax 4
-                mov ebx D$eax | call CheckInForcedMap ebx | je L2> ;ops, can be DATA
+                mov ebx D$eax | call CheckInForcedMap ebx | je L2>> ;ops, can be DATA
                 sub ebx D$DisImageBase | add ebx D$UserPeStart
-                cmp ebx D$UserPeStart | jb L2>
-                cmp ebx D$UserPeEnd | ja L2>
+                cmp ebx D$UserPeStart | jb L2>>
+                cmp ebx D$UserPeEnd | ja L2>>
                     mov edx eax | sub edx D$UserPeStart | add edx D$SizesMap
                     or B$edx POINTER
                     sub edx D$SizesMap | add edx D$SectionsMap
                     mov D$edx FOURDATAFLAGS
-
+                    sub edx D$SectionsMap | add edx D$RoutingMap | or B$edx INDIRECT
                     sub ebx D$UserPeStart | add ebx D$SectionsMap
                     mov B$ebx CODEFLAG
                     sub ebx D$SectionsMap | add ebx D$RoutingMap
                     mov B$ebx PUSH_EBP+NODE+INSTRUCTION+ACCESSED+EVOCATED+LABEL
-               jmp L0<
+               jmp L0<<
+L1:   ; try without 0 index
+            mov ebx D$eax+4 | sub ebx D$DisImageBase | add ebx D$UserPeStart
+            cmp ebx D$UserPeStart | jb L5>>
+            cmp ebx D$UserPeEnd | ja L5>>
+            sub ebx D$UserPeStart | add ebx D$SectionsMap
+            test B$ebx IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jnz L5>>
+
+            mov ebx D$eax+8 | sub ebx D$DisImageBase | add ebx D$UserPeStart
+            cmp ebx D$UserPeStart | jb L5>>
+            cmp ebx D$UserPeEnd | ja L5>>
+            sub ebx D$UserPeStart | add ebx D$SectionsMap
+            test B$ebx IMPORTFLAG+RESOURCESFLAG+EXPORTFLAG+KILLFLAG | jnz L5>>
+            add eax 4 | jmp L3<<
     .Else
         jmp L5>
     .End_If
@@ -6142,7 +6157,8 @@ L4: inc ebx | cmp ebx 2 | jb L6> | mov edx D$SizesMap | jne L7>
 L7: mov D$edx+eax POINTER
     mov edx D$SectionsMap | jne L7>
     mov D$edx+eax-8 FOURDATAFLAGS | mov D$edx+eax-4 FOURDATAFLAGS
-L7: mov D$edx+eax FOURDATAFLAGS
+L7: mov D$edx+eax FOURDATAFLAGS | jne L6>
+    mov edx D$RoutingMap | mov D$edx+eax-8 LABEL+EVOCATED
 L6: ; in DATA = Ponter ;
     mov edx D$SectionsMap | cmp D$edx+eax FOURDATAFLAGS | jne L6>
     mov edx D$SizesMap | mov D$edx+eax POINTER | mov edx D$RoutingMap | and D$edx+eax 0FF

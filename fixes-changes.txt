@@ -523,8 +523,17 @@ CheckPointersTable: Negative index JUMP tables discovery added. target 'aescrypt
 MOV EDI EDI as procedure start case support in MarkProcedures UnEvocatedProcedures.
 WriteDisFP(xx): return from next case, if not flagged as same.
 
+_32
+TextPos will safer then ever;
+new RecognizeDelphiCountedStrings;
+manage tricky JUMP-tables, without 0 index, with negative index.
 
 
+
+
+; RestoreRealSource: ActualTitle sometimes 0. needs more checks
+; TextPos is called on every WM_Paint!?? strange
+; need marker isRing0code, to prevent many UnLikelyCode in drivers
 ; WriteDisRelative rejecting REL to Imm32 if no Code bit set in sections.
 ; (subnormal/imprecise number) closing ]in comment
 ; let's TruthUnicodeTable!?

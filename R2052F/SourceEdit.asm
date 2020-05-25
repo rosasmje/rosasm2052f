@@ -2103,7 +2103,7 @@ ________________________________________________________________________________
 [TestCodeSource: ?]
 
 TextPos:
-    mov edi D$CodeSource, ecx 0-1, al CR, D$StatusLine 0, D$StatusCol 0
+    mov edi D$CodeSource, al CR, D$StatusLine 0, D$StatusCol 0
     Align 32
 
     mov ebx D$UpperLine
@@ -2116,15 +2116,14 @@ TextPos:
         mov D$CaretRow 1, D$CaretLine 0, D$PhysicalCaretRow 1
 
     End_If
-
-L0: repne scasb | inc D$StatusLine | cmp edi D$UpperLine | jb L0<
-
-    move D$TotalNumberOfLines D$StatusLine
+    mov ecx D$UpperLine | sub ecx edi
+L0: test ecx ecx | jle L0> | repne scasb | jne L0> | inc D$StatusLine | cmp edi D$UpperLine | jb L0<
+L0: move D$TotalNumberOfLines D$StatusLine
     mov eax D$CaretLine | add D$StatusLine eax
 
-    mov al CR
-L0: repne scasb | inc D$TotalNumberOfLines | cmp edi D$SourceEnd | jb L0<
-    mov eax D$TotalNumberOfLines | dec eax
+    mov al CR, ecx D$SourceEnd | sub ecx edi
+L0: test ecx ecx | jle L0> | repne scasb | jne L0> | inc D$TotalNumberOfLines | cmp edi D$SourceEnd | jb L0<
+L0: mov eax D$TotalNumberOfLines | dec eax
 
     move D$VScroll.nMax eax
     move D$VScroll.nPage D$LineNumber

@@ -57,14 +57,12 @@ EndP
 Proc FillCustomListFromResourceTree: ; 'ResourcesStub' For infos.
     Argument @Pointer, @Output
     Local @count
+    USES esi edi
 
     mov esi D@Pointer, eax 0, edi D@Output
 
-    push esi
-        add esi ImgResDir.NumberOfNamedEntriesDis
-        lodsw | mov D@count eax
-        lodsw | add D@count eax
-    pop esi
+    movzx eax W$esi+ImgResDir.NumberOfNamedEntriesDis | mov D@count eax
+    movzx eax W$esi+ImgResDir.NumberOfIdEntriesDis | add D@count eax
 
     ; esi now points to the IMAGE_RESOURCE_DIRECTORY_ENTRY.
     add esi Size_Of_IMAGE_RESOURCE_DIRECTORY
@@ -72,7 +70,7 @@ Proc FillCustomListFromResourceTree: ; 'ResourcesStub' For infos.
 L0:
     and D$RsrcType 0 | and D$RsrcTypeStringLen 0
     DEC D@count | js P9>
-        lodsd ; load the name TypeID to eax
+        lodsd ; load the TypeID to eax
 
         Test_If eax NodeFlag ; If it is a named ID, load th resource strings
             push esi, edi
@@ -93,29 +91,23 @@ L0:
 EndP
 ;
 ;
-Proc FillCustomListFromResourceTree1: ; 'ResourcesStub' For infos.
+Proc FillCustomListFromResourceTree1:
     Argument @Pointer, @Output
     Local @count
     Uses esi
 
     mov esi D@Pointer, eax 0, edi D@Output
 
-    push esi
-        add esi ImgResDir.NumberOfNamedEntriesDis
-        lodsw | mov D@count eax
-        lodsw | add D@count eax
-    pop esi
+    movzx eax W$esi+ImgResDir.NumberOfNamedEntriesDis | mov D@count eax
+    movzx eax W$esi+ImgResDir.NumberOfIdEntriesDis | add D@count eax
 
-    ; esi and ebx now points to the IMAGE_RESOURCE_DIRECTORY_ENTRY.
+    ; esi now points to the IMAGE_RESOURCE_DIRECTORY_ENTRY.
     add esi Size_Of_IMAGE_RESOURCE_DIRECTORY
-;    add ebx Size_Of_IMAGE_RESOURCE_DIRECTORY
 
-          ; We need to see if we have a Unicode String Name or a ID
 L0:
     and D$RsrcName 0 | and D$RsrcNameStringLen 0
     DEC D@count | js P9>>
-            lodsd ; load the name ID to eax
-
+            lodsd ; load the NameID to eax
 
             Test_If eax NodeFlag ; If it is a named ID, load th resource strings
                 push esi, edi
@@ -140,21 +132,19 @@ L0:
 EndP
 ;
 ;
-Proc FillCustomListFromResourceTree2: ; 'ResourcesStub' For infos.
+Proc FillCustomListFromResourceTree2:
     Argument @Pointer, @Output
     Local @count
     Uses esi edi
 
     mov esi D@Pointer, eax 0, edi D@Output
 
-    push esi
-        add esi ImgResDir.NumberOfNamedEntriesDis
-        lodsw | mov D@count eax
-        lodsw | add D@count eax
-    pop esi
+    movzx eax W$esi+ImgResDir.NumberOfNamedEntriesDis | mov D@count eax
+    movzx eax W$esi+ImgResDir.NumberOfIdEntriesDis | add D@count eax
 
     add esi Size_Of_IMAGE_RESOURCE_DIRECTORY
-
+L0:
+    DEC D@count | js P9>>
             lodsd
             mov D$edi+CustomList.LangDis eax
            ; Now, load the OffsetToData and save it´s value at eax
@@ -167,6 +157,7 @@ Proc FillCustomListFromResourceTree2: ; 'ResourcesStub' For infos.
             mov D$edi+CustomList.SizeDis ecx ; copy it to CustomList.SizeDis
             call ReadResource
             mov D$edi+CustomList.PointerDis eax ; copy the read address to CustomList.PointerDis
+    jmp L0<
 EndP
 ;
 ;

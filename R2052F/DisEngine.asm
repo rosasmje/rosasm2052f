@@ -6370,11 +6370,11 @@ WriteDis16:
 WriteDisRelative:
     mov D$LastCodeRef eax | On eax = 0, jmp L8>>
 
-L0: If B$SimpleScan = &TRUE
+    If B$SimpleScan = &TRUE
         mov B$DisFlag DISDONE+DISLINEOVER | ret
     End_If
 
-L0: On B$WeAreInTheCodeBox = &TRUE, jmp L8>>
+    On B$WeAreInTheCodeBox = &TRUE, jmp L8>>
 ;On eax = 01013E38, int3
     sub eax D$DisImageBase | add eax D$SectionsMap
 
@@ -6446,7 +6446,9 @@ L0: On B$WeAreInTheCodeBox = &TRUE, jmp L8>>
 L1:     mov eax D$LastCodeRef
         sub eax D$DisImageBase | add eax D$RoutingMap
         test B$eax INSTRUCTION | jz L8>>
-        or B$eax NODE+LABEL | mov D$edi 'Code' | add edi 4 | jmp L8>>
+        mov ecx D$StartOfDisLine | JECXZ L0> | movzx ecx W$ecx | xchg CL CH
+        cmp ecx 0FF00 | jb L0> | cmp ecx 0FFB8 | jb L8>> ; DataRef req
+L0:     or B$eax NODE+LABEL | mov D$edi 'Code' | add edi 4 | jmp L8>>
 
     ..Else_If al = VIRTUALFLAG
         mov eax D$LastCodeRef | call StoreDisSize
@@ -6600,7 +6602,7 @@ Proc TryWithIndice:
         ..Else_If eax < D$EndOfSectionsMap
             .If B$eax = DATAFLAG
                 sub eax D$SectionsMap | add eax D$RoutingMap
-                test B$eax LABEL+EVOCATED | jz L9>
+                test B$eax LABEL+EVOCATED | jz L9>>
                     mov eax D@Indice | add D$LastCodeRef eax
                     If eax = 2
                         mov W$DisplacementFromLabel '-2'
@@ -6608,6 +6610,20 @@ Proc TryWithIndice:
                         mov W$DisplacementFromLabel '-4'
                     Else_If eax = 8
                         mov W$DisplacementFromLabel '-8'
+                    End_If
+
+                    mov D$edi 'Data' | add edi 4
+            .Else_If B$eax = CODEFLAG ; for JMP D$ needs data; try backward
+                sub eax D@Indice | sub eax D@Indice | cmp B$eax DATAFLAG | jnz L9>
+                sub eax D$SectionsMap | add eax D$RoutingMap
+                test B$eax LABEL+EVOCATED | jz L9>
+                    mov eax D@Indice | sub D$LastCodeRef eax
+                    If eax = 2
+                        mov W$DisplacementFromLabel '+2'
+                    Else_If eax = 4
+                        mov W$DisplacementFromLabel '+4'
+                    Else_If eax = 8
+                        mov W$DisplacementFromLabel '+8'
                     End_If
 
                     mov D$edi 'Data' | add edi 4
@@ -8320,14 +8336,18 @@ L2:         inc esi | inc ebx
         .While esi < D$EndOfSectionsMap
             .If B$esi = TEMPOFLAG
               ; Consider case of Strings Length >= D@length/2 :
-                mov ecx 0
+                mov ecx 0 | mov edx esi
                 While B$esi = TEMPOFLAG | inc esi | inc ecx | End_While
                 shl ecx 1 | cmp ecx D@Length | jb L2>
 
                 If B$esi = 0
+                    call RecognizeDelphiCountedStrings ;| cmp eax 1 | je L0>
                   ; Write a TEMPOFLAG on the trailing zero, if any:
                     mov ebx esi | sub ebx D$SectionsMap | add ebx D$UserPeStart
                     On B$ebx = 0, mov B$esi TEMPOFLAG
+;L0:
+                Else
+                    call RecognizeDelphiCountedStrings ;| cmp eax 1
                 End_If
             .End_If
 
@@ -8412,6 +8432,29 @@ L0:             sub ebx D$SectionsMap | add ebx D$RoutingMap | or B$ebx EVOCATED
 
 L2:     call ReplaceTempoFlagBy DATAFLAG, STRINGS+BYTE | add D$UserPeEnd 3
 EndP
+;
+;
+RecognizeDelphiCountedStrings:
+; short counted string <256 B$strLen, B$string
+    mov ebx edx | sub ebx D$SectionsMap | add ebx D$UserPeStart
+    mov eax esi | sub eax edx | cmp eax 255 | ja L0>
+    cmp B$ebx-1 AL | jne L0>
+    cmp B$edx-1 0 | jne L2>
+    mov B$edx-1 DATAFLAG |
+    sub edx D$SectionsMap | add edx D$SizesMap | mov B$edx-1 BYTE
+    sub edx D$SizesMap | add edx D$RoutingMap | or B$edx-1 EVOCATED
+    mov eax 1 | RET
+L0:
+; ansi counted string: D$ 0FFFFFFFF, strLen, B$string
+    cmp D$ebx-4 eax | jne L2>
+    cmp D$ebx-8 0-1 | jne L2>
+;    cmp D$edx-4 0 | jne L2> | cmp D$edx-8 0 | jne L2>
+    mov D$edx-8 FOURDATAFLAGS | mov D$edx-4 FOURDATAFLAGS
+    sub edx D$SectionsMap | add edx D$SizesMap | mov B$edx-8 DWORD | mov B$edx-4 DWORD
+    sub edx D$SizesMap | add edx D$RoutingMap | or B$edx-8 EVOCATED  | or B$edx EVOCATED+LABEL
+    mov eax 1 | RET
+L2: sub eax eax
+RET
 ____________________________________________________________________________________________
 
 Proc UnicodeRecognition:
