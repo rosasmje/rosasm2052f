@@ -240,13 +240,15 @@ L2:       BadMnemonic
 L1:     ifnot op1 'B', L1>>
           ifnot op2 'S', L2>>
             ifnot op3 'F', L3>                         ; BSF
+             CMP B$FirstOperandwbit ByteSize | je OperandsError
               ifnot B$Operands RegToReg, L4>
                 mov op1 00_1111,  op2 00_1011_1100,  op3 00_1100_0000
                 jmp op_op_reg1reg2                         ; intel doc: reverse order (???)
 L4:           ifnot B$Operands MemToReg, L4>
                 mov op1 00_1111,  op2 00_1011_1100 | jmp op_op_modreg1Rm
 L4:           BadOperand
-L3:         ifnot op3 'R', L3>                                     ; BSR
+L3:         ifnot op3 'R', L3>                         ; BSR
+             CMP B$FirstOperandwbit ByteSize | je OperandsError
               ifnot B$Operands RegToreg, L4>
                 mov op1 00_1111,  op2 00_1011_1101,  op3 00_1100_0000
                 jmp op_op_reg1reg2                         ; intel doc: reverse order (???)
@@ -450,6 +452,7 @@ L4:         BadOperand
 L3:       BadMnemonic
 L2:     ifnot op2 'T', L2>
           ifnot op3 'R', L3>                        ; LTR
+            ON B$TrueSize = WordSize, dec edi
             mov op1 00_1111,  op2 0
             ifnot B$FirstGender reg, L4>
               mov op3 00_1101_1000 | jmp op_op_reg16
@@ -503,12 +506,12 @@ L1:   ifnot op1 'O', L1>
               End_If
               jmp w_imm8
 L4:         ifnot B$Operands RegToReg, L4>
-              Ifnot B$secondReg RegEax, L5>
               Ifnot B$FirstReg RegDx, L5>
+              Ifnot B$FirstOperandwBit WordSize, L5>
+              Ifnot B$secondReg RegEax, L5>
               mov op1 0EE
               If B$SecondOperandwBit > ByteSize
                 inc op1
-                On B$SecondOperandwBit = WordSize, ToOpcode 066
               End_If
               jmp w_P2
 L5:
@@ -744,8 +747,8 @@ L3:       ifnot op3 'D', L3>              ; STD
 L3:       ifnot op3 'I', L3>              ; STI
             mov op1 00_1111_1011 | jmp op
 L3:       ifnot op3 'R', L3>              ; STR ("ax" or "W$edi")
-              dec edi ; Because there is no need of 066 override here
               On B$FirstOperandwbit <> WordSize, BadOperandSize
+              dec edi ; Because there is no need of 066 override here
               mov op1 0F, Op2 0
             ifnot B$FirstGender reg, L4>
               mov op3 00_1100_1000 | jmp op_op_reg1
@@ -809,12 +812,37 @@ L1:   BadMnemonic
 
 FourLetters:    On op5 > Separators,  jmp FiveLetters
 
-        ifnot op1 'A', L1>
-          ifnot op2 'R', L2>
+L1:  ifnot op1 'A', L1>>
+       ifnot op2 'D', L2>>
+         ifnot op3 'C', L3>
+           ifnot op4 'X', L4>            ; ADCX
+             cmp B$SecondOperandwBit doubleSize | jne L6>
+             ToOpcode 066, 0F | mov op1 038, op2 0F6
+            ifnot B$Operands RegToReg, L5>
+              mov op3 00_1100_0000 | jmp op_op_reg1reg2R32
+L5:         ifnot B$Operands MemToReg, L5>
+              jmp op_op_modReg1Rm32
+L6:        ;BadOperand
+L5:      BadOperand
+L4:    BadMnemonic
+L3:      ifnot op3 'O', L3>
+           ifnot op4 'X', L4>             ; ADOX
+             cmp B$SecondOperandwBit doubleSize | jne L6>
+             ToOpcode 0F3, 0F | mov op1 038, op2 0F6
+            ifnot B$Operands RegToReg, L5>
+              mov op3 00_1100_0000 | jmp op_op_reg1reg2R32
+L5:         ifnot B$Operands MemToReg, L5>
+              jmp op_op_modReg1Rm32
+L6:      ;BadOperand
+L5:     BadOperand
+L4:   ;BadMnemonic
+L3:  BadMnemonic
+
+L2:       ifnot op2 'R', L2>
             ifnot op3 'P', L3>
               ifnot op4 'L', L4>          ; ARPL  ; BadOperandSize
                 On B$FirstOperandwbit <> WordSize, BadOperandSize
-               ; dec edi ; Kill 066 or not ??? Should work the same in both cases...
+                dec edi ; Kill 066
                 mov op1 00_0110_0011
                 ifnot B$Operands RegToreg, L5>
                   mov op2 00_1100_0000 | jmp op_reg2reg1
@@ -847,11 +875,22 @@ L3:         BadMnemonic
      ;direct                1001 1010 : unsigned full offset, selector
      ;indirect              1111 1111 : mod 011 r/m
 
-
 L2:       ifnot op2 'L', L2>
-            ifnot op3 'T', L3>
+            ifnot op3 'A', L3>
+              ifnot op4 'C', L4>                    ; CLAC
+                Parms 0 | ToOpcode 0F, 01, 0CA | RET
+L4:         BadMnemonic
+
+L3:         ifnot op3 'T', L3>
               ifnot op4 'S', L4>                    ; CLTS
                 mov op1 00_1111,  op2 00_0110 | jmp op_op
+L4:           ;BadMnemonic
+
+L3:         ifnot op3 'W', L3>
+              ifnot op4 'B', L4>                    ; CLWB
+                CMP B$FirstGender mem | jne OperandsError
+                CMP B$FirstOperandwbit ByteSize | jne OperandsError
+                ToOpcode 066 | mov op1 0F, op2 0AE,  op3 030 | jmp op_op_modRm
 L4:           ;BadMnemonic
 L3:         BadMnemonic
 
@@ -862,10 +901,22 @@ L2:       ifnot op2 'M', L2>
                 error D$NotYetMnemoPtr
 L4:           ;BadMnemonic
 L3:         BadMnemonic
+
 L2:       ifnot op2 'W', L2>
             ifnot op3 'D', L3>
               ifnot op4 'E', L4>                     ; CWDE
                 mov op1 00_1001_1000 | jmp op
+L4:           ;BadMnemonic
+L3:         ;BadMnemonic
+L2:       BadMnemonic
+
+L1:     ifnot op1 'D', L1>
+          ifnot op2 'P', L2>
+            ifnot op3 'P', L3>
+              ifnot op4 'D', L4>                     ; DPPD
+               ToOpcode 066  0F  03A  041 | jmp XMMmemXMMImm8any
+L4:           ifnot op4 'S', L4>                     ; DPPS
+               ToOpcode 066  0F  03A  040 | jmp XMMmemXMMImm8any
 L4:           ;BadMnemonic
 L3:         ;BadMnemonic
 L2:       BadMnemonic
@@ -931,13 +982,16 @@ L3:       BadMnemonic
 L2:     ifnot op2 'N', L2>
           ifnot op3 'T', L3>
             ifnot op4 '3', L4>
-                LastOpcode 0CC          ; INT3
+                mov op1 0CC | jmp op      ; INT3
 
-L4:         ifnot op4 '4', L4> ; INT4
-                LastOpcode 0CC ; INT3 substitution (user really wrote 'int3' _by hand_)
+L4:         ifnot op4 '4', L4>
+                mov op1 0CE | jmp op      ; INT4 substitution (user really wrote 'int4' _by hand_)
 
 L4:         ifnot op4 'O', L4>            ; INTO
-              mov op1 00_1100_1110 | jmp op
+                mov op1 0CE | jmp op
+
+L4:         ifnot op4 '1', L4>            ; INT1 'ICEBP' finally documented;
+                mov op1 0F1 | jmp op
 
 L4:         BadMnemonic
 
@@ -991,6 +1045,7 @@ L3:         BadMnemonic
 L2:       ifnot op2 'L', L2>
             ifnot op3 'D', L3>
               ifnot op4 'T', L4>                      ; LLDT
+                ON B$TrueSize = WordSize, dec edi
                 ifnot B$FirstGender mem, L4>
                 mov op1 00_1111,  op2 0,  op3 0001_0000 | jmp op_op_modRm16
 L4:             ifnot B$FirstGender reg, L5>
@@ -998,19 +1053,10 @@ L4:             ifnot B$FirstGender reg, L5>
 L5:             BadOperand
 L4:           ;BadMnemonic
 L3:         BadMnemonic
-L2:       ifnot op2 'D', L2>
-            ifnot op3 'T', L3>
-              ifnot op4 'R', L4>                      ; LDTR
-                ifnot B$FirstGender reg, L5>
-                  mov op1 00_1111,  op2 0,  op3 00_1101_0000 | jmp op_op_reg16
-L5:              ifnot B$FirstGender mem, L5>
-                  mov op1 00_1111,  op2 0,  op3 0001_0000 | jmp op_op_modRm16
-L5:             BadOperand
-L4:           ;BadMnemonic
-L3:         BadMnemonic
 L2:       ifnot op2 'M', L2>
             ifnot op3 'S', L3>
               ifnot op4 'W',  L4>
+                ON B$TrueSize = WordSize, dec edi
                 ifnot B$FirstGender Reg, L5>               ; LMSW
                   mov op1 00_1111,  op2 1,  op3 00_1111_0000 | jmp op_op_reg1
 L5:             ifnot B$FirstGender mem, L5>
@@ -1227,8 +1273,14 @@ L5:            ifnot B$FirstGender mem, L5>
 L5:            BadOperand
 L4:          ;BadMnemonic
 L3:        BadMnemonic
-L2:      ifnot op2 'T', L2>
-           ifnot op3 'O', L3>
+
+L2:      ifnot op2 'T', L1>
+           ifnot op3 'A', L3>
+             ifnot op4 'C', L4>                 ; STAC
+               Parms 0 | ToOpcode 0F, 01, 0CB | RET
+L4:         BadMnemonic
+
+L3:        ifnot op3 'O', L3>
              ifnot op4 'S', L4>
                error D$NotYetMnemoPtr
                ; STOS – Store String Data 1010 101w
@@ -1259,6 +1311,7 @@ L1:    ifnot op1 'V', L1>
          ifnot op2 'E', L2>
            ifnot op3 'R', L3>
              ifnot op4 'R', L4>                    ; VERR
+               ON B$TrueSize = WordSize, dec edi
                mov op1 00_1111,  op2 0
                ifnot B$FirstGender reg, L5>
                  mov op3 00_1110_0000 | jmp op_op_reg16
@@ -1266,6 +1319,7 @@ L5:            ifnot B$FirstGender mem, L5>
                  mov op3 0010_0000 | jmp op_op_modRm16
 L5:            BadOperand
 L4:          ifnot op4 'W', L4>                     ; VERW
+               ON B$TrueSize = WordSize, dec edi
                mov op1 00_1111,  al 0
                ifnot B$FirstGender reg, L5>
                  mov op3 00_1110_1000 | jmp op_op_reg16
@@ -1468,6 +1522,20 @@ L2:      ifnot op2 'P', L2>
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        ;BadMnemonic
+L2:      ifnot op2 'R', L2>
+           ifnot op3 'C', L3>
+             ifnot op4 '3', L4>
+               ifnot op5 '2', L5>                    ; CRC32
+                 cmp B$SecondOperandwBit WordSize | jne L6> | ToOpcode 066
+L6:              ToOpcode 0F2, 0F | mov op1 038, op2 0F0
+            ifnot B$Operands RegToReg, L6>
+              mov op3 00_1100_0000 | jmp op_reg1reg2A
+L6:         ifnot B$Operands MemToReg, L6>
+              jmp op_modReg1RmA
+L6:         BadOperand
+L5:            ;BadMnemonic
+L4:          ;BadMnemonic
+L3:        ;BadMnemonic
 L2:      BadMnemonic
 L1:    ifnot op1 'D', L1>>
          ifnot op2 'I', L2>>
@@ -1556,7 +1624,7 @@ L1:    ifnot op1 'L', L1>>
              ifnot op4 'Q', L4>
                ifnot op5 'U', L5>       ; LDDQU
                 IfNot B$Operands MemToReg, L6>
-                ToOpcode 0F2 | mov Op1 0F0 | jmp MMXmemXMM
+                ToOpcode 0F2 | mov Op1 0F0 | jmp XMMTOFromMem; Guga fixed
 L6: BadOperand
 L2:      ifnot op2 'E', L2>
            ifnot op3 'A', L3>
@@ -1588,7 +1656,22 @@ L6:            cmp op5, 'E' | je L5<
                BadMnemonic
 L4:          ;BadMnemonic
 L3:        ;BadMnemonic
-L2:      BadMnemonic
+;L2:      BadMnemonic
+L2:     ifnot op2 'Z', L2>
+          ifnot op3 'C', L3>
+            ifnot op4 'N', L4>
+              ifnot op5 'T', L5>                 ; LZCNT
+              CMP B$FirstOperandwbit ByteSize | je OperandsError
+              ToOpcode 0F3 | mov op1 00_1111,  op2 00_1011_1101
+              ifnot B$Operands RegToreg, L6>
+              mov op3 00_1100_0000 | jmp op_op_reg1reg2
+L6:           ifnot B$Operands MemToreg, L6>
+              jmp op_op_modReg1Rm
+L6:          BadOperand
+L5:        ;BadMnemonic
+L4:      ;BadMnemonic
+L3:    ;BadMnemonic
+L2:  BadMnemonic
 L1:    ifnot op1 'M', L1>>
          ifnot op2 'A', L2>
            ifnot op3 'X', L3>
@@ -1643,7 +1726,7 @@ L2:      ifnot op2 'W', L2>
            ifnot op3 'A', L3>
              ifnot op4 'I', L4>
                ifnot op5 'T', L5>                 ; MWAIT
-                 ToOpcode 0F, 01, 0C9 | ret
+                 Parms 0 | ToOpcode 0F, 01, 0C9 | ret
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        ;BadMnemonic
@@ -1665,7 +1748,26 @@ L3:        ;BadMnemonic
 L2:      BadMnemonic
 L1:    ifnot op1 'P', L1>>
          ifnot op2 'A', L2>>
-           ifnot op3 'D', L3>>
+           ifnot op3 'B', L3>>
+             ifnot op4 'S', L4>>
+               ifnot op5 'B', L5>                            ; PABSB
+               ifnot B$FirstRegGender MMreg, L6>
+                ToOpcode 0F, 038, 01C | jmp MMXmemMMXany
+L6:            ifnot B$FirstRegGender XMMreg, OperandsError
+                ToOpcode 066, 0F, 038, 01C | jmp XMMmemXMMany
+L5:            ifnot op5 'D', L5>                            ; PABSD
+               ifnot B$FirstRegGender MMreg, L6>
+                ToOpcode 0F, 038, 01E | jmp MMXmemMMXany
+L6:            ifnot B$FirstRegGender XMMreg, OperandsError
+                ToOpcode 066, 0F, 038, 01E | jmp XMMmemXMMany
+L5:            ifnot op5 'W', L5>                            ; PABSW
+               ifnot B$FirstRegGender MMreg, L6>
+                ToOpcode 0F, 038, 01D | jmp MMXmemMMXany
+L6:            ifnot B$FirstRegGender XMMreg, OperandsError
+                ToOpcode 066, 0F, 038, 01D | jmp XMMmemXMMany
+L5:            ;BadMnemonic
+L4:          BadMnemonic
+L3:        ifnot op3 'D', L3>>
              ifnot op4 'D', L4>>
                cmp op5 'B' | je L6>
                cmp op5 'W' | je L6>
@@ -1821,6 +1923,14 @@ L5:            ifnot op5 'S', L5>                               ; PSUBS
 L5:             ;BadMnemonic
 L4:           ;BadMnemonic
 L3:         BadMnemonic
+L2:      ifnot op2 'T', L2>
+           ifnot op3 'E', L3>
+             ifnot op4 'S', L4>
+               ifnot op5 'T', L5>                 ; PTEST
+                ToOpcode 066 0F 038 017 | jmp XmmMemXmmAny
+L5:             ;BadMnemonic
+L4:           ;BadMnemonic
+L3:         BadMnemonic
 L2:      ifnot op2 'U', L2>
            ifnot op3 'S', L3>
              ifnot op4 'H', L4>
@@ -1915,6 +2025,32 @@ L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        ;BadMnemonic
 L2:      BadMnemonic
+L1:   ifnot op1 'T', L1>
+L2:     ifnot op2 'Z', L2>
+          ifnot op3 'C', L3>
+            ifnot op4 'N', L4>
+              ifnot op5 'T', L5>                 ; TZCNT
+              CMP B$FirstOperandwbit ByteSize | je OperandsError
+              ToOpcode 0F3 | mov op1 00_1111,  op2 00_1011_1100
+              ifnot B$Operands RegToreg, L6>
+              mov op3 00_1100_0000 | jmp op_op_reg1reg2
+L6:           ifnot B$Operands MemToreg, L6>
+              jmp op_op_modReg1Rm
+L6:          BadOperand
+L5:        ;BadMnemonic
+L4:      ;BadMnemonic
+L3:    ;BadMnemonic
+L2:  BadMnemonic
+L1:    ifnot op1 'V', L1>
+         ifnot op2 'M', L2>
+           ifnot op3 'X', L3>
+             ifnot op4 'O', L4>
+               ifnot op5 'N', L5>                             ; VMXON
+                 ToOpcode 0F3, 0F, 0C7 | mov op1 030 | jmp QmodRm
+L5:        ;BadMnemonic
+L4:      ;BadMnemonic
+L3:    ;BadMnemonic
+L2:  BadMnemonic
 L1:    ifnot op1 'W', L1>
          ifnot op2 'R', L2>
            ifnot op3 'M', L3>
@@ -1925,7 +2061,7 @@ L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        ;BadMnemonic
 L2:      BadMnemonic
-L1:    ifnot op1 'X', L1>
+L1:    ifnot op1 'X', L1>>
          ifnot op2 'L', L2>
            ifnot op3 'A', L3>
              ifnot op4 'T', L4>
@@ -1943,16 +2079,54 @@ L5:            ifnot op5 'S', L5>                            ; XORPS
 L6:                mov op1 001010111 | jmp XMMmemXMM
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
-L3:        ;BadMnemonic
-L2:      ;BadMnemonic
-L1:    BadMnemonic
+L3:        BadMnemonic
+L2:      ifnot op2 'S', L2>
+           ifnot op3 'A', L3>
+             ifnot op4 'V', L4>
+               ifnot op5 'E', L5>                            ; XSAVE
+                 ifnot B$FirstGender mem, L7>
+                   ifnot B$FirstOperandwbit XSize, L7>
+                      mov al 0F | stosb | mov op1 0AE, op2 020 | jmp op_ModRm
+L7:               error D$XmarkerPtr
+L6:           ;BadMnemonic
+L5:         ;BadMnemonic
+L4:       ;BadMnemonic
+L3:     ;BadMnemonic
+L2:   ;BadMnemonic
+L1: BadMnemonic
 
  _______________________________________________________________________________________
 
 SixLetters:     On op7 > Separators,  jmp SevenLetters
 
-       ifnot op1 'A', L1>
-         ifnot op2 'N', L2>
+       ifnot op1 'A', L1>>
+         ifnot op2 'E', L2>>
+           ifnot op3 'S', L3>
+             ifnot op4 'D', L4>
+               ifnot op5 'E', L5>
+                 ifnot op6 'C', L6>                      ; AESDEC
+                    ToOpcode 066 0F 038 0DE | jmp XMMmemXMMany
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L3:        BadMnemonic
+
+L4:          ifnot op4 'E', L4>
+               ifnot op5 'N', L5>
+                 ifnot op6 'C', L6>                      ; AESENC
+                   ToOpcode 066 0F 038 0DC | jmp XMMmemXMMany
+L6:              ;BadMnemonic
+L5:            BadMnemonic
+
+L4:          ifnot op4 'I', L4>
+               ifnot op5 'M', L5>
+                 ifnot op6 'C', L6>                      ; AESIMC
+                   ToOpcode 066 0F 038 0DB | jmp XMMmemXMMany
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          BadMnemonic
+
+;      ifnot op1 'A', L1>
+L2:      ifnot op2 'N', L2>
            ifnot op3 'D', L3>
              ifnot op4 'N', L4>
                ifnot op5 'P', L5>
@@ -1979,6 +2153,13 @@ L6:              ;BadMnemonic
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        ;BadMnemonic
+L2:      BadMnemonic
+
+L1:    ifnot op1 'G', L1>
+         ifnot op2 'E', L2>
+           ifnot D$esi+2 'TSEC', L3>        ; GETSEC
+            mov op1 0F, op2 037 | jmp op_op
+L3:
 L2:      BadMnemonic
 L1:    ifnot op1 'H', L1>
          ifnot op2 'A', L2>
@@ -2009,7 +2190,15 @@ L2:      BadMnemonic
 L1:    ifnot op1 'I', L1>
          ifnot op2 'N', L2>
            ifnot op3 'V', L3>
-             ifnot op4 'L', L4>
+             ifnot op4 'E', L4>
+               ifnot op5 'P', L5>
+                 ifnot op6 'T', L6>     ; INVEPT
+                  ToOpcode 066 0F 038 080 | jmp Reg32Mem128
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L3:        ;BadMnemonic
+L2:      BadMnemonic
+L4:          ifnot op4 'L', L4>
                ifnot op5 'P', L5>
                  ifnot op6 'G', L6>     ; INVLPG
                    ifnot B$FirstGender mem, L7>
@@ -2017,16 +2206,14 @@ L1:    ifnot op1 'I', L1>
 L7:                BadOperand
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic
-L4:          ;BadMnemonic
-L3:        ;BadMnemonic
-L2:      BadMnemonic
+L4:          BadMnemonic
 L1:    ifnot op1 'L', L1>
          ifnot op2 'F', L2>
            ifnot op3 'E', L3>
              ifnot op4 'N', L4>
                ifnot op5 'C', L5>
                  ifnot op6 'E', L6>                 ; LFENCE
-                     ToOpcode 00001111, 0010101110 | LastOpcode 0011101000
+                     Parms 0 | ToOpcode 00001111, 0010101110 | LastOpcode 0011101000
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
@@ -2050,7 +2237,7 @@ L1:    ifnot op1 'M', L1>
              ifnot op4 'N', L4>
                ifnot op5 'C', L5>
                  Ifnot op6 'E', L6>                         ; MFENCE
-                     ToOpcode 00001111, 0010101110 | LastOpcode 0011110000
+                     Parms 0 | ToOpcode 00001111, 0010101110 | LastOpcode 0011110000
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
@@ -2089,12 +2276,52 @@ L6:                ;BadMnemonic
 L5:              ;BadMnemonic
 L4:            ;BadMnemonic
 L3:          BadMnemonic
-L2:      ifnot op2 'E', L2>
+L2:      ifnot op2 'E', L2>>
            ifnot op3 'X', L3>
              ifnot op4 'T', L4>
                ifnot op5 'R', L5>
-                 ifnot op6 'W', L6>                             ; PEXTRW
+                 ifnot op6 'B', L6>                             ; PEXTRB
+                  ToOpcode 066 0F 03A 014 | mov AL byteSize, EDX 15 | jmp RM32XmmImm8
+L6:              ifnot op6 'D', L6>                             ; PEXTRD
+                  ToOpcode 066 0F 03A 016 | mov AL doubleSize, EDX 3 | jmp RM32XmmImm8
+L6:              ifnot op6 'W', L5>                             ; PEXTRW
+                  cmp B$Operands RegToMem | je L6>
                      mov op1 0011000101 | jmp OQregRegImm8
+L6:               ToOpcode 066 0F 03A 015 | mov AL wordSize, EDX 7 | jmp RM32XmmImm8 ; PEXTRW 4.1
+L6:                ;BadMnemonic
+L5:              ;BadMnemonic
+L4:            ;BadMnemonic
+L3:          BadMnemonic
+L2:      ifnot op2 'H', L2>>
+           ifnot op3 'A', L3>>
+             ifnot op4 'D', L4>>
+               ifnot op5 'D', L5>>
+                 ifnot op6 'D', L6>                             ; PHADDD
+                 ifnot B$FirstRegGender MMreg, L7>
+                  ToOpcode 0F 038 02 | jmp MMXmemMMXany
+L7:              ifnot B$FirstRegGender XMMreg, OperandsError
+                  ToOpcode 066 0F 038 02 | jmp XmmMemXmmAny
+L6:              ifnot op6 'W', L6>                             ; PHADDW
+                 ifnot B$FirstRegGender MMreg, L7>
+                  ToOpcode 0F 038 01 | jmp MMXmemMMXany
+L7:              ifnot B$FirstRegGender XMMreg, OperandsError
+                  ToOpcode 066 0F 038 01 | jmp XmmMemXmmAny
+L6:
+L5:
+L4:          BadMnemonic
+L3:        ifnot op3 'S', L3>>
+             ifnot op4 'U', L4>>
+               ifnot op5 'B', L5>>
+                 ifnot op6 'D', L6>                             ; PHSUBD
+                 ifnot B$FirstRegGender MMreg, L7>
+                  ToOpcode 0F 038 06 | jmp MMXmemMMXany
+L7:              ifnot B$FirstRegGender XMMreg, OperandsError
+                  ToOpcode 066 0F 038 06 | jmp XmmMemXmmAny
+L6:              ifnot op6 'W', L6>                             ; PHSUBW
+                 ifnot B$FirstRegGender MMreg, L7>
+                  ToOpcode 0F 038 05 | jmp MMXmemMMXany
+L7:              ifnot B$FirstRegGender XMMreg, OperandsError
+                  ToOpcode 066 0F 038 05 | jmp XmmMemXmmAny
 L6:                ;BadMnemonic
 L5:              ;BadMnemonic
 L4:            ;BadMnemonic
@@ -2103,7 +2330,11 @@ L2:      ifnot op2 'I', L2>
            ifnot op3 'N', L3>
              ifnot op4 'S', L4>
                ifnot op5 'R', L5>
-                 ifnot op6 'W', L6>                              ; PINSRW
+                 ifnot op6 'B', L6>                              ; PINSRB
+                  ToOpcode 066 0F 03A 020 | mov AL byteSize, EDX 15 | jmp XmmRM32Imm8
+L6:              ifnot op6 'D', L6>                              ; PINSRD
+                  ToOpcode 066 0F 03A 022 | mov AL doubleSize, EDX 3 | jmp XmmRM32Imm8
+L6:              ifnot op6 'W', L6>                              ; PINSRW
                      mov op1 0011000100 | jmp OQregmemImm8
 L6:                ;BadMnemonic
 L5:              ;BadMnemonic
@@ -2120,39 +2351,76 @@ L5:              ;BadMnemonic
 L4:            ;BadMnemonic
 L3:          BadMnemonic
 L2:      ifnot op2 'M', L2>>
-           ifnot op3 'A', L3>
-             ifnot op4 'X', L4>
+           ifnot op3 'A', L3>>
+             ifnot op4 'X', L4>>
                ifnot op5 'S', L5>
-                 ifnot op6 'W', L6>                         ; PMAXSW
+                 ifnot op6 'B', L6>                         ; PMAXSB
+                  ToOpcode 066 0F 038 03C | jmp XmmMemXmmAny
+L6:              ifnot op6 'D', L6>                         ; PMAXSD
+                  ToOpcode 066 0F 038 03D | jmp XmmMemXmmAny
+L6:              ifnot op6 'W', L6>                         ; PMAXSW
                     mov op1 0011101110 | jmp OQregMemToReg
 L6:                BadMnemonic
 L5:            ifnot op5 'U', L5>
                  ifnot op6 'B', L6>                         ; PMAXUB
                     mov op1 0011011110 | jmp OQregMemToReg
-L5:             ;BadMnemonic
-L4:            ;BadMnemonic
-L3:        ifnot op3 'I', L3>
-             ifnot op4 'N', L4>
+L6:              ifnot op6 'D', L6>                         ; PMAXUD
+                  ToOpcode 066 0F 038 03F | jmp XmmMemXmmAny
+L6:              ifnot op6 'W', L6>                         ; PMAXUW
+                  ToOpcode 066 0F 038 03E | jmp XmmMemXmmAny
+L6:
+L5:
+L4:    BadMnemonic
+L3:        ifnot op3 'I', L3>>
+             ifnot op4 'N', L4>>
                ifnot op5 'S', L5>
-                 ifnot op6 'W', L6>                         ; PMINSW
-                    mov op1 0011101010 | jmp OQregMemToReg
-L6:                BadMnemonic
+                 ifnot op6 'B', L6>                         ; PMINSB
+                  ToOpcode 066 0F 038 038 | jmp XmmMemXmmAny
+L6:              ifnot op6 'D', L6>                         ; PMINSD
+                  ToOpcode 066 0F 038 039 | jmp XmmMemXmmAny
+L6:              ifnot op6 'W', L6>                         ; PMINSW
+                  mov op1 0011101010 | jmp OQregMemToReg
+L6:              BadMnemonic
 L5:            ifnot op5 'U', L5>
                  ifnot op6 'B', L6>                         ; PMINUB
-                    mov op1 0011011010 | jmp OQregMemToReg
-L5:              ;BadMnemonic
-L4:            ;BadMnemonic
+                  mov op1 0011011010 | jmp OQregMemToReg
+L6:              ifnot op6 'D', L6>                         ; PMINUD
+                  ToOpcode 066 0F 038 03B | jmp XmmMemXmmAny
+L6:              ifnot op6 'W', L6>                         ; PMINUW
+                  ToOpcode 066 0F 038 03A | jmp XmmMemXmmAny
+L6:              ;BadMnemonic
+L5:           ;BadMnemonic
+L4:          BadMnemonic
 L3:        ifnot op3 'U', L3>
              ifnot op4 'L', L4>
-               ifnot op5 'H', L5>
+               ifnot op5 'D', L5>
+                 ifnot op6 'Q', L6>                         ; PMULDQ
+                  ToOpcode 066 0F 038 028 | jmp XmmMemXmmAny
+L5:            ifnot op5 'H', L5>
                  ifnot op6 'W', L6>                         ; PMULHW
                     mov op1 0E5 | jmp OQregMemToReg
-L6:                ;BadMnemonic
-
+L6:              BadMnemonic
 L5:            ifnot op5 'L', L5>
-                 ifnot op6 'W', L6>                     ; PMULLW
+L6:              ifnot op6 'D', L6>                         ; PMULLD
+                  ToOpcode 066 0F 038 040 | jmp XmmMemXmmAny
+L6:              ifnot op6 'W', L6>                         ; PMULLW
                    mov op1 0D5 | jmp OQRegMemToReg
-
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          ;BadMnemonic
+L3:        BadMnemonic
+L2:      ifnot op2 'O', L2>>
+           ifnot op3 'P', L3>
+             ifnot op4 'C', L4>
+               ifnot op5 'N', L5>
+                 ifnot op6 'T', L6>                         ; POPCNT
+                 CMP B$FirstOperandwbit ByteSize | je OperandsError
+                 ToOpcode 0F3  | mov op1 0F, op2 0B8
+                 ifnot B$Operands RegToreg, L7>
+                 mov op3 00_1100_0000 | jmp op_op_reg1reg2
+L7:              ifnot B$Operands MemToreg, L7>
+                 jmp op_op_modReg1Rm
+L7:            BadOperand
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
@@ -2169,10 +2437,31 @@ L4:          BadMnemonic
 L3:        ifnot op3 'H', L3>
              ifnot op4 'U', L4>
                ifnot op5 'F', L5>
-                 ifnot op6 'D', L6>                         ; PSHUFD
+                 ifnot op6 'B', L6>                         ; PSHUFB
+                 ifnot B$FirstRegGender MMreg, L7>
+                  ToOpcode 0F 038 0 | jmp MMXmemMMXany
+L7:              ifnot B$FirstRegGender XMMreg, OperandsError
+                  ToOpcode 066 0F 038 0 | jmp XmmMemXmmAny
+L6:              ifnot op6 'D', L6>                         ; PSHUFD
                     ToOpcode 001100110 | mov op1 001110000 | jmp XmmMemXmmImm8
 L6:              ifnot op6 'W', L6>                         ; PSHUFW
                      mov op1 001110000 | jmp mmTwoImm8
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          BadMnemonic
+L3:        ifnot op3 'I', L3>
+             ifnot op4 'G', L4>
+               ifnot op5 'N', L5>
+                 ifnot op6 'B', L6>                         ; PSIGNB
+                  mov DL 08
+L8:               ifnot B$FirstRegGender MMreg, L7>
+                  ToOpcode 0F, 038, DL | jmp MMXmemMMXany
+L7:              ifnot B$FirstRegGender XMMreg, OperandsError
+                  ToOpcode 066 0F 038 DL | jmp XmmMemXmmAny
+L6:              ifnot op6 'D', L6>                         ; PSIGND
+                  mov DL 0A | jmp L8<
+L6:              ifnot op6 'W', L6>                         ; PSIGNW
+                  mov DL 09 | jmp L8<
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic
 L4:          BadMnemonic
@@ -2231,13 +2520,49 @@ L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        ;BadMnemonic
 L2:      BadMnemonic
+L1:    ifnot op1 'R', L1>>
+L2:      ifnot op2 'D', L2>>
+L3:        ifnot op3 'R', L3>
+             ifnot op4 'A', L4>
+               ifnot op5 'N', L5>
+                 ifnot op6 'D', L6>                             ; RDRAND
+                   mov op1 0F, op2 0C7, op3 0F0 | jmp op_op_reg1
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          BadMnemonic
+L3:        ifnot op3 'S', L3>
+             ifnot op4 'E', L4>
+               ifnot op5 'E', L5>
+                 ifnot op6 'D', L6>                             ; RDSEED
+                   mov op1 0F, op2 0C7, op3 0F8 | jmp op_op_reg1
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          BadMnemonic
+L3:        ifnot op3 'P', L3>
+             ifnot op4 'K', L4>
+               ifnot op5 'R', L5>
+                 ifnot op6 'U', L6>                             ; RDPKRU
+                   Parms 0 | ToOpcode 0F 01 0EE | ret
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          BadMnemonic
+L3:        ifnot op3 'T', L3>
+             ifnot op4 'S', L4>
+               ifnot op5 'C', L5>
+                 ifnot op6 'P', L6>                             ; RDTSCP
+                   Parms 0 | ToOpcode 0F, 01, 0F9 | ret
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          ;BadMnemonic
+L3:        ;BadMnemnonic
+L2:      BadMnemonic
 L1:    ifnot op1 'S', L1>>
          ifnot op2 'F', L2>
            ifnot op3 'E', L3>
              ifnot op4 'N', L4>
                ifnot op5 'C', L5>
                  ifnot op6 'E', L6>                           ; SFENCE
-                    ToOpcode 00001111, 0010101110, 0011111000 | ret
+                    Parms 0 | ToOpcode 00001111, 0010101110, 0011111000 | ret
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
@@ -2274,13 +2599,26 @@ L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        ;BadMnemonic
 L2:      BadMnemonic
-L1:    ifnot op1 'X', L1>
+L1:    ifnot op1 'X', L1>>
 L2:      ifnot op2 'G', L2>
            ifnot op3 'E', L3>
              ifnot op4 'T', L4>
                ifnot op5 'B', L5>
                  ifnot op6 'V', L6>                       ; XGETBV
-                    ToOpcode 0F, 01, 0D0 | ret
+                    Parms 0 | ToOpcode 0F, 01, 0D0 | ret
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          ;BadMnemonic
+L3:        BadMnemonic
+L2:      ifnot op2 'R', L2>
+           ifnot op3 'S', L3>
+             ifnot op4 'T', L4>
+               ifnot op5 'O', L5>
+                 ifnot op6 'R', L6>                       ; XRSTOR
+                   ifnot B$FirstGender mem, L7>
+                     ifnot B$FirstOperandwbit XSize, L7>
+                         ToOpcode 0F | mov op1 0AE, op2 028 | jmp op_ModRm
+L7:                   error D$XmarkerPtr
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
@@ -2290,19 +2628,65 @@ L2:      ifnot op2 'S', L2>
              ifnot op4 'T', L4>
                ifnot op5 'B', L5>
                  ifnot op6 'V', L6>                       ; XSETBV
-                    ToOpcode 0F, 01, 0D1 | ret
+                    Parms 0 | ToOpcode 0F, 01, 0D1 | ret
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        ;BadMnemonic
 L2:      BadMnemonic
+L1:    ifnot op1 'V', L1>>
+         ifnot op2 'M', L2>
+           ifnot op3 'C', L3>
+             ifnot op4 'A', L4>
+               ifnot op5 'L', L5>
+                 ifnot op6 'L', L6>                       ; VMCALL
+                  Parms 0 | ToOpcode 0F, 01, 0C1 | ret
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          ;BadMnemonic
+L2:      BadMnemonic
+L3:        ifnot op3 'F', L3>
+             ifnot op4 'U', L4>
+               ifnot op5 'N', L5>
+                 ifnot op6 'C', L6>                       ; VMFUNC
+                  Parms 0 | ToOpcode 0F, 01, 0D4 | ret
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          BadMnemonic
+L3:        ifnot op3 'R', L3>
+             ifnot op4 'E', L4>
+               ifnot op5 'A', L5>
+                 ifnot op6 'D', L6>                       ; VMREAD
+                  mov op1 0F, op2 078 | jmp op_op_modRm32Reg2
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          BadMnemonic
+L3:        ifnot op3 'X', L3>
+             ifnot op4 'O', L4>
+               ifnot op5 'F', L5>
+                 ifnot op6 'F', L6>                       ; VMXOFF
+                  Parms 0 | ToOpcode 0F, 01, 0C4 | ret
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          BadMnemonic
+
 L1:    ifnot op1 'W', L1>
-         ifnot op2 'B', L2>
+L2:      ifnot op2 'B', L2>
            ifnot op3 'I', L3>
              ifnot op4 'N', L4>
                ifnot op5 'V', L5>
                  ifnot op6 'D', L6>                       ; WBINVD
-                   mov op1 00_1111,  op2 00_1001 | jmp op_op
+                   Parms 0 | mov op1 00_1111,  op2 00_1001 | jmp op_op
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          ;BadMnemonic
+L3:        BadMnemonic
+L2:      ifnot op2 'R', L2>
+           ifnot op3 'P', L3>
+             ifnot op4 'K', L4>
+               ifnot op5 'R', L5>
+                 ifnot op6 'U', L6>                       ; WRPKRU
+                   Parms 0 | ToOpcode 0F 01 0EF | ret
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
@@ -2312,7 +2696,25 @@ L1:    BadMnemonic
  ________________________________________________________________________________________
 
 SevenLetters:        On op8 > Separators,  jmp heightLetters
-       ifnot op1 'C', L1>>
+
+       ifnot op1 'B', L1>
+         ifnot op2 'L', L2>
+           ifnot op3 'E', L3>
+             ifnot op4 'N', L4>
+               ifnot op5 'D', L5>
+                 ifnot op6 'P', L6>
+                   ifnot op7 'D', L7>                     ; BLENDPD
+                    ToOpcode 066, 0F, 03A, 0D | jmp XmmMemXmmImm8Any
+L7:                ifnot op7 'S', L7>                     ; BLENDPS
+                    ToOpcode 066, 0F, 03A, 0C | jmp XmmMemXmmImm8Any
+L7:                ;BadMnemonic
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          ;BadMnemonic
+L3:        ;BadMnemonic
+L2:      BadMnemonic
+
+L1:    ifnot op1 'C', L1>>
          ifnot op2 'L', L2>
            ifnot op3 'F', L3>
              ifnot op4 'L', L4>
@@ -2356,6 +2758,22 @@ L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        ;BadMnemonic
 L2:      BadMnemonic
+
+L1:    ifnot op1 'I', L1>
+         ifnot op2 'N', L2>
+           ifnot op3 'V', L3>
+             ifnot op4 'V', L4>
+               ifnot op5 'P', L5>
+                 ifnot op6 'I', L6>
+                   ifnot op7 'D', L7>     ; ;INVVPID
+                  ToOpcode 066 0F 038 081 | jmp Reg32Mem128
+L7:
+L6:
+L5:
+L4:
+L3:
+L2:      BadMnemonic
+
 L1:    ifnot op1 'L', L1>
          ifnot op2 'D', L2>
            ifnot op3 'M', L3>
@@ -2381,15 +2799,28 @@ L1:    ifnot op1 'M', L1>
                ifnot op5 'T', L5>
                  ifnot op6 'O', L6>
                    ifnot op7 'R', L7>                   ; MONITOR
-                     ToOpcode 0F, 01, 0C8 | ret
+                     Parms 0 | ToOpcode 0F, 01, 0C8 | ret
+L7:                ;BadMnemonic
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          ;BadMnemonic
+L3:        BadMnemonic
+L2:      ifnot op2 'P', L2>
+           ifnot op3 'S', L3>
+             ifnot op4 'A', L4>
+               ifnot op5 'D', L5>
+                 ifnot op6 'B', L6>
+                   ifnot op7 'W', L7>                   ; MPSADBW
+                    ToOpcode 066, 0F, 03A, 042 | jmp XmmMemXmmImm8Any
 L7:                ;BadMnemonic
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        ;BadMnemonic
 L2:       BadMnemonic
+
 L1:    ifnot op1 'P', L1>>
-         ifnot op2 'A', L2>
+         ifnot op2 'A', L2>>
            ifnot op3 'D', L3>
              ifnot op4 'D', L4>
                ifnot op5 'U', L5>
@@ -2398,6 +2829,19 @@ L1:    ifnot op1 'P', L1>>
                    cmp op7 'W' | jne L7>                ; PADDUSB/W
 L8:                  mov cl op7 | mov op1 00_11011100
                         jmp gg2
+L7:                ;BadMnemonic
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          BadMnemonic
+L3:        ifnot op3 'L', L3>
+             ifnot op4 'I', L4>
+               ifnot op5 'G', L5>
+                 ifnot op6 'N', L6>
+                   ifnot op7 'R', L7>                   ; PALIGNR
+                   ifnot B$FirstRegGender MMreg, L8>
+                    ToOpcode 0F, 03A, 0F | jmp mmTwoImm8Any
+L8:                ifnot B$FirstRegGender XMMreg, OperandsError
+                    ToOpcode 066, 0F, 03A, 0F | jmp XmmMemXmmImm8Any
 L7:                ;BadMnemonic
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic
@@ -2413,6 +2857,18 @@ L6:              ;BadMnemonic
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        BadMnemonic
+L2:      ifnot op2 'B', L2>
+           ifnot op3 'L', L3>
+             ifnot op4 'E', L4>
+               ifnot op5 'N', L5>
+                 ifnot op6 'D', L6>
+                   ifnot op7 'W', L7>                   ; PBLENDW
+                    ToOpcode 066, 0F, 03A, 0E | jmp XmmMemXmmImm8Any
+L7:                ;BadMnemonic
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          ;BadMnemonic
+L3:        BadMnemonic
 L2:        ifnot op2 'C', L2>>
              ifnot op3 'M', L3>>
                ifnot op4 'P', L4>>
@@ -2423,6 +2879,8 @@ L2:        ifnot op2 'C', L2>>
                      cmp op7 'D' | jne L7>                     ; PCMPEQB/W/D
 L8:                    mov cl op7 | mov op1 00_01110100
                          jmp gg2
+L7:                    cmp op7 'Q' | jne L7>
+                      ToOpcode 066, 0F, 038, 029 | jmp XMMmemXMMany ; PCMPEQQ
 L7:                  ;BadMnemonic
 L6:                ;BadMnemonic
 L5:                ifnot op5 'G', L5>
@@ -2432,6 +2890,8 @@ L5:                ifnot op5 'G', L5>
                        cmp op7 'D' | jne L7>                    ; PCMPGTB/W/D
 L8:                      mov cl op7 | mov op1 00_01100100
                              jmp gg2
+L7:                    cmp op7 'Q' | jne L7>
+                      ToOpcode 066, 0F, 038, 037 | jmp XMMmemXMMany ; PCMPGTQ
 L7:                    ;BadMnemonic
 L6:                  ;BadMnemonic
 L5:               ;BadMnemonic
@@ -2462,7 +2922,35 @@ L7:
 L6:
 L5:
 L4:
-L3:          BadMnemonic
+L3:      BadMnemonic
+L2:      ifnot op2 'H', L2>>
+           ifnot op3 'A', L3>
+             ifnot op4 'D', L4>
+               ifnot op5 'D', L5>
+                 ifnot op6 'S', L6>
+                   ifnot op7 'W', L7>                        ; PHADDSW
+                   ifnot B$FirstRegGender MMreg, L8>
+                    ToOpcode 0F 038 03 | jmp MMXmemMMXany
+L8:                ifnot B$FirstRegGender XMMreg, OperandsError
+                    ToOpcode 066 0F 038 03 | jmp XmmMemXmmAny
+L7:
+L6:
+L5:
+L4:      BadMnemonic
+L3:        ifnot op3 'S', L3>
+             ifnot op4 'U', L4>
+               ifnot op5 'B', L5>
+                 ifnot op6 'S', L6>
+                   ifnot op7 'W', L7>                        ; PHSUBSW
+                   ifnot B$FirstRegGender MMreg, L8>
+                    ToOpcode 0F 038 07 | jmp MMXmemMMXany
+L8:                ifnot B$FirstRegGender XMMreg, OperandsError
+                    ToOpcode 066 0F 038 07 | jmp XmmMemXmmAny
+L7:
+L6:
+L5:
+L4:
+L3:      BadMnemonic
 L2:        ifnot op2 'M', L2>>
              ifnot op3 'A', L3>
                ifnot op4 'D', L4>
@@ -2538,8 +3026,29 @@ L5:               ;BadMnemonic
 L4:             ;BadMnemonic
 L3:           ;BadMnemonic
 L2:       BadMnemonic
-L1:    ifnot op1 'R', L1>
-         ifnot op2 'S', L2>
+
+L1:    ifnot op1 'R', L1>>
+         ifnot op2 'O', L2>>
+           ifnot op3 'U', L3>>
+             ifnot op4 'N', L4>
+               ifnot op5 'D', L5>
+                 ifnot op6 'P', L6>
+                   ifnot op7 'D', L7>                ; ROUNDPD
+                    ToOpcode 066, 0F, 03A, 09 | jmp XmmMemXmmImm8Any
+L7:                ifnot op7 'S', L7>                ; ROUNDPS
+                    ToOpcode 066, 0F, 03A, 08 | jmp XmmMemXmmImm8Any
+L7:              BadMnemonic
+L6:              ifnot op6 'S', L6>
+L7:                ifnot op7 'D', L7>                ; ROUNDSD
+                    ToOpcode 066, 0F, 03A, 0B | jmp XmmMemXmmImm8Any
+L7:                ifnot op7 'S', L7>                ; ROUNDSS
+                    ToOpcode 066, 0F, 03A, 0A | jmp XmmMemXmmImm8Any
+L7:                ;BadMnemonic
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          ;BadMnemonic
+L3:        BadMnemonic
+L2:      ifnot op2 'S', L2>
            ifnot op3 'Q', L3>
              ifnot op4 'R', L4>
                ifnot op5 'T', L5>
@@ -2601,6 +3110,36 @@ L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        ;BadMnemonic
 L2:      ;BadMnemonic
+L1:    ifnot op1 'V', L1>>
+         ifnot op2 'M', L2>>
+           ifnot op3 'C', L3>
+             ifnot op4 'L', L4>>
+               ifnot op5 'E', L5>>
+                 ifnot op6 'A', L6>
+                   ifnot op7 'R', L7>>                      ; VMCLEAR
+                    ToOpcode 066, 0F, 0C7 | mov op1 030 | jmp QmodRm
+L3:        ifnot op3 'P', L3>
+             ifnot op4 'T', L4>
+               ifnot op5 'R', L5>
+                 ifnot op6 'L', L6>
+                   ifnot op7 'D', L7>                       ; VMPTRLD
+                    ToOpcode 0F, 0C7 | mov op1 030 | jmp QmodRm
+L6:              ifnot op6 'S', L6>
+                   ifnot op7 'T', L7>                       ; VMPTRST
+                    ToOpcode 0F, 0C7 | mov op1 038 | jmp QmodRm
+L3:        ifnot op3 'W', L3>
+             ifnot op4 'R', L4>
+               ifnot op5 'I', L5>
+                 ifnot op6 'T', L6>
+                   ifnot op7 'E', L7>                       ; VMWRITE
+                    mov op1 0F, op2 079 | jmp op_op_modReg1Rm32
+L7:
+L6:
+L5:
+L4:
+L3:
+L2:      BadMnemonic
+
 L1:    BadMnemonic
 
 
@@ -2609,10 +3148,10 @@ L1:    BadMnemonic
 
 heightLetters:        On B$esi+8 > Separators,  jmp NineLetters
 
-L1:  ifnot op1 'A', L1>>
-       ifnot op2 'D', L2>>
-         ifnot op3 'D', L3>>
-           ifnot op4 'S', L4>>
+     ifnot op1 'A', L1>
+       ifnot op2 'D', L2>
+         ifnot op3 'D', L3>
+           ifnot op4 'S', L4>
              ifnot op5 'U', L5>
                ifnot op6 'B', L6>
                  ifnot op7 'P', L7>
@@ -2621,13 +3160,32 @@ L1:  ifnot op1 'A', L1>>
 L8:                ifnot op8 'S', L8>   ; ADDSUBPS F2,0F,D0,/r ADDSUBPD xmm1, xmm2/m128
                      ToOpcode 0F2 | mov Op1 0D0 | jmp XmmMemXmm
 L8:                ;BadMnemonic
-L8:              ;BadMnemonic
-L7:            ;BadMnemonic
-L6:          ;BadMnemonic
-L5:        ;BadMnemonic
-L4:      ;BadMnemonic
-L3:    ;BadMnemonic
-L2:   BadMnemonic
+L7:              ;BadMnemonic
+L6:            ;BadMnemonic
+L5:          ;BadMnemonic
+L4:        ;BadMnemonic
+L3:      ;BadMnemonic
+L2:    BadMnemonic
+
+L1:  ifnot op1 'B', L1>
+       ifnot op2 'L', L2>
+         ifnot op3 'E', L3>
+           ifnot op4 'N', L4>
+             ifnot op5 'D', L5>
+               ifnot op6 'V', L6>
+                 ifnot op7 'P', L7>
+                   ifnot op8 'D', L8>                     ; BLENDVPD
+                    ToOpcode 066, 0F, 038, 015 | jmp XmmMemXmmAny
+L8:                ifnot op8 'S', L8>                     ; BLENDVPS
+                    ToOpcode 066, 0F, 038, 014 | jmp XmmMemXmmAny
+L8:                ;BadMnemonic
+L7:              ;BadMnemonic
+L6:            ;BadMnemonic
+L5:          ;BadMnemonic
+L4:        ;BadMnemonic
+L3:      ;BadMnemonic
+L2:    BadMnemonic
+
 L1:  ifnot op1 'C', L1>>
        ifnot op2 'V', L2>>
          ifnot op3 'T', L3>>
@@ -2721,6 +3279,22 @@ L5:          ;BadMnemonic
 L4:       ;BadMnemonic
 L3:     ;BadMnemonic
 L2:   BadMnemonic
+L1:  ifnot op1 'I', L1>
+       ifnot op2 'N', L2>
+         ifnot op3 'S', L3>
+           ifnot op4 'E', L4>
+             ifnot op5 'R', L5>
+               ifnot op6 'T', L6>
+                 ifnot op7 'P', L7>
+                   ifnot op8 'S', L8>                 ; INSERTPS
+                    ToOpcode 066, 0F, 03A, 021 | jmp XmmMemXmmImm8Any
+L8:                ;BadMnemonic
+L7:              ;BadMnemonic
+L6:            ;BadMnemonic
+L5:          ;BadMnemonic
+L4:       ;BadMnemonic
+L3:     ;BadMnemonic
+L2:   BadMnemonic
 L1:  ifnot op1 'M', L1>
        ifnot op2 'A', L2>
          ifnot op3 'S', L3>
@@ -2767,7 +3341,11 @@ L7:              ;BadMnemonic
 L6:            BadMnemonic
 L5:          ifnot op5 'U', L5>
                ifnot op6 'S', L6>
-                 ifnot op7 'W', L7>
+                 ifnot op7 'D', L7>
+                   ifnot op8 'W', L8>                 ; PACKUSDW
+                    ToOpcode 066, 0F, 038, 02B | jmp XMMmemXMMany
+L8:                BadMnemonic
+L7:              ifnot op7 'W', L7>
                    ifnot op8 'B', L8>                 ; PACKUSWB
                        .If B$FirstRegGender = XmmReg
                            ToOpcode 001100110 | mov B$FirstRegGender mmReg
@@ -2782,22 +3360,93 @@ L6:            ;BadMnemonic
 L5:          ;BadMnemonic
 L4:        ;BadMnemonic
 L3:      BadMnemonic
-L2:      ifnot op2 'M', L2>
-           ifnot op3 'O', L3>
+L2:      ifnot op2 'B', L2>
+           ifnot op3 'L', L3>
+             ifnot op4 'E', L4>
+               ifnot op5 'N', L5>
+                 ifnot op6 'D', L6>
+                   ifnot op7 'V', L7>
+                     ifnot op8 'B', L8>                 ; PBLENDVB
+                      ToOpcode 066, 0F, 038, 010 | jmp XmmMemXmmAny
+L8:                  ;BadMnemonic
+L7:                ;BadMnemonic
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          ;BadMnemonic
+L3:        BadMnemonic
+L2:      ifnot op2 'M', L2>>
+           ifnot op3 'O', L3>>
              ifnot op4 'V', L4>
-               ifnot op5 'M', L4>
+               ifnot op5 'M', L5>
                  ifnot op6 'S', L4>
                    ifnot op7 'K', L4>
                      ifnot op8 'B', L4>                   ; PMOVMSKB
                          mov op1 0D7 | jmp OQreg32Reg
 L4: BadMnemonic
+    ; PMOVSXxx
+L5:            ifnot op5 'S', L5>>
+                 ifnot op6 'X', L6>>
+                   ifnot op7 'B', L7>
+                     ifnot op8 'W', L8> ; PMOVSXBW
+                      ToOpcode 066, 0F, 038, 020 | jmp XmmMemXmmAny
+L8:                  ifnot op8 'D', L8> ; PMOVSXBD
+                      ToOpcode 066, 0F, 038, 021 | jmp XmmMemXmmAny
+L8:                  ifnot op8 'Q', L8> ; PMOVSXBQ
+                      ToOpcode 066, 0F, 038, 022 | jmp XmmMemXmmAny
+L8:                 BadMnemonic
+L7:                ifnot op7 'W', L7>
+                     ifnot op8 'D', L8> ; PMOVSXWD
+                      ToOpcode 066, 0F, 038, 023 | jmp XmmMemXmmAny
+L8:                  ifnot op8 'Q', L8> ; PMOVSXWQ
+                      ToOpcode 066, 0F, 038, 024 | jmp XmmMemXmmAny
+L8:               BadMnemonic
+L7:                ifnot op7 'D', L7>
+                     ifnot op8 'Q', L8> ; PMOVSXDQ
+                      ToOpcode 066, 0F, 038, 025 | jmp XmmMemXmmAny
+L8:
+L7:
+L6:      BadMnemonic
+    ; PMOVZXxx
+L5:            ifnot op5 'Z', L5>>
+                 ifnot op6 'X', L6>>
+                   ifnot op7 'B', L7>
+                     ifnot op8 'W', L8> ; PMOVZXBW
+                      ToOpcode 066, 0F, 038, 030 | jmp XmmMemXmmAny
+L8:                  ifnot op8 'D', L8> ; PMOVZXBD
+                      ToOpcode 066, 0F, 038, 031 | jmp XmmMemXmmAny
+L8:                  ifnot op8 'Q', L8> ; PMOVZXBQ
+                      ToOpcode 066, 0F, 038, 032 | jmp XmmMemXmmAny
+L8:                 BadMnemonic
+L7:                ifnot op7 'W', L7>
+                     ifnot op8 'D', L8> ; PMOVZXWD
+                      ToOpcode 066, 0F, 038, 033 | jmp XmmMemXmmAny
+L8:                  ifnot op8 'Q', L8> ; PMOVZXWQ
+                      ToOpcode 066, 0F, 038, 034 | jmp XmmMemXmmAny
+L8:               BadMnemonic
+L7:                ifnot op7 'D', L7>
+                     ifnot op8 'Q', L8> ; PMOVZXDQ
+                      ToOpcode 066, 0F, 038, 035 | jmp XmmMemXmmAny
+L8:
+L7:
+L6:
+L5:      BadMnemonic
 L3:        ifnot op3 'U', L3>
-             ifnot op4 'L', L4>>
-               ifnot op5 'L', L4>>
-                 ifnot op6 'U', L4>>
-                   ifnot op7 'D', L4>>
-                     ifnot op8 'Q', L4>>                   ; PMULLUDQ
+             ifnot op4 'L', L4>
+               ifnot op5 'H', L5>
+                 ifnot op6 'R', L4>
+                   ifnot op7 'S', L4>
+                     ifnot op8 'W', L4>                   ; PMULHRSW
+                       ifnot B$FirstRegGender MMreg, L6>
+                        ToOpcode 0F 038 0B | jmp MMXmemMMXany
+L6:                    ifnot B$FirstRegGender XMMreg, OperandsError
+                        ToOpcode 066 0F 038 0B | jmp XmmMemXmmAny
+L5:            ifnot op5 'L', L4>
+                 ifnot op6 'U', L4>
+                   ifnot op7 'D', L4>
+                     ifnot op8 'Q', L4>                   ; PMULLUDQ
                          mov op1 0011110100 | jmp OQregMemToReg
+L5:
+L4:
 L3: BadMnemonic
 L2:      ifnot op2 'R', L2>
            ifnot op3 'E', L3>
@@ -2873,6 +3522,22 @@ L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        ;BadMnemonic
 L2:      BadMnemonic
+L1:    ifnot op1 'S', L1>
+         ifnot op2 'Y', L2>
+           ifnot op3 'S', L3>
+             ifnot op4 'E', L4>
+               ifnot op5 'N', L5>
+                 ifnot op6 'T', L6>
+                   IFNOT op7 'E', L7>
+                     ifnot op8 'R', L8>                             ; SYSENTER
+                       parms 0 | ToOpcode 0F 034 | ret
+L8:                  ;BadMnemonic
+L7:                ;BadMnemonic
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          ;BadMnemonic
+L3:        ;BadMnemonic
+L2:      BadMnemonic
 L1:    ifnot op1 'U', L1>
          ifnot op2 'N', L2>
            ifnot op3 'P', L3>
@@ -2899,23 +3564,21 @@ L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        ;BadMnemonic
 L2:      BadMnemonic
-L1:    ifnot op1 'S', L1>
-         ifnot op2 'Y', L2>
-           ifnot op3 'S', L3>
+L1:    ifnot op1 'V', L1>>
+         ifnot op2 'M', L2>
+           ifnot op3 'L', L3>
+             ifnot op4 'A', L4>
+               ifnot D$ESI+4 'UNCH', L5>                            ; VMLAUNCH
+                parms 0 | ToOpcode 0F, 01, 0C2 | ret
+L3:        ifnot op3 'R', L3>
              ifnot op4 'E', L4>
-               ifnot op5 'N', L5>
-                 ifnot op6 'T', L6>
-                   IFNOT op7 'E', L7>
-                     ifnot op8 'R', L8>                             ; SYSENTER
-                       parms 0
-                       mov al 0F | stosb | mov al 034 | stosb | ret
-L8:                  ;BadMnemonic
-L7:                ;BadMnemonic
-L6:              ;BadMnemonic
+               ifnot D$ESI+4 'SUME', L5>                            ; VMRESUME
+                parms 0 | ToOpcode 0F, 01, 0C3 | ret
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        ;BadMnemonic
-L2:      ;BadMnemonic
+L2:      BadMnemonic
+
 L1:    BadMnemonic
 
 ____________________________________________________________________________________________
@@ -2940,25 +3603,31 @@ L0:                        BadOperand
 ; ...............
 L2:      ifnot op2 'V', L2>
            ifnot op3 'T', L3>
-             ifnot op4 'T', L3>
+             ifnot op4 'T', L4>
                ifnot op5 'P', L5>
                  ifnot op6 'D', L6>
-                   ifnot op7 '2', L3>
+                   ifnot op7 '2', L7>
                      ifnot op8 'D', L8>
-                       ifnot B$esi+8 'Q', L3>             ; CVTTPD2DQ
+                       ifnot B$esi+8 'Q', L2>             ; CVTTPD2DQ
                            ToOpcode 001100110 | mov op1 0011100110 | jmp XMMmemXMM
-L3:                    ifnot B$esi+8 'I', L3>             ; CVTTPD2PI
+L8:                  ifnot op8 'P', L2>
+                       ifnot B$esi+8 'I', L2>             ; CVTTPD2PI
                           ToOpcode 066 | mov op1 02C | jmp MMXmemXMM
-L6:              ifnot op6 'S', L3>
-                   ifnot op7 '2', L3>
+L6:              ifnot op6 'S', L6>
+                   ifnot op7 '2', L7>
                      ifnot op8 'D', L8>
-                       ifnot B$esi+8 'Q', L3>             ; CVTTPS2DQ
+                       ifnot B$esi+8 'Q', L2>             ; CVTTPS2DQ
                            ToOpcode 0011110011 | mov op1 001011011 | jmp XMMmemXMM
-L8:                  ifnot op8 'P', L3>
-                       ifnot B$esi+8 'I', L3>             ; CVTTPS2PI
+L8:                  ifnot op8 'P', L2>
+                       ifnot B$esi+8 'I', L2>             ; CVTTPS2PI
 C1:                      mov op1 00101100 | jmp MMXmemXMM
-L2:
-L3: BadMnemonic
+L8:
+L7:
+L6:
+;L5
+L4:
+L3:
+L2: BadMnemonic
 
 L5:            ifnot op5 'P', L5>
                  ifnot op6 'S', L3>
@@ -2980,8 +3649,69 @@ L5:              ifnot op6 'S', L3>
 
 L3: BadMnemonic
 
-L1:    ifnot op1 'P', L3>>
-         ifnot op2 'R', L2>>
+L1:  ifnot op1 'E', L1>
+       ifnot D$esi+1 'XTRA', L2>
+         ifnot D$esi+5 'CTPS', L6>                        ; EXTRACTPS
+           ToOpcode 066, 0F, 03A, 017 | mov AL doubleSize, EDX 03 | jmp RM32XmmImm8
+L6:
+L2:   BadMnemonic
+
+L1:  ifnot op1 'P', L1>>
+       ifnot op2 'C', L2>>
+         ifnot op3 'L', L3>
+           ifnot op4 'M', L4>
+             ifnot op5 'U', L5>
+               ifnot D$esi+5 'LQDQ', L6>                  ; PCLMULQDQ
+               ToOpcode 066 0F 03A 044 | jmp XmmMemXmmImm8Any
+L6:
+L5:
+L4:   BadMnemonic
+L3:      ifnot op3 'M', L3>>
+           ifnot op4 'P', L4>>
+             ifnot op5 'E', L5>
+               ifnot op6 'S', L6>>
+                 ifnot op7 'T', L7>>
+                   ifnot op8 'R', L8>>
+                     Ifnot B$esi+8 'I', L9>               ; PCMPESTRI
+                      ToOpcode 066 0F 03A 061 | jmp XmmMemXmmImm8Any
+L9:                  Ifnot B$esi+8 'M', L9>               ; PCMPESTRM
+                      ToOpcode 066 0F 03A 060 | jmp XmmMemXmmImm8Any
+L9:     BadMnemonic
+L5:          ifnot op5 'I', L5>
+               ifnot op6 'S', L6>
+                 ifnot op7 'T', L7>
+                   ifnot op8 'R', L8>
+                     Ifnot B$esi+8 'I', L9>               ; PCMPISTRI
+                      ToOpcode 066 0F 03A 063 | jmp XmmMemXmmImm8Any
+L9:                  Ifnot B$esi+8 'M', L9>               ; PCMPISTRM
+                      ToOpcode 066 0F 03A 062 | jmp XmmMemXmmImm8Any
+L9:
+L8:
+L7:
+L6:
+L5:
+L4:
+L3:   BadMnemonic
+L2:    ifnot op2 'M', L2>
+         ifnot op3 'A', L3>
+           ifnot op4 'D', L4>
+             ifnot op5 'D', L5>
+               ifnot op6 'U', L6>
+                 ifnot op7 'B', L7>
+                   ifnot op8 'S', L8>
+                     Ifnot B$esi+8 'W', L9>               ; PMADDUBSW
+                     ifnot B$FirstRegGender MMreg, K0>
+                      ToOpcode 0F 038 04 | jmp MMXmemMMXany
+K0:                  ifnot B$FirstRegGender XMMreg, OperandsError
+                      ToOpcode 066 0F 038 04 | jmp XmmMemXmmAny
+L9:
+L8:
+L7:
+L6:
+L5:
+L4:
+L3:   BadMnemonic
+L2:      ifnot op2 'R', L2>>
            ifnot op3 'E', L3>>
              ifnot op4 'F', L3>>
                ifnot op5 'E', L3>>
@@ -2990,32 +3720,36 @@ L1:    ifnot op1 'P', L3>>
                      ifnot op8 'H', L3>>                   ; PREFETCH0/1/2 (Intel).
                        If B$esi+8 = 'W'
                         ; AMD PREFETCHW:
+                          cmp B$ParametersNumber 1 | jne L4>
+                          cmp B$FirstGender mem | jne L4>
+                          cmp B$FirstOperandwBit ByteSize | jne L4>
                           mov al 0F | stosb | mov al 0D | stosb
                           mov al 00_001_000 | or al B$ModBits | or al B$RmBits | stosb | ret
                        End_If
                        mov bl B$esi+8                     ; 'W/0/1/2'
                        inc bl | sub bl '0'                ;    1/2/3
-                       cmp bl 3 | ja L3>>                 ; Same as PREFETCHT0/1/2 (alternate).
-                       cmp bl 0 | je L3>>
-                       cmp B$ParametersNumber 1 | jne L1>
-                         cmp B$FirstGender mem | jne L1>
-                         cmp B$FirstOperandwBit ByteSize | jne L1>
-                       ;  cmp B$SIBinside &TRUE | je L1>
-                       ;  cmp B$EregInside &TRUE | je L1>
+                       cmp bl 3 | ja L3>                  ; Same as PREFETCHT0/1/2 (alternate).
+                       cmp bl 0 | je L3>
+                       cmp B$ParametersNumber 1 | jne L4>
+                         cmp B$FirstGender mem | jne L4>
+                         cmp B$FirstOperandwBit ByteSize | jne L4>
+                       ;  cmp B$SIBinside &TRUE | je L4>
+                       ;  cmp B$EregInside &TRUE | je L4>
                              mov al 0F | stosb
                              mov al 018                ; INTEL (0/1/2)
                              stosb
                              mov al bl | shl al 3
                              or al B$ModBits | or al B$RmBits | stosb | ret
-L1: error D$PrefetchMemPtr
+L4:  error D$PrefetchMemPtr
+L3:   BadMnemonic
 
 ; PUNPCKH.. / PUNPCKL.. are send to PUNPCKH / L .
 
-L2:     ifnot op2 'U', L3>>
-           ifnot op3 'N', L3>>
-             ifnot op4 'P', L3>>
-               ifnot op5 'C', L3>>
-                 ifnot op6 'K', L3>>
+L2:     ifnot op2 'U', L2>
+           ifnot op3 'N', L3>
+             ifnot op4 'P', L3>
+               ifnot op5 'C', L3>
+                 ifnot op6 'K', L3>
                    ifnot op7 'L', L7>
                      If W$esi+7 = 'BW'            ; PUNPCKLBW
                          jmp PUNPCKL_one
@@ -3033,61 +3767,103 @@ L7:               ifnot op7 'H', L3>
                      Else_If W$esi+7 = 'DQ'       ; PUNPCKLDQ
                          jmp PUNPCKH_one
                      End_If
-L3: BadMnemonic
+L3:   ;BadMnemonic
+L2:  ;BadMnemonic
+L1: BadMnemonic
 
 TenLetters: cmp B$esi+10 Separators | ja ElevenLetters
-       ifnot op1 'M', L1>>
-         ifnot op2 'A', L3>>
-           ifnot op3 'S', L3>>
-             ifnot op4 'K', L3>>
-               ifnot op5 'M', L3>>
-                 ifnot op6 'O', L3>>
-                   ifnot op7 'V', L3>>
-                     ifnot op8 'D', L3>>
-                       ifnot B$esi+8 'Q', L3>>
-                         ifnot B$esi+9 'U', L3>>   ; MASKMOVDQU
-                             ToOpcode 001100110 | mov op1 0011110111 | jmp XmmXmm
-L3: BadMnemonic
 
-L1:    ifnot op1 'P', L3>>
-         ifnot op2 'R', L2>>
-           ifnot op3 'E', L3>>
-             ifnot op4 'F', L3>>
-               ifnot op5 'E', L3>>
-                 ifnot op6 'T', L3>>
-                   ifnot op7 'C', L3>>
-                     ifnot op8 'H', L3>>                   ; PREFETCHT0/1/2 (Intel).
-                       ifnot B$esi+8 'T', L3>>            ; Same as PREFETCH0/1/2
+       ifnot op1 'A', L1>
+         ifnot op2 'E', L2>
+           ifnot op3 'S', L2>
+             ifnot op4 'D', L4>
+               ifnot op5 'E', L2>
+                 ifnot op6 'C', L2>
+                   ifnot D$esi+6 'LAST', L2>             ; AESDECLAST
+                   ToOpcode 066 0F 038 0DF | jmp XMMmemXMMany
+L2:   BadMnemonic
+
+L4:          ifnot op4 'E', L4>
+               ifnot op5 'N', L4>
+                 ifnot op6 'C', L4>                      ; AESENCLAST
+                   ifnot D$esi+6 'LAST', L4>
+                   ToOpcode 066 0F 038 0DD | jmp XMMmemXMMany
+L4:      BadMnemonic
+
+L1:    ifnot op1 'C', L1>
+         ifnot op2 'L', L2>
+           ifnot op3 'F', L2>
+             ifnot op4 'L', L2>
+               ifnot op5 'U', L2>
+                 ifnot op6 'S', L2>
+                   ifnot D$esi+6 'HOPT', L2>                      ; CLFLUSHOPT
+                       Parms 1
+                       On B$FirstGender <> mem, BadOperand
+                       On B$FirstOperandwbit <> ByteSize, BadOperandSize
+                       ToOpcode 066, 0F | mov op1 0010101110, op2 00_111_000 | jmp op_modRm
+L2:   BadMnemonic
+
+L1:    ifnot op1 'M', L1>>
+         ifnot op2 'A', L2>
+           ifnot op3 'S', L3>
+             ifnot op4 'K', L3>
+               ifnot op5 'M', L3>
+                 ifnot op6 'O', L3>
+                   ifnot op7 'V', L3>
+                     ifnot op8 'D', L3>
+                       ifnot B$esi+8 'Q', L3>
+                         ifnot B$esi+9 'U', L3>   ; MASKMOVDQU
+                             ToOpcode 001100110 | mov op1 0011110111 | jmp XmmXmm
+L3:
+L2:   BadMnemonic
+
+L1:    ifnot op1 'P', L1>>
+         ifnot op2 'H', L2>
+           ifnot D$esi+2 'MINP', L3>
+             ifnot D$esi+6 'OSUW', L6>
+              ifnot B$FirstRegGender XMMreg, OperandsError
+              ToOpcode 066 0F 038 041 | jmp XmmMemXmmAny
+L6:
+L3:   BadMnemonic
+L2:      ifnot op2 'R', L2>>
+           ifnot op3 'E', L3>
+             ifnot op4 'F', L3>
+               ifnot op5 'E', L3>
+                 ifnot op6 'T', L3>
+                   ifnot op7 'C', L3>
+                     ifnot op8 'H', L3>                   ; PREFETCHT0/1/2 (Intel).
+                       ifnot B$esi+8 'T', L3>             ; Same as PREFETCH0/1/2
                        mov bl B$esi+9                     ; 'W/0/1/2'
                        inc bl | sub bl '0'                ;    1/2/3
                        cmp bl 3 | ja L3>>
                        cmp bl 0 | je L3>>
-                       cmp B$ParametersNumber 1 | jne L1>
-                         cmp B$FirstGender mem | jne L1>
-                         cmp B$FirstOperandwBit ByteSize | jne L1>
-                       ;  cmp B$SIBinside &TRUE | je L1>
-                       ;  cmp B$EregInside &TRUE | je L1>
+                       cmp B$ParametersNumber 1 | jne L4>
+                         cmp B$FirstGender mem | jne L4>
+                         cmp B$FirstOperandwBit ByteSize | jne L4>
+                       ;  cmp B$SIBinside &TRUE | je L4>
+                       ;  cmp B$EregInside &TRUE | je L4>
                              mov al 0F | stosb
                              mov al 018                ; INTEL (0/1/2)
                              stosb
                              mov al bl | shl al 3
                              or al B$ModBits | or al B$RmBits | stosb | ret
-L1: error D$PrefetchMemPtr
-
-L2:      ifnot op2 'U', L3>>
-           ifnot op3 'N', L3>>
-             ifnot op4 'P', L3>>
-               ifnot op5 'C', L3>>
-                 ifnot op6 'K', L3>>
-                   ifnot op7 'H', L7>>
+L4: error D$PrefetchMemPtr
+L3:   BadMnemonic
+L2:      ifnot op2 'U', L2>
+           ifnot op3 'N', L2>
+             ifnot op4 'P', L2>
+               ifnot op5 'C', L2>
+                 ifnot op6 'K', L2>
+                   ifnot op7 'H', L7>
                      mov op1 0001101101
-L8:                  ifnot op8 'Q', L3>>
-                       ifnot B$esi+8 'D', L3>>
-                         ifnot B$esi+9 'Q', L3>>  ; PUNPCKHQDQ
-                             ToOpcode 066 | jmp XmmMemXmm
-L7: mov op1 001101100 | jmp L8<                    ; PUNPCKLQDQ
-
-L3: BadMnemonic
+L8:                  ifnot op8 'Q', L2>
+                       ifnot B$esi+8 'D', L2>
+                         ifnot B$esi+9 'Q', L2>    ; PUNPCKHQDQ
+                           ToOpcode 066 | jmp XmmMemXmm
+L7:                ifnot op7 'L', L2>
+                     mov op1 001101100 | jmp L8<   ; PUNPCKLQDQ
+L2:
+L1: BadMnemonic
 
 ElevenLetters: cmp B$esi+11 Separators | ja TwelveLetters
 
@@ -3114,8 +3890,32 @@ L1: error D$PrefetchMemPtr
 L3: BadMnemonic
 
 
-TwelveLetters: BadMnemonic
- _________________________________________________________________________________________
+TwelveLetters: cmp B$esi+12 Separators | ja N13Letters
+ BadMnemonic
+
+N13Letters: cmp B$esi+13 Separators | ja N14Letters
+ BadMnemonic
+
+N14Letters: cmp B$esi+14 Separators | ja N15Letters
+ BadMnemonic
+
+N15Letters: cmp B$esi+15 Separators | ja N16Letters
+
+   ifnot op1 'A', L1>
+     ifnot op2 'E', L2>
+       ifnot op3 'S', L2>
+         ifnot D$esi+3 'KEYG', L2>
+           ifnot D$esi+7 'ENAS', L2>
+             ifnot D$esi+11 'SIST', L2>                    ; AESKEYGENASSIST
+             ToOpcode 066 0F 03A 0DF | jmp XmmMemXmmImm7Any
+L2: BadMnemonic
+
+L1: BadMnemonic
+
+N16Letters: ;cmp B$esi+16 Separators | ja N17Letters
+ BadMnemonic
+
+_________________________________________________________________________________________
 
 ; 'J'  >>>  all 'J'  first letter here
 ;
@@ -3352,6 +4152,15 @@ BadMnemonic
 
 L0: On op6 > Separators,  jmp MovSixLetters
 
+L4:   ifnot op4 'B', L4>>
+        ifnot op5 'E', L5>                  ; MOVBE
+        ifnot B$Operands MemToReg, L6>
+        cmp B$FirstOperandwbit ByteSize | je L5>
+          ToOpcode 0F | mov op1 038, op2 0F0 | jmp op_op_modReg1Rm
+L6:     ifnot B$Operands RegToMem, L5>
+        cmp B$SecondOperandwbit ByteSize | je L5>
+          ToOpcode 0F | mov op1 038, op2 0F1 | jmp op_op_modReg2Rm
+L5:     BadMnemonic
 
 L4:   ifnot op4 'S', L4>>
         ifnot op5 'B', L5>                  ; MOVSB
@@ -3528,6 +4337,19 @@ L8:           ;BadMnemonic
 L7:         ;BadMnemonic
 L6:       ;BadMnemonic
 L5:     ;BadMnemonic
+
+L4:   ifnot op4 'N', L4>
+        ifnot op5 'T', L5>
+          ifnot op6 'D', L6>
+            ifnot op7 'Q', L7>
+              ifnot op8 'A', L8>                      ; MOVNTDQA
+                cmp B$Operands MemToReg | jne OperandsError
+                ToOpcode 066, 0F, 038, 02A | jmp XMMtoFromMemA
+L8:           ;BadMnemonic
+L7:         ;BadMnemonic
+L6:       ;BadMnemonic
+L5:     BadMnemonic
+
 L4:   ifnot op4 'S', L4>
         ifnot op5 'H', L5>
           ifnot op6 'D', L6>
@@ -3593,8 +4415,8 @@ XMMcomparePS: ; CMPPS... encounted.
 
     ...If B$esi+7 < Separators             ; B$esi+7 = op8 > 7 Chars mnemonic
         ..If op6 = 'E'
-            If op7 = 'A'
-                mov B$imm32 0                   ; =  EA
+            If op7 = 'Q'
+                mov B$imm32 0                   ; =  EQ
             End_If
         ..Else_If op6 = 'L'
             If op7 = 'T'
@@ -3613,7 +4435,7 @@ XMMcomparePS: ; CMPPS... encounted.
             .Else_If op7 = 'L'
                 If op8 = 'T'
                     mov B$imm32 5               ; NLT  (not <)
-                Else_If op8 > 'E'
+                Else_If op8 = 'E'
                     mov B$imm32 6               ; NLE  (not <=)
                 End_If
             .End_If
@@ -3783,6 +4605,7 @@ L2:     ifnot op2 'I', L2>>
             ifnot op4 'D', L4>                ; FILD – Load Integer
               ifnot B$FirstGender mem, L5>
                 ifnot B$FirstOperandWbit WordSize, L6>
+                  dec edi
                   mov op1 00_11011_111, op2 0 | jmp op_ModRm
 L6:             ifnot B$FirstOperandWbit DoubleSize, L6>
                   mov op1 00_11011_011, op2 0 | jmp op_ModRm
@@ -3795,6 +4618,7 @@ L3:       ifnot op3 'S', L3>
             ifnot op4 'T', L4>
               ifnot B$FirstGender mem, L5>               ; FIST – Store Integer
                 ifnot B$FirstOperandWbit WordSize, L6>
+                  dec edi
                   mov op1 00_11011_111, op2 00_010_000 | jmp op_ModRm
 L6:             ifnot B$FirstOperandWbit DoubleSize, L6>
                   mov op1  00_11011_011, op2 00_010_000 | jmp op_ModRm
@@ -3950,8 +4774,8 @@ L3:     BadMnemonic
 L2:      ifnot op2 'E', L2>
            ifnot op3 'M', L3>
              ifnot op4 'M', L4>
-               ifnot op5 'S', L5>               ; FEMMS (not an FPU -3DNaow!-)
-                   mov al 0F | stosb | mov al 0E | stosb | ret
+               ifnot op5 'S', L5>               ; FEMMS (not an FPU -3DNow!-)
+                 Parms 0 | mov al 0F | stosb | mov al 0E | stosb | ret
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        BadMnemonic
@@ -3969,6 +4793,7 @@ L2:   ifnot op2 'I', L2>>
             ifnot op5 'D', L5>                      ; FIADD – Add Integer
               ifnot B$FirstGender mem, L6>
                 ifnot B$FirstOperandWbit WordSize, L7>
+                  dec edi
                   mov op1 00_11011_110, op2 0 | jmp op_ModRm
 L7:             ifnot B$FirstOperandWbit DoubleSize, L7>
                   mov op1 00_11011_010, op2 0 | jmp op_ModRm
@@ -3981,6 +4806,7 @@ L3:     ifnot op3 'C', L3>
             ifnot op5 'M', L5>               ; FICOM – Compare Integer
               ifnot B$FirstGender mem, L6>
                 ifnot B$FirstOperandWbit WordSize, L7>
+                  dec edi
                   mov op1 00_11011_110, op2 00_010_000 | jmp op_ModRm
 L7:             ifnot B$FirstOperandWbit DoubleSize, L7>
                   mov op1 00_11011_010, op2 00_010_000 | jmp op_ModRm
@@ -3993,6 +4819,7 @@ L3:     ifnot op3 'D', L3>
             ifnot op5 'V', L5>                               ; FIDIV
               ifnot B$FirstGender mem, L6>
                 ifnot B$FirstOperandWbit WordSize, L7>
+                  dec edi
                   mov op1 00_11011_110, op2 00_110_000 | jmp op_modRm
 L7:             ifnot B$FirstOperandWbit DoubleSize, L7>
                   mov op1 00_11011_010, op2 00_110_000 | jmp op_ModRm
@@ -4005,6 +4832,7 @@ L3:     ifnot op3 'M', L3>
             ifnot op5 'L', L5>                              ; FIMUL
               ifnot B$FirstGender mem, L6>
                 ifnot B$FirstOperandWbit WordSize, L7>
+                  dec edi
                   mov op1 00_11011_110, op2 00_001_000 | jmp op_ModRm
 L7:             ifnot B$FirstOperandWbit DoubleSize, L7>
                   mov op1 00_11011_010, op2 00_001_000 | jmp op_ModRm
@@ -4023,6 +4851,7 @@ L3:     ifnot op3 'S', L3>>
             ifnot op5 'P', L5>                         ; FISTP – Store Integer and Pop
               ifnot B$FirstGender mem, L6>
                 ifnot B$FirstOperandWbit WordSize, L7>
+                  dec edi
                   mov op1 00_11011_111, op2 00_011_000 | jmp op_ModRm
 L7:             ifnot B$FirstOperandWbit DoubleSize, L7>
                   mov op1 00_11011_011, op2 00_011_000 | jmp op_ModRm
@@ -4222,6 +5051,7 @@ L2:   ifnot op2 'I', L2>>
               ifnot op6 'P', L6>           ; FICOMP – Compare Integer and Pop
                 ifnot B$FirstGender mem, L7>
                   ifnot B$FirstOperandWbit WordSize, L8>
+                    dec edi
                     mov op1 00_11011_110, op2 00_011_000 | jmp op_ModRm
 L8:               ifnot B$FirstOperandWbit DoubleSize, L8>
                     mov op1 00_11011_010, op2 00_011_000 | jmp op_ModRm
@@ -4236,6 +5066,7 @@ L3:     ifnot op3 'D', L3>
               ifnot op6, 'R', L6>                           ; FIDIVR
                 ifnot B$FirstGender mem, L7>
                   ifnot B$FirstOperandWbit WordSize, L8>
+                    dec edi
                     mov op1 00_11011_110, op2 00_111_000 | jmp op_ModRm
 L8:               ifnot B$FirstOperandWbit DoubleSize, L8>
                     mov op1 00_11011_010, op2 00_111_000 | jmp op_ModRm
@@ -4250,6 +5081,7 @@ L3:     ifnot op3 'S', L3>>
               ifnot op6 'P', L6>>       ; FISTTP
                 ifnot B$FirstGender mem, L7>
                 If B$FirstOperandWbit = WordSize
+                    dec edi
                     mov op1 0DF
                 Else_If B$FirstOperandWbit = doubleSize
                     mov op1 0DB
@@ -4328,7 +5160,7 @@ L3:     ifnot op3 'S', L3>>
               ifnot op6 'E', L6>
                 ifnot B$FirstGender mem, L7>
                   ifnot B$FirstOperandWbit xSize, L8>
-                    mov op1 0D9, op2 00_111_000 | jmp op_ModRm
+                    mov op1 0DD, op2 00_110_000 | jmp op_ModRm
 L8:               error D$XmarkerPtr
 L7:           BadOperand
 L6:         ;BadMnemonic
@@ -4407,6 +5239,7 @@ L3:     ifnot op3 'T', L3>
               ifnot op6 'V', L6>            ; FSTENV – Store FPU Environment
                 ifnot B$FirstGender mem, L7>
                   ifnot B$FirstOperandWbit xSize, L8>
+                    ToOpcode 09B
                     mov op1 00_11011_001, op2 00_110_000 | jmp op_ModRm  ; 28 bytes
 L8:               error D$XmarkerPtr
 L7:             BadOperand
@@ -4633,6 +5466,13 @@ L8: On B$FirstOperandWbit = ByteSize,  error D$MixTypePtr
 
 [Xparms | mov cl, #1 | call Xparams]
 
+Aparams:                                         ; used by CRC32
+    call ParamsAny
+    mov dl B$SecondOperandWbit | and dl 1 | mov B$wBit dl
+    ret
+
+[Aparms | mov cl, #1 | call Aparams]
+
 im8Size:
     On B$ImmInside = &False, BadOperand
     On D$imm32 > 0FF,  error D$OverBytePtr
@@ -4671,6 +5511,18 @@ ret
 GPrg1_2:
   call GPrg1
   call GPrg2
+ret
+
+GPEReg1:                                    ; test a reg1 is R32
+  On B$FirstReg > 00_0111,  error D$GPregisterPtr
+  On B$FirstRegGender > reg,  error D$GPregisterPtr
+  On B$FirstOperandwBit <> DoubleSize, error D$OperandSizePtr
+ret
+
+GPEReg2:
+  On B$SecondReg > 00_0111,  error D$GPregisterPtr
+  On B$SecondRegGender > reg,  error D$GPregisterPtr
+  On B$SecondOperandwBit <> DoubleSize, error D$OperandSizePtr
 ret
 
 [GPreg1 | call GPrg1]     [GPreg2 | call GPrg2]     [GPreg1_2 | call GPrg1_2]
@@ -4909,6 +5761,27 @@ mmOne:
 L9: BadOperand
 
 
+mmTwoImm8Any:
+    ParmsAny 3
+    On B$immInside = &FALSE, error D$EndingImmPtr
+    On D$imm32 > 0FF, BadOperandSize
+        mov B$TrueSize ByteSize                 ; to ajust imm size to 8 bits storage
+        jmp L0>
+
+mmTwoAny:
+    ParmsAny 2
+L0: cmp B$Operands RegToReg | jne L1>
+      cmp B$FirstRegGender  mmReg | jne L8>
+      cmp B$SecondRegGender mmReg | jne L8>
+      mov op1 B$FirstReg | shl op1 3 | or op1 B$SecondReg
+      or op1 00_11000000 | LastOpcode op1
+L1: cmp B$Operands MemToReg | jne L8>
+      cmp B$FirstRegGender mmReg | jne L8>
+      cmp B$SecondOperandwbit QuadSize | jne OperandSizeError
+      mov op1 B$ModBits | or op1 B$RmBits
+      mov op2 B$FirstReg | shl op2 3 | or op1 op2 | LastOpcode op1
+L8: BadOperand
+
 ; Used only with movntq and one of movq:
 
 MMregToMem:
@@ -5017,6 +5890,64 @@ L2: cmp B$Operands MemToReg | jne L8>
         cmp B$SecondOperandwbit xSize | je L1>
         cmp B$SecondOperandwbit OctoSize | jne L7>
 L1:     cmp B$FirstRegGender XmmReg | jne L8>>
+            mov al B$FirstReg | shl al 3 | or al B$ModBits | or al B$RmBits
+            LastOpcode al
+
+L7: BadOperandSize
+L8: BadOperand
+
+XmmMemXmmImm3Any:
+ParmsAny 3
+    On B$immInside = &FALSE, error D$EndingImmPtr
+    On D$imm32 > 0011, BadOperandSize
+        mov B$TrueSize ByteSize                 ; to ajust imm size to 8 bits storage
+        jmp L0>
+
+XmmMemXmmImm7Any:
+ParmsAny 3
+    On B$immInside = &FALSE, error D$EndingImmPtr
+    On D$imm32 > 00111, BadOperandSize
+        mov B$TrueSize ByteSize                 ; to ajust imm size to 8 bits storage
+        jmp L0>
+
+XmmMemXmmImm8Any:
+ParmsAny 3
+    On B$immInside = &FALSE, error D$EndingImmPtr
+    On D$imm32 > 0FF, BadOperandSize
+        mov B$TrueSize ByteSize                 ; to ajust imm size to 8 bits storage
+        jmp L0>
+
+; all opcodes are written, manage ModRm
+XMMmemXMMany:
+    ParmsAny 2
+L0: cmp B$Operands RegToReg | jne L2>
+        cmp B$FirstRegGender  XmmReg | jne L8>>
+        cmp B$SecondRegGender XmmReg | jne L8>>
+            mov al B$FirstReg | shl al 3 | or al 0011_000_000 | or al B$SecondReg
+            LastOpcode al
+
+L2: cmp B$Operands MemToReg | jne L8>
+        cmp B$SecondOperandwbit xSize | je L1>
+        cmp B$SecondOperandwbit OctoSize | jne L7>
+L1:     cmp B$FirstRegGender XmmReg | jne L8>>
+            mov al B$FirstReg | shl al 3 | or al B$ModBits | or al B$RmBits
+            LastOpcode al
+
+L7: BadOperandSize
+L8: BadOperand
+
+; all opcodes are written, manage ModRm
+MMXmemMMXany:
+    ParmsAny 2
+    cmp B$Operands RegToReg | jne L2>
+        cmp B$FirstRegGender  MMReg | jne L8>>
+        cmp B$SecondRegGender MMReg | jne L8>>
+            mov al B$FirstReg | shl al 3 | or al 0011_000_000 | or al B$SecondReg
+            LastOpcode al
+
+L2: cmp B$Operands MemToReg | jne L8>
+        cmp B$SecondOperandwbit QuadSize | jne L7>
+L1:     cmp B$FirstRegGender MMReg | jne L8>>
             mov al B$FirstReg | shl al 3 | or al B$ModBits | or al B$RmBits
             LastOpcode al
 
@@ -5278,6 +6209,23 @@ L8: BadOperand
 XMMtoMem:
     ParmsAny 2
     ToOpcode 0F | jmp L2<
+
+XMMtoFromMemA:
+    ParmsAny 2
+    cmp B$Operands MemToReg | jne L2>
+    cmp B$SecondOperandwbit xSize | je L1>
+    cmp B$SecondOperandwbit OctoSize | jne L7>
+L1: cmp B$FirstRegGender XmmReg | jne L8>>
+    mov al B$FirstReg | shl al 3 | or al B$ModBits | or al B$RmBits | LastOpcode al
+L2: cmp B$Operands RegToMem | jne L8>
+    cmp B$FirstOperandwbit xSize | je L1>
+    cmp B$FirstOperandwbit OctoSize | jne L7>
+L1: cmp B$SecondRegGender XmmReg | jne L8>
+    mov al B$SecondReg | shl al 3 | or al B$ModBits | or al B$RmBits | LastOpcode al
+
+L7: BadOperandSize
+L8: BadOperand
+
 ;;
  Exemple for Xmm4:      MOVD - Move doubleword N N Y N
 
@@ -5381,6 +6329,20 @@ L2:                 ToOpcode 0F, op1
 L8: BadOperandSize
 L9: BadOperand
 
+; PEXTR-B/D/W AL=memSize, EDX=imm8_limit
+RM32XmmImm8:
+    ParmsAny 3
+    cmp B$SecondRegGender XMMreg | jne L9>>
+    On B$immInside = &FALSE, error D$EndingImmPtr
+    cmp D$Imm32 edx | ja OperandSizeError | mov B$TrueSize ByteSize
+    cmp B$FirstRegGender reg | jne L2>
+    mov al B$FirstReg | shl al 3 | or al 0011_000_000 | or al B$SecondReg | LastOpcode al
+
+L2: cmp B$Operands RegToMem | jne L9>
+    cmp B$FirstOperandwbit AL | jne OperandSizeError
+    mov al B$SecondReg | shl al 3 | or al B$ModBits | or al B$RmBits | LastOpcode al
+
+L9: BadOperand
 
 ; Example: PINSRW  mm, r32/mem16, imm8 ; <<<< this one in reserse order too !!!!!!!!!!!!!!!!
 ;          PINSRW xmm, r32/mem16, imm8
@@ -5433,6 +6395,20 @@ OQregMemImm8:
     BadOperand
 L8: BadOperandSize
 
+; PINSR-B/D AL=memSize, EDX=imm8_limit
+XmmRM32Imm8:
+    ParmsAny 3
+    cmp B$FirstRegGender XMMreg | jne L9>>
+    On B$immInside = &FALSE, error D$EndingImmPtr
+    cmp D$Imm32 edx | ja OperandSizeError | mov B$TrueSize ByteSize
+    cmp B$SecondRegGender reg | jne L2>
+    mov al B$FirstReg | shl al 3 | or al 0011_000_000 | or al B$SecondReg | LastOpcode al
+
+L2: cmp B$Operands MemToReg | jne L9>
+    cmp B$SecondOperandwbit AL | jne OperandSizeError
+    mov al B$FirstReg | shl al 3 | or al B$ModBits | or al B$RmBits | LastOpcode al
+
+L9: BadOperand
 
 ; Example: MOVMSKB reg32  mmreg
 ;          MOVMSKB reg32 Xmmreg   ; here also dest at last
@@ -5450,6 +6426,13 @@ L2:             ToOpcode 0F, op1
 
 L9: BadOperand
 
+QmodRm: Parms 1 | cmp B$FirstGender mem | jne OperandsError
+    cmp B$FirstOperandwbit QuadSize | jne OperandSizeError
+    or op1 B$ModBits | or op1 B$RmBits | LastOpcode op1
+
+Reg32Mem128: ParmsAny 2 | cmp B$Operands MemToReg | jne OperandsError
+    cmp B$SecondOperandwbit octoSize | jne OperandSizeError
+    mov op2 B$FirstReg | shl op2 3 | or op2 B$ModBits | or op2 B$RmBits | LastOpcode op2
 ____________________________________________________________________________________________
 ____________________________________________________________________________________________
 ;;
@@ -5540,6 +6523,30 @@ op_modReg1Rm:
 op_modReg2Rm:
   Parms 2 | GPreg2 | ToOpcode op1
   mov op2 B$SecondReg | shl op2 3 | or op2 B$ModBits | or op2 B$RmBits | LastOpcode op2
+
+op_modReg1RmA:                  ; special for CRC32 R32,R/M8_16_32
+  AParms 2 | call GPEReg1 | ToOpcode op1
+  or op2 B$wBit | ToOpcode op2
+  mov op3 B$FirstReg | shl op3 3 | or op3 B$ModBits | or op3 B$RmBits | LastOpcode op3
+
+op_reg1reg2A:                   ; special for CRC32 R32,R8_16_32
+  AParms 2 | call GPEReg1 | GPreg2 | ToOpcode op1
+  or op2 B$wBit | ToOpcode op2
+  mov op1 B$FirstReg | shl op1 3 | or op3 op1 | or op3 B$SecondReg | LastOpcode op3
+
+op_op_modReg1Rm32:                  ; special for only R32,M32
+  cmp B$Operands MemToReg | jne OperandsError
+  Parms 2 | call GPEReg1 | ToOpcode op1 | ToOpcode op2
+  mov op3 B$FirstReg | shl op3 3 | or op3 B$ModBits | or op3 B$RmBits | LastOpcode op3
+
+op_op_modRm32Reg2:                  ; special for only M32,R32
+  cmp B$Operands RegToMem | jne OperandsError
+  Parms 2 | call GPEReg2 | ToOpcode op1 | ToOpcode op2
+  mov op3 B$SecondReg | shl op3 3 | or op3 B$ModBits | or op3 B$RmBits | LastOpcode op3
+
+op_op_reg1reg2R32:                  ; special for only R32,R32
+  Parms 2 | call GPEReg1 | GPreg2 | ToOpcode op1 | ToOpcode op2
+  mov op1 B$FirstReg | shl op1 3 | or op3 op1 | or op3 B$SecondReg | LastOpcode op3
  ______________________________________________________________________________________
 
 op_op: Parms 0 | ToOpcode op1 | LastOpcode op2

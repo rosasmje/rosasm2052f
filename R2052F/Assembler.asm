@@ -9104,7 +9104,7 @@ L5: On op4 nb Separators,  jmp L9>>
        IfNot op1, 'M', L5>
          IfNot op2, 'M', L5>
            cmp op3, '0' | jb L5>
-           cmp op3, '7' | jg L5>
+           cmp op3, '7' | ja L5>
              sub bh, '0' | mov al bh | mov ah MMreg
              and D$esi 0FF000000 | add esi 4 | mov B$OneOperandwBit DoubleSize | ret
 
@@ -9113,7 +9113,7 @@ L5: On op4 nb Separators,  jmp L9>>
 L5: IfNot op1, 'S', L5>
         IfNot op2, 'T', L5>
            cmp op3, '0' | jb L5>
-           cmp op3, '7' | jg L5>
+           cmp op3, '7' | ja L5>
              sub bh, '0' | mov al bh | mov ah STreg
              and D$esi 0FF000000 | add esi 4 | mov B$OneOperandwBit DoubleSize | ret
 
@@ -9122,7 +9122,7 @@ L5: IfNot op1, 'S', L5>
 L5: IfNot op1, 'D', L5>
         IfNot op2, 'R', L5>
            cmp op3, '0' | jb L5>
-           cmp op3, '7' | jg L5>
+           cmp op3, '7' | ja L5>
              sub bh, '0' | mov al bh | mov ah dReg
              and D$esi 0FF000000 | add esi 4 | mov B$OneOperandwBit DoubleSize | ret
 
@@ -9131,7 +9131,7 @@ L5: IfNot op1, 'D', L5>
 L5: IfNot op1, 'C', L5>
         IfNot op2, 'R', L5>
            cmp op3, '0' | jb L5>
-           cmp op3, '4' | jg L5>
+           cmp op3, '7' | ja L5>
              sub bh, '0' | mov al bh | mov ah cReg
              and D$esi 0FF000000 | add esi 4 | mov B$OneOperandwBit DoubleSize | ret
 
