@@ -105,6 +105,18 @@ Op01:
         mov D$edi 'add ' | add edi 4 | jmp Dis_rm32_rm16__r32_r16
         inc D$LikelyCode
 
+    ..Else_If W$esi-1 = 0CA01 ; 0F,01,CA CLAC
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'CLAC', B$edi+4 ' ' | add edi 5
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0CB01 ; 0F,01,CB STAC
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'STAC', B$edi+4 ' ' | add edi 5
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
     ..Else_If W$esi-1 = 0C801 ; 0F,01,C8 MONITOR
         inc D$LikelyCode
         add esi 1
@@ -115,6 +127,54 @@ Op01:
         inc D$LikelyCode
         add esi 1
         mov D$edi 'mwai', D$edi+4 't ' | add edi 6
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0EE01 ; 0F,01,EE RDPKRU
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'RDPK', D$edi+4 'RU  ' | add edi 7
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0F901 ; 0F,01,F9 RDTSCP
+        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'RDTS', D$edi+4 'CP  ' | add edi 7
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0C101 ; 0F,01,C1 VMCALL
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'VMCA', D$edi+4 'LL  ' | add edi 7
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0D401 ; 0F,01,D4 VMFUNC
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'VMFU', D$edi+4 'NC  ' | add edi 7
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0C201 ; 0F,01,C2 VMLAUNCH
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'VMLA', D$edi+4 'UNCH', B$edi+8 ' ' | add edi 9
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0C301 ; 0F,01,C3 VMRESUME
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'VMRE', D$edi+4 'SUME', B$edi+8 ' ' | add edi 9
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0C401 ; 0F,01,C4 VMXOFF
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'VMXO', D$edi+4 'FF  ' | add edi 7
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0EF01 ; 0F,01,EF WRPKRU
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'WRPK', D$edi+4 'RU  ' | add edi 7
         mov B$DisFlag DISDONE+DISLINEOVER | ret
 
     ..Else_If W$esi-1 = 0D001 ; 0F,01,D0 XGETBV
@@ -180,7 +240,12 @@ Op04: ; add al imm8
 
 
 Op05: ; add eax/ax imm32/imm16
-    mov D$edi 'add ' | add edi 4 | jmp Dis_eax_ax__imm32_imm16
+    If B$EscapePrefix = &FALSE
+        mov D$edi 'add ' | add edi 4 | jmp Dis_eax_ax__imm32_imm16
+    Else
+        mov D$edi 'SYSC', D$edi+4 'ALL' | add edi 7 | mov B$DisFlag DISDONE+DISLINEOVER
+    End_If
+ret
 
 
 Op06: ; clts
@@ -194,8 +259,14 @@ ret
 
 
 Op07: ; 07 POP ES
-    inc D$UnLikelyCode
-    mov D$edi 'pop ', W$edi+4 'es' | add edi 6 | mov B$DisFlag DISDONE+DISLINEOVER
+    If B$EscapePrefix = &FALSE
+        inc D$UnLikelyCode
+        mov D$edi 'pop ', W$edi+4 'es'
+    Else
+        inc D$UnLikelyCode
+        mov D$edi 'SYSR', W$edi+4 'ET'
+    End_If
+    add edi 6 | mov B$DisFlag DISDONE+DISLINEOVER
 ret
 
 
@@ -249,15 +320,18 @@ Op0C: ; OR AL,imm8
 
 
 Op0D: ; OR AX,imm16 ; OR EAX,imm32
-    .If B$AMDassumed = &TRUE
-         If B$EscapePrefix = &TRUE ; <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Looki
+;    .If B$AMDassumed = &TRUE
+         If B$EscapePrefix = &TRUE
+            RegMask B$esi to AL | cmp AL 0 | je L0> | cmp AL 1 | jne L1>
             mov D$edi 'PREF', D$edi+4 'ETCH', W$edi+8 'W ' | add edi 10
-            jmp Dis_rm8
+            jmp Dis_rm8         ; PREFETCHW
+L0:         mov D$edi 'PREF', D$edi+4 'ETCH', B$edi+8 ' ' | add edi 9
+            jmp Dis_rm8         ; PREFETCH
+L1:         inc D$UnLikelyCode | mov B$DisFlag DISDONE | ret
         Endif
-    .End_If
+;    .End_If
     inc D$LikelyCode
     mov D$edi 'or  ' | add edi 3 | jmp Dis_eax_ax__imm32_imm16
-
 
 Op0E: ; 0E PUSH CS
     .If B$AMDassumed = &TRUE
@@ -414,11 +488,6 @@ Op11:
 Op12:
     ..If B$EscapePrefix = &TRUE
        ; inc D$UnLikelyCode
-        .If B$OperandSizeOverride = &TRUE        ; 66 0F 12 /r MOVLPD xmm, m64
-            call MarkSSEdata SSE_1_R
-            mov bl B$esi | inc esi
-            mov D$edi 'movl', D$edi+4 'ps  ' | add edi 7 | jmp Dis_xmm_m64
-        .Else        ; OF 12 /r MOVHLPS xmm1, xmm2 // 0F 12 /r MOVLPS xmm, m64
             mov bl B$esi | inc esi | ModMask bl to al
 
             If al = 3
@@ -431,7 +500,6 @@ Op12:
             Else
                 inc D$UnLikelyCode | dec esi | ret
             End_If
-        .End_If
 
     ..Else    ; adc r8 r/m8
         inc D$LikelyCode
@@ -443,14 +511,8 @@ Op12:
 Op13:
     .If B$EscapePrefix = &TRUE
        ; inc D$UnLikelyCode
-        mov D$edi 'movl'
-        If B$OperandSizeOverride = &TRUE        ; 66 0F 13 /r MOVLPD m64, xmm
-            call MarkSSEdata SSE_1_R
-            mov D$edi+4 'pd  '
-        Else    ; 0F 13 /r MOVLPS m64, xmm
-            call MarkSSEdata SSE_2_F
-            mov D$edi+4 'ps  '
-        End_If
+        call MarkSSEdata SSE_2_F
+        mov D$edi 'movl', D$edi+4 'ps  '
         add edi 7 | mov bl B$esi | inc esi | jmp Dis_m64_xmm
 
     .Else       ; adc r32/r16 r/m32//r/m16
@@ -502,47 +564,34 @@ Op15:
 
 
 Op16:
+    .If B$EscapePrefix = &TRUE
 
-    ..If B$EscapePrefix = &TRUE
-        .If B$OperandSizeOverride = &TRUE    ; 66 0F 16 /r MOVHPD xmm, m64
-            call MarkSSEdata SSE_1_R
-            mov bl B$esi | inc esi
-            mov D$edi 'movh', D$edi+4 'pd  ' | add edi 7 | jmp Dis_xmm_m64
-
-        .Else            ; 0F 16 /r MOVHPS xmm, m64 // OF 16 /r MOVLHPS xmm1, xmm2
             mov bl B$esi | inc esi | ModMask bl to al
 
-            If al = 3
+            If al = 3 ; MOVLHPS
                 mov D$edi 'movl', D$edi+4 'hps ' | add edi 8
                 jmp Dis_xmm1_xmm2
-            Else
+            Else ; MOVHPS
                 dec esi | call MarkSSEdata SSE_2_F | inc esi
                 mov D$edi 'movh', D$edi+4 'ps  ' | add edi 7
                 jmp Dis_xmm_m64
             Else
                 inc D$UnLikelyCode | dec esi | ret
             End_If
-        .End_If
 
-    ..Else  ; 16 PUSH SS
+    .Else  ; 16 PUSH SS
         mov D$edi 'push', D$edi+4 ' ss ' | add edi 7
 
-    ..End_If
+    .End_If
 
     mov B$DisFlag DISDONE+DISLINEOVER
 ret
 
 
 Op17:
-    .If B$EscapePrefix = &TRUE
-        mov D$edi 'movh'
-        If B$OperandSizeOverride = &TRUE    ; 66 0F 17 /r MOVHPD m64, xmm
-            call MarkSSEdata SSE_1_R
-            mov D$edi+4 'pd  '
-        Else            ; 0F 17 /r MOVHPS m64, xmm
-            call MarkSSEdata SSE_2_F
-            mov D$edi+4 'ps  '
-        End_If
+    .If B$EscapePrefix = &TRUE            ; 0F 17 /r MOVHPS m64, xmm
+        call MarkSSEdata SSE_2_F
+        mov D$edi 'movh', D$edi+4 'ps  '
         add edi 7 | mov bl B$esi | inc esi | jmp Dis_m64_xmm
 
     .Else       ; 17 POP SS
@@ -616,9 +665,16 @@ ret
 
 
 Op1F: ; 1F POP DS
+  If B$EscapePrefix = &FALSE
     inc D$UnLikelyCode
     mov D$edi 'pop ', W$edi+4 'ds' | add edi 6
     mov B$DisFlag DISDONE+DISLINEOVER
+  Else
+    ; 0F 1F Hintable Nops
+    mov D$edi ';NOP',D$edi+4 'HINT' | add edi 8
+    jmp Dis_m32_r32
+
+  End_If
 ret
 
 
@@ -888,7 +944,9 @@ L3:                     mov D$edi 'utj ' | add edi 4
 L5:     mov D$SegmentOverride 'cs: '
         inc D$Prefixes
       ; Watcom-C incodes the Api calls in the form of call D$cs:apiname:
-        If W$esi <> 015FF
+        If W$esi = 01F0F
+            ; NOP HITS
+        Else_If W$esi <> 015FF
             inc D$UnLikelyCode
         Else
             mov eax D$esi+2
@@ -1007,14 +1065,76 @@ ret
 
 
 Op37: ; aaa
-    inc D$LikelyCode
-    mov D$edi 'aaa ', B$DisFlag DISDONE+DISLINEOVER | add edi 3
+    If B$EscapePrefix = &FALSE
+        inc D$LikelyCode
+        mov D$edi 'aaa ', B$DisFlag DISDONE+DISLINEOVER | add edi 3
+    Else             ; 0F 37 GETSEC
+;        inc D$UnLikelyCode
+        mov D$edi 'GETS', D$edi+4 'EC  ' | add edi 7
+        mov B$DisFlag DISDONE+DISLINEOVER
+    End_If
 ret
 
 
 Op38: ; CMP rm8 r8
-    inc D$LikelyCode
-    mov D$edi 'cmp ' | add edi 4 | jmp Dis_rm8_r8
+    .If B$EscapePrefix = &FALSE
+        inc D$LikelyCode
+        mov D$edi 'cmp ' | add edi 4 | jmp Dis_rm8_r8
+    .Else
+     mov BL B$esi | inc esi
+     ..If BL = 0                      ;PSHUFB mm,mm/m64
+        inc D$LikelyCode
+        mov D$edi 'pshu', D$edi+4 'fb  ' | add edi 7 | jmp Dis_mmx1__mmx2_m64
+     ..Else_If BL = 01                ;PHADDW mm,mm/m64
+        inc D$LikelyCode
+        mov D$edi 'phad', D$edi+4 'dw  ' | add edi 7 | jmp Dis_mmx1__mmx2_m64
+     ..Else_If BL = 02                ;PHADDD mm,mm/m64
+        inc D$LikelyCode
+        mov D$edi 'phad', D$edi+4 'dd  ' | add edi 7 | jmp Dis_mmx1__mmx2_m64
+     ..Else_If BL = 03                ;PHADDSW mm,mm/m64
+        inc D$LikelyCode
+        mov D$edi 'phad', D$edi+4 'dsw ' | add edi 8 | jmp Dis_mmx1__mmx2_m64
+     ..Else_If BL = 04                ;PMADDUBSW mm,mm/m64
+        inc D$LikelyCode
+        mov D$edi 'pmad', D$edi+4 'dubs', W$edi+8 'w ' | add edi 10 | jmp Dis_mmx1__mmx2_m64
+     ..Else_If BL = 05                ;PHSUBW mm,mm/m64
+        inc D$LikelyCode
+        mov D$edi 'phsu', D$edi+4 'bw  ' | add edi 7 | jmp Dis_mmx1__mmx2_m64
+     ..Else_If BL = 06                ;PHSUBD mm,mm/m64
+        inc D$LikelyCode
+        mov D$edi 'phsu', D$edi+4 'bd  ' | add edi 7 | jmp Dis_mmx1__mmx2_m64
+     ..Else_If BL = 07                ;PHSUBSW mm,mm/m64
+        inc D$LikelyCode
+        mov D$edi 'phsu', D$edi+4 'bsw ' | add edi 8 | jmp Dis_mmx1__mmx2_m64
+     ..Else_If BL = 08                ;PSIGNB mm1,mm2/m64
+        inc D$LikelyCode
+        mov D$edi 'psig', D$edi+4 'nb  ' | add edi 7 | jmp Dis_mmx1__mmx2_m64
+     ..Else_If BL = 09                ;PSIGNW mm,mm/m64
+        inc D$LikelyCode
+        mov D$edi 'psig', D$edi+4 'nw  ' | add edi 7 | jmp Dis_mmx1__mmx2_m64
+     ..Else_If BL = 0A                ;PSIGND mm,mm/m64
+        inc D$LikelyCode
+        mov D$edi 'psig', D$edi+4 'nd  ' | add edi 7 | jmp Dis_mmx1__mmx2_m64
+     ..Else_If BL = 0B                ;PMULHRSW mm,mm/m64
+        inc D$LikelyCode
+        mov D$edi 'pmul', D$edi+4 'hrsw', B$edi+8 ' ' | add edi 9 | jmp Dis_mmx1__mmx2_m64
+     ..Else_If BL = 01C               ;PABSB mm,mm
+        inc D$LikelyCode
+        mov D$edi 'pabs', W$edi+4 'b ' | add edi 6 | jmp Dis_mmx1__mmx2_m64
+     ..Else_If BL = 01D               ;PABSW mm,mm
+        inc D$LikelyCode
+        mov D$edi 'pabs', W$edi+4 'w ' | add edi 6 | jmp Dis_mmx1__mmx2_m64
+     ..Else_If BL = 01E               ;PABSD mm,mm
+        inc D$LikelyCode
+        mov D$edi 'pabs', W$edi+4 'd ' | add edi 6 | jmp Dis_mmx1__mmx2_m64
+     ..Else_If BL = 0F0               ;MOVBE r
+        inc D$LikelyCode
+        mov D$edi 'MOVB', W$edi+4 'E ' | add edi 6 | jmp Dis_r32_r16__rm32_rm16
+     ..Else_If BL = 0F1               ;MOVBE w
+        inc D$LikelyCode
+        mov D$edi 'MOVB', W$edi+4 'E ' | add edi 6 | jmp Dis_rm32_rm16__r32_r16
+     ..End_If
+    .End_If
 ret
 
 
@@ -1025,9 +1145,15 @@ ret
 
 
 Op3A: ; CMP r8 rm8
-
-    inc D$LikelyCode
-    mov D$edi 'cmp ' | add edi 4 | jmp Dis_r8_rm8
+    If B$EscapePrefix = &FALSE
+        inc D$LikelyCode
+        mov D$edi 'cmp ' | add edi 4 | jmp Dis_r8_rm8
+    Else
+        mov BL B$esi | inc esi | cmp bl 0F | jne L0>
+        inc D$LikelyCode
+        mov D$edi 'pali', D$edi+4 'gnr ' | add edi 8 | jmp Dis_mm1__mm2_m64__imm8
+    End_If
+L0: inc D$UnLikelyCode | mov B$DisFlag DISFAILED
 ret
 
 
@@ -1741,9 +1867,9 @@ ret
 Op60:
     .If B$EscapePrefix = &FALSE   ; 60 PUSHA 60 PUSHAD
         inc D$LikelyCode
-        mov D$edi 'push', B$edi+4 'a' | add edi 5
-        If B$OperandSizeOverride = &FALSE
-            mov B$edi 'd' | inc edi
+        mov D$edi 'push', W$edi+4 'ad' | add edi 6
+        If B$OperandSizeOverride = &TRUE
+            mov B$edi-1 'w'
         End_If
 
     .Else; 0F 60 /r PUNPCKLBW mm, mm/m32   ; 66 0F 60 /r PUNPCKLBW xmm1, xmm2/m128
@@ -1763,9 +1889,9 @@ ret
 Op61:
     .If B$EscapePrefix = &FALSE   ; 61 POPA     ; 61 POPAD
         inc D$LikelyCode
-        mov D$edi 'popa' | add edi 4
-        If B$OperandSizeOverride = &FALSE
-            mov B$edi 'd' | inc edi
+        mov D$edi 'popa', B$edi+4 'd' | add edi 5
+        If B$OperandSizeOverride = &TRUE
+            mov B$edi-1 'w'
         End_If
 
     .Else ; 0F 61 /r PUNPCKLWD mm, mm/m32   ; 66 0F 61 /r PUNPCKLWD xmm1, xmm2/m128
@@ -1854,6 +1980,296 @@ Op66:
         mov D$edi 'pcmp', D$edi+4 'gtd ' | add edi 8
         jmp Dis_mmx1__mmx2_m64
 
+    .Else_If W$esi = 0120F      ; 66 0F 12 MOVLPD
+            add esi 2
+            call MarkSSEdata SSE_1_R
+            mov bl B$esi | inc esi
+            mov D$edi 'movl', D$edi+4 'pd  ' | add edi 7 | jmp Dis_xmm_m64
+    .Else_If W$esi = 0130F      ; 66 0F 13 MOVLPD
+            add esi 2
+            call MarkSSEdata SSE_1_R
+            mov bl B$esi | inc esi
+            mov D$edi 'movl', D$edi+4 'pd  ' | add edi 7 | jmp Dis_m64_xmm
+    .Else_If W$esi = 0160F      ; 66 0F 16 MOVHPD
+            add esi 2
+            call MarkSSEdata SSE_1_R
+            mov bl B$esi | inc esi
+            mov D$edi 'movh', D$edi+4 'pd  ' | add edi 7 | jmp Dis_xmm_m64
+    .Else_If W$esi = 0170F      ; 66 0F 17 MOVHPD
+            add esi 2
+            call MarkSSEdata SSE_1_R
+            mov bl B$esi | inc esi
+            mov D$edi 'movh', D$edi+4 'pd  ' | add edi 7 | jmp Dis_m64_xmm
+
+    .Else_If W$esi = 0380F      ; 66 0F 38
+        ;inc D$UnLikelyCode
+        mov BL B$esi+2 | add esi 3
+         ..If BL = 0                      ;PSHUFB xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'pshu', D$edi+4 'fb  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 01                ;PHADDW xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'phad', D$edi+4 'dw  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 02                ;PHADDD xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'phad', D$edi+4 'dd  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 03                ;PHADDSW xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'phad', D$edi+4 'dsw ' | add edi 8 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 04                ;PMADDUBSW xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'pmad', D$edi+4 'dubs', W$edi+8 'w ' | add edi 10 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 05                ;PHSUBW xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'phsu', D$edi+4 'bw  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 06                ;PHSUBD xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'phsu', D$edi+4 'bd  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 07                ;PHSUBSW xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'phsu', D$edi+4 'bsw ' | add edi 8 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 08                ;PSIGNB xmm1,xmm2/m64
+           inc D$LikelyCode
+           mov D$edi 'psig', D$edi+4 'nb  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 09                ;PSIGNW xmm,xmm/m64
+           inc D$LikelyCode
+           mov D$edi 'psig', D$edi+4 'nw  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 0A                ;PSIGND xmm,xmm/m64
+           inc D$LikelyCode
+           mov D$edi 'psig', D$edi+4 'nd  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 0B                ;PMULHRSW xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'pmul', D$edi+4 'hrsw', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm1__xmm2_m128
+
+
+        ..Else_If BL = 010 ; PBLENDVB xmm1,xmm2/m128,<XMM0>
+           inc D$LikelyCode
+           mov D$edi 'pble', D$edi+4 'ndvb', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 014 ; BLENDVPS xmm1,xmm2/m128,<XMM0>
+           inc D$LikelyCode
+           mov D$edi 'blen', D$edi+4 'dvps', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 015 ; BLENDVPD xmm1,xmm2/m128,<XMM0>
+           inc D$LikelyCode
+           mov D$edi 'blen', D$edi+4 'dvpd', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm1__xmm2_m128
+
+
+        ..Else_If BL = 017 ; PTEST xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'ptes', W$edi+4 't ' | add edi 6 | jmp Dis_xmm1__xmm2_m128
+
+        ..Else_If BL = 01C               ; PABSB xmm,xmm
+           inc D$LikelyCode
+            mov D$edi 'pabs', W$edi+4 'b ' | add edi 6 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 01D               ; PABSW xmm,xmm
+           inc D$LikelyCode
+            mov D$edi 'pabs', W$edi+4 'w ' | add edi 6 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 01E               ; PABSD xmm,xmm
+           inc D$LikelyCode
+            mov D$edi 'pabs', W$edi+4 'd ' | add edi 6 | jmp Dis_xmm1__xmm2_m128
+
+        ..Else_If BL = 020 ; PMOVSXBW xmm,xmm/m64
+           inc D$LikelyCode
+           mov D$edi 'pmov', D$edi+4 'sxbw', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm1__xmm2_m64
+        ..Else_If BL = 021 ; PMOVSXBD xmm,xmm/m32
+           inc D$LikelyCode
+           mov D$edi 'pmov', D$edi+4 'sxbd', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm1__xmm2_m32
+        ..Else_If BL = 022 ; PMOVSXBQ xmm,xmm/m16
+           inc D$LikelyCode
+           mov D$edi 'pmov', D$edi+4 'sxbq', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm1__xmm2_m16
+        ..Else_If BL = 023 ; PMOVSXWD xmm,xmm/m64
+           inc D$LikelyCode
+           mov D$edi 'pmov', D$edi+4 'sxwd', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm1__xmm2_m64
+        ..Else_If BL = 024 ; PMOVSXWQ xmm,xmm/m32
+           inc D$LikelyCode
+           mov D$edi 'pmov', D$edi+4 'sxwq', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm1__xmm2_m32
+        ..Else_If BL = 025 ; PMOVSXDQ xmm,xmm/m64
+           inc D$LikelyCode
+           mov D$edi 'pmov', D$edi+4 'sxdq', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm1__xmm2_m64
+
+
+        ..Else_If BL = 028 ; PMULDQ xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'pmul', D$edi+4 'dq  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 029 ; PCMPEQQ xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'pcmp', D$edi+4 'eqq ' | add edi 8 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 02A ; MOVNTDQA  xmm,m128
+           inc D$LikelyCode
+           mov D$edi 'movn', D$edi+4 'tdqa', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm_m128
+        ..Else_If BL = 02B ; PACKUSDW xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'pack', D$edi+4 'usdw', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm1__xmm2_m128
+
+        ..Else_If BL = 030 ; PMOVZXBW xmm,xmm/m64
+           inc D$LikelyCode
+           mov D$edi 'pmov', D$edi+4 'zxbw', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm1__xmm2_m64
+        ..Else_If BL = 031 ; PMOVZXBD xmm,xmm/m32
+           inc D$LikelyCode
+           mov D$edi 'pmov', D$edi+4 'zxbd', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm1__xmm2_m32
+        ..Else_If BL = 032 ; PMOVZXBQ xmm,xmm/m16
+           inc D$LikelyCode
+           mov D$edi 'pmov', D$edi+4 'zxbq', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm1__xmm2_m16
+        ..Else_If BL = 033 ; PMOVZXWD xmm,xmm/m64
+           inc D$LikelyCode
+           mov D$edi 'pmov', D$edi+4 'zxwd', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm1__xmm2_m64
+        ..Else_If BL = 034 ; PMOVZXWQ xmm,xmm/m32
+           inc D$LikelyCode
+           mov D$edi 'pmov', D$edi+4 'zxwq', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm1__xmm2_m32
+        ..Else_If BL = 035 ; PMOVZXDQ xmm,xmm/m64
+           inc D$LikelyCode
+           mov D$edi 'pmov', D$edi+4 'zxdq', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm1__xmm2_m64
+
+        ..Else_If BL = 037 ; PCMPGTQ xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'pcmp', D$edi+4 'gtq ' | add edi 8 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 038 ; PMINSB xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'pmin', D$edi+4 'sb  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 039 ; PMINSD xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'pmin', D$edi+4 'sd  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 03A ; PMINUW xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'pmin', D$edi+4 'uw  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 03B ; PMINUD xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'pmin', D$edi+4 'ud  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 03C ; PMAXSB xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'pmax', D$edi+4 'sb  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 03D ; PMAXSD xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'pmax', D$edi+4 'sd  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 03E ; PMAXUW xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'pmax', D$edi+4 'uw  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 03F ; PMAXUD xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'pmax', D$edi+4 'ud  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 040 ; PMULLD xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'pmul', D$edi+4 'ld  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+
+        ..Else_If BL = 041 ; PHMINPOSUW xmm,xmm/m128
+           inc D$LikelyCode
+           mov D$edi 'phmi', D$edi+4 'npos', D$edi+8 'uw  ' | add edi 11 | jmp Dis_xmm1__xmm2_m128
+
+        ..Else_If BL = 080 ; INVEPT r32,m128
+           mov D$edi 'INVE', D$edi+4 'PT  ' | add edi 7 | jmp Dis_r32__m128
+        ..Else_If BL = 081 ; INVVPID r32,m128
+           mov D$edi 'INVV', D$edi+4 'PID ' | add edi 8 | jmp Dis_r32__m128
+
+        ..Else_If BL = 0DB ; AESIMC
+           inc D$LikelyCode
+           mov D$edi 'AESI', D$edi+4 'MC  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 0DC ; AESENC
+           inc D$LikelyCode
+           mov D$edi 'AESE', D$edi+4 'NC  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 0DD ; AESENCLAST
+           inc D$LikelyCode
+           mov D$edi 'AESE', D$edi+4 'NCLA', D$edi+8 'ST  ' | add edi 11 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 0DE ; AESDEC
+           inc D$LikelyCode
+           mov D$edi 'AESD', D$edi+4 'EC  ' | add edi 7 | jmp Dis_xmm1__xmm2_m128
+        ..Else_If BL = 0DF ; AESDECLAST
+           inc D$LikelyCode
+           mov D$edi 'AESD', D$edi+4 'ECLA', D$edi+8 'ST  ' | add edi 11 | jmp Dis_xmm1__xmm2_m128
+
+        ..Else_If BL = 0F0               ;MOVBE r
+           inc D$LikelyCode
+           mov B$OperandSizeOverride &TRUE
+           mov D$edi 'MOVB', W$edi+4 'E ' | add edi 6 | jmp Dis_r32_r16__rm32_rm16
+        ..Else_If BL = 0F1               ;MOVBE w
+           inc D$LikelyCode
+           mov B$OperandSizeOverride &TRUE
+           mov D$edi 'MOVB', W$edi+4 'E ' | add edi 6 | jmp Dis_rm32_rm16__r32_r16
+
+        ..Else_If BL = 0F6 ; ADCX
+            mov D$edi 'ADCX', B$edi+4 ' ' | add edi 5 | jmp Dis_r32__rm32
+        ..End_If
+
+    .Else_If W$esi = 03A0F      ; 66 0F 3A
+        mov BL B$esi+2 | add esi 3
+        ..If BL = 08 ; ROUNDPS xmm,xmm/m128,imm8
+           inc D$LikelyCode
+           mov D$edi 'roun', D$edi+4 'dps ' | add edi 8 | jmp Dis_xmm1__xmm2_m128__imm8
+        ..Else_If BL = 09 ; ROUNDPD xmm,xmm/m128,imm8
+           inc D$LikelyCode
+           mov D$edi 'roun', D$edi+4 'dpd ' | add edi 8 | jmp Dis_xmm1__xmm2_m128__imm8
+        ..Else_If BL = 0A ; ROUNDSS xmm,xmm/m128,imm8
+           inc D$LikelyCode
+           mov D$edi 'roun', D$edi+4 'dss ' | add edi 8 | jmp Dis_xmm1__xmm2_m128__imm8
+        ..Else_If BL = 0B ; ROUNDSD xmm,xmm/m128,imm8
+           inc D$LikelyCode
+           mov D$edi 'roun', D$edi+4 'dsd ' | add edi 8 | jmp Dis_xmm1__xmm2_m128__imm8
+        ..Else_If BL = 0C ; BLENDPS xmm,xmm/m128,imm8
+           inc D$LikelyCode
+           mov D$edi 'blen', D$edi+4 'dps ' | add edi 8 | jmp Dis_xmm1__xmm2_m128__imm8
+        ..Else_If BL = 0D ; BLENDPD xmm,xmm/m128,imm8
+           inc D$LikelyCode
+           mov D$edi 'blen', D$edi+4 'dpd ' | add edi 8 | jmp Dis_xmm1__xmm2_m128__imm8
+        ..Else_If BL = 0E ; PBLENDW xmm,xmm/m128,imm8
+           inc D$LikelyCode
+           mov D$edi 'pble', D$edi+4 'ndw ' | add edi 8 | jmp Dis_xmm1__xmm2_m128__imm8
+        ..Else_If BL = 0F ; PALIGNR xmm,xmm/m128,imm8
+           inc D$LikelyCode
+           mov D$edi 'pali', D$edi+4 'gnr ' | add edi 8 | jmp Dis_xmm1__xmm2_m128__imm8
+        ..Else_If BL = 014 ; PEXTRB r32/m8,xmm,imm8
+           inc D$LikelyCode
+           mov D$edi 'pext', D$edi+4 'rb  ' | add edi 7 | jmp Dis_r32m8_xmm_imm8
+        ..Else_If BL = 015 ; PEXTRW r32/m16,xmm,imm8
+           inc D$LikelyCode
+           mov D$edi 'pext', D$edi+4 'rw  ' | add edi 7 | jmp Dis_r32m16_xmm_imm8
+        ..Else_If BL = 016 ; PEXTRD r32/m32,xmm,imm8
+           inc D$LikelyCode
+           mov D$edi 'pext', D$edi+4 'rd  ' | add edi 7 | jmp Dis_r32m32_xmm_imm8
+        ..Else_If BL = 017 ; EXTRACTPS r32/m32,xmm,imm8
+           inc D$LikelyCode
+           mov D$edi 'extr', D$edi+4 'actp', W$edi+8 's ' | add edi 10 | jmp Dis_r32m32_xmm_imm8
+
+        ..Else_If BL = 020 ; PINSRB xmm,r32/m8,imm8
+           inc D$LikelyCode
+           mov D$edi 'pins', D$edi+4 'rb  ' | add edi 7 | jmp Dis_xmm_r32m8_imm8
+        ..Else_If BL = 021 ; INSERTPS xmm,xmm/m32,imm8
+           inc D$LikelyCode
+           mov D$edi 'inse', D$edi+4 'rtps', B$edi+8 ' ' | add edi 9 | jmp Dis_xmm1__xmm2_m32_imm8
+        ..Else_If BL = 022 ; PINSRD xmm,r32/m32,imm8
+           inc D$LikelyCode
+           mov D$edi 'pins', D$edi+4 'rd  ' | add edi 7 | jmp Dis_xmm_r32m32_imm8
+
+        ..Else_If BL = 040 ; DPPS xmm,xmm/m128,imm8
+           inc D$LikelyCode
+           mov D$edi 'dpps', B$edi+4 ' ' | add edi 5 | jmp Dis_xmm1__xmm2_m128__imm8
+        ..Else_If BL = 041 ; DPPD xmm,xmm/m128,imm8
+           inc D$LikelyCode
+           mov D$edi 'dppd', B$edi+4 ' ' | add edi 5 | jmp Dis_xmm1__xmm2_m128__imm8
+        ..Else_If BL = 042 ; MPSADBW xmm,xmm/m128,imm8
+           inc D$LikelyCode
+           mov D$edi 'mpsa', D$edi+4 'dbw ' | add edi 8 | jmp Dis_xmm1__xmm2_m128__imm8
+
+        ..Else_If BL = 044 ; PCLMULQDQ xmm,xmm/imm128,imm8
+           inc D$LikelyCode
+           mov D$edi 'pclm', D$edi+4 'ulqd', W$edi+8 'q ' | add edi 10 | jmp Dis_xmm1__xmm2_m128__imm8
+
+        ..Else_If BL = 060 ; PCMPESTRM xmm1,xmm2/imm128,imm8 <XMM0>
+           inc D$LikelyCode
+           mov D$edi 'pcmp', D$edi+4 'estr', W$edi+8 'm ' | add edi 10 | jmp Dis_xmm1__xmm2_m128__imm8
+        ..Else_If BL = 061 ; PCMPESTRI xmm1,xmm2/imm128,imm8 <ECX>
+           inc D$LikelyCode
+           mov D$edi 'pcmp', D$edi+4 'estr', W$edi+8 'i ' | add edi 10 | jmp Dis_xmm1__xmm2_m128__imm8
+        ..Else_If BL = 062 ; PCMPISTRM xmm1,xmm2/imm128,imm8 <XMM0>
+           inc D$LikelyCode
+           mov D$edi 'pcmp', D$edi+4 'istr', W$edi+8 'm ' | add edi 10 | jmp Dis_xmm1__xmm2_m128__imm8
+        ..Else_If BL = 063 ; PCMPISTRI xmm1,xmm2/imm128,imm8 <ECX>
+           inc D$LikelyCode
+           mov D$edi 'pcmp', D$edi+4 'istr', W$edi+8 'i ' | add edi 10 | jmp Dis_xmm1__xmm2_m128__imm8
+
+        ..Else_If BL = 0DF ; AESKEYGENASSIST xmm1,xmm2/imm128,imm8
+           inc D$LikelyCode
+           mov D$edi 'AESK', D$edi+4 'EYGE', D$edi+8 'NASS', D$edi+12 'IST ' | add edi 16 | jmp Dis_xmm1__xmm2_m128__imm8
+        ..End_If
+
+
     .Else_If W$esi = 0660F      ; 66 0F 66 /r PCMPGTD xmm1, xmm2/m128
         ;inc D$UnLikelyCode
         add esi 2
@@ -1872,6 +2288,12 @@ Op66:
         mov D$edi 'hsub', D$edi+4 'pd ' | add edi 7
         jmp Dis_xmm1__xmm2_m128
 
+    .Else_If W$esi = 0C70F      ; 66,0F,C7 /6 VMCLEAR m64
+        mov BL B$esi+2 | add esi 3
+        RegMask BL to AL
+        If AL = 6
+            mov D$edi 'VMCL', D$edi+4 'EAR ' | add edi 8 | jmp EndWith.Q.mem
+        End_If
     .Else_If W$esi = 0D00F      ; 66,0F,D0,/r ADDSUBPD xmm1, xmm2/m128
         ;inc D$UnLikelyCode
         add esi 2
@@ -2065,7 +2487,7 @@ Op70:
             add edi 7 | call Dis_xmm1__xmm2_m128
         Else        ; 0F 70 /r ib PSHUFW mm1, mm2/m64, imm8
             mov D$edi+4 'fw  '
-            add edi 7 | call Dis_mm1__mm2_m128
+            add edi 7 | call Dis_mm1__mm2_m64
         End_If
         mov D$edi ' ' | inc edi | call WriteImm8
 
@@ -2221,17 +2643,25 @@ Op77:
 ret
 
 
-Op78: ; JS rel8
+Op78:
+  If B$EscapePrefix = &FALSE ; JS rel8
     inc D$LikelyCode
     mov B$CALLInstruction &TRUE
     SubEdi6 | mov D$edi ' | j', W$edi+4 's ' | add edi 6 | jmp EndWithDisByteRelative
+  Else
+    mov D$edi 'VMRE', D$edi+4 'AD  ' | add edi 7 | jmp Dis_m32_r32 ; VMREAD 0F,78
+  End_If
 ret
 
 
-Op79: ; JNS rel8
+Op79:
+  If B$EscapePrefix = &FALSE ; JNS rel8
     inc D$LikelyCode
     mov B$CALLInstruction &TRUE
     SubEdi6 | mov D$edi ' | j', D$edi+4 'ns  ' | add edi 7 | jmp EndWithDisByteRelative
+  Else
+    mov D$edi 'VMWR', D$edi+4 'ITE ' | add edi 8 | jmp Dis_r32__rm32 ; VMWRITE 0F,79
+  End_If
 ret
 
 
@@ -2841,9 +3271,9 @@ Op9C: ; setl
 
     .Else       ; 9C PUSHF 9C PUSHFD
         ;inc D$UnLikelyCode
-        mov D$edi 'push', B$edi+4 'f' | add edi 5
+        mov D$edi 'push', W$edi+4 'fd' | add edi 6
         If B$OperandSizeOverride = &TRUE
-            mov B$edi 'd' | inc edi
+            mov B$edi-1 'w'
         End_If
 
     .End_If
@@ -2858,9 +3288,9 @@ Op9D:
 
     .Else    ; 9D POPF  ; 9D POPFD
         ;inc D$UnLikelyCode
-        mov D$edi 'popf' | add edi 4
+        mov D$edi 'popf', B$edi+4 'd' | add edi 5
         If B$OperandSizeOverride = &TRUE
-            mov B$edi 'd' | inc edi
+            mov B$edi-1 'w'
         End_If
 
     .End_If
@@ -3121,16 +3551,28 @@ OpAE:
             mov D$edi 'ldmx', D$edi+4 'csr ' | add edi 8 | jmp EndWith.D.mem
         .Else_If al = 3     ; 0F AE /3 STMXCSR m32
             mov D$edi 'stmx', D$edi+4 'csr ' | add edi 8 | jmp EndWith.D.mem
-        .Else_If al = 5     ; LFENCE
-            mov D$edi 'lfen', W$edi+4 'ce' | add edi 6
-        .Else_If al = 6     ; MFENCE
-            mov D$edi 'mfen', W$edi+4 'ce' | add edi 6
-        .Else_If al = 7     ; 0F AE /7 CLFLUSH   ; 0F AE /7 SFENCE
+        .Else_If al = 4     ; XSAVE 0F AE /4
+            mov D$edi 'XSAV', W$edi+4 'E ' | add edi 6 | jmp EndWith.X.mem
+        .Else_If al = 5
+            If BL = 0E8     ; LFENCE
+                mov D$edi 'lfen', W$edi+4 'ce' | add edi 6
+            Else            ; XRSTOR 0F AE /5
+                mov D$edi 'XRST', D$edi+4 'OR  ' | add edi 7 | jmp EndWith.X.mem
+            End_If
+        .Else_If al = 6
+            If B$OperandSizeOverride = &TRUE
+                mov D$edi 'CLWB', B$edi+4 ' ' | add edi 5 | jmp Dis_m8 ; CLWB
+            else            ; MFENCE
+                mov D$edi 'mfen', W$edi+4 'ce' | add edi 6
+            End_If
+        .Else_If al = 7     ; 0F AE /7 CLFLUSH   ; 0F AE F8 SFENCE
             ModMask bl to al
             If al = 3
                 mov D$edi 'sfen', D$edi+4 'ce  '  | add edi 6
             Else
+                cmp B$OperandSizeOverride &TRUE | je L0>
                 mov D$edi 'clfl', D$edi+4 'ush ' | add edi 8 | jmp Dis_m8
+L0:             mov D$edi 'clfl', D$edi+4 'usho', D$edi+8 'pt  ' | add edi 11 | jmp Dis_m8
             End_If
         .Else
             dec esi | ret
@@ -3483,19 +3925,19 @@ OpC1:
 OpC2:
     .If B$EscapePrefix = &TRUE
         ;inc D$UnLikelyCode
-        mov D$edi 'cmp_'
+        mov D$edi 'cmpp'
         If B$OperandSizeOverride = &TRUE
           ; 66 0F C2 /r ib CMPPD xmm1, xmm2/m128, imm8
           ; 66 0F C2 _1D_ 010 34 42 00 01
             call MarkSSEdata SSE_2_R    ; CMPPD 66 0F C2 /r ib
-            mov D$edi+4 'pd  '
+            mov W$edi+4 'd '
         Else
           ; cmpps xmm1, xmm2/m128, imm8
             call MarkSSEdata SSE_4_F    ; CMPPS 0F C2 /r ib
-            mov D$edi+4 'ps  '
+            mov W$edi+4 's '
         End_If
 
-        add edi 7
+        add edi 6
         call Dis_xmm1__xmm2_m128 | jmp WritePacketCondition
 
     .Else       ; C2 iw RET imm16
@@ -3594,6 +4036,26 @@ OpC7:
             mov B$MovOrJmpImmInstruction &TRUE
             mov D$edi 'mov ' | add edi 4 | jmp Dis_rm32_rm16__imm32_imm16
         End_If
+
+    .Else_If BL >= 0F8   ; RDSEED 0F C7 /7 r32
+        ;inc D$UnLikelyCode
+        mov B$LockPrefix &FALSE
+        mov D$edi 'RDSE', D$edi+4 'ED  ' | add edi 7 | call WriteEregsFromRmBits
+        mov B$DisFlag DISDONE+DISLINEOVER
+ret
+
+    .Else_If BL >= 0F0   ; RDRAND 0F C7 /6 r32
+        ;inc D$UnLikelyCode
+        mov B$LockPrefix &FALSE
+        mov D$edi 'RDRA', D$edi+4 'ND  ' | add edi 7 | call WriteEregsFromRmBits
+        mov B$DisFlag DISDONE+DISLINEOVER
+ret
+
+    .Else_If AL = 06   ; VMPTRLD 0F C7 /6 m64
+        mov D$edi 'VMPT', D$edi+4 'RLD ' | add edi 8 | jmp EndWith.Q.mem
+
+    .Else_If AL = 07   ; VMPTRST 0F C7 /7 m64
+        mov D$edi 'VMPT', D$edi+4 'RST ' | add edi 8 | jmp EndWith.Q.mem
 
     .Else    ; 0F C7 /1 m64 CMPXCHG8B m64
         If al = 1
@@ -4295,7 +4757,7 @@ OpDD:
         .If al = 0          ; FLD m64fp
             mov D$edi 'fld ' | add edi 4 | jmp EndWith.R.mem
         .Else_If al = 1     ; FISTTP  DD /1 FISTTP m64int
-            mov D$edi 'fst ', D$edi+4 'tp '| add edi 7 | jmp EndWith.R.mem
+            mov D$edi 'fist', D$edi+4 'tp '| add edi 7 | jmp EndWith.R.mem
         .Else_If al = 2     ; FST m64fp
             mov D$edi 'fst ' | add edi 4 | jmp EndWith.R.mem
         .Else_If al = 3     ; FSTP m64fp
@@ -4543,6 +5005,7 @@ OpE5:
 
     .If B$EscapePrefix = &TRUE
       ; 0F E5 /r PMULHW mm, mm/m64      ; 66 0F E5 /r PMULHW xmm1, xmm2/m128
+        inc D$LikelyCode
         mov D$edi 'pmul', D$edi+4 'hw  ' | add edi 7
         jmp Dis_xmmx1__xmmx2_m64_128
 
@@ -4567,7 +5030,7 @@ OpE6: ; CVTTPD2DQ xmm1, xmm2/m128
         If B$OperandSizeOverride = &TRUE    ; CVTTPD2DQ xmm1, xmm2/m128
             call MarkSSEdata SSE_2_R
             mov D$edi 'cvtt', D$edi+4 'pd2d', W$edi+8 'q ' | add edi 10
-            jmp Dis_mmx1__xmm2_m128
+            jmp Dis_xmm1__xmm2_m128
         Else
             ret
         End_If
@@ -4803,6 +5266,9 @@ OpF1:
       ; 0F F1 /r PSLLW mm, mm/m64  ; 66 0F F1 /r PSLLW xmm1, xmm2/m128
         mov D$edi 'psll', W$edi+4 'w ' | add edi 6
         jmp Dis_xmmx1__xmmx2_m64_128
+    Else
+        mov D$edi 'INT1', B$edi+4 ' ' | add edi 5
+        mov B$DisFlag DISDONE+DISLINEOVER
     End_If
 ret
 
@@ -4831,6 +5297,15 @@ OpF2:
             add esi 2 | call MarkSSEdata SSE_1_R
             mov D$edi 'cvts', D$edi+4 'd2si', B$edi+8 ' ' | add edi 9
             jmp Dis_r32__xmm_m64
+        .Else_If B$esi+1 = 038
+            mov BL B$esi+2 | add esi 3
+            If BL = 0F0      ; CRC32
+                inc D$LikelyCode
+                mov D$edi 'CRC3', W$edi+4 '2 ' | add edi 6 | jmp Dis_r32_rm8
+            Else_If BL = 0F1 ; CRC32
+                inc D$LikelyCode
+                mov D$edi 'CRC3', W$edi+4 '2 ' | add edi 6 | jmp Dis_r32__rm32_rm16
+            End_If
         .Else_If B$esi+1 = 051      ; F2 0F 51 /r SQRTSD xmm1, xmm2/m64
             add esi 2 | call MarkSSEdata SSE_2_R
             mov D$edi 'sqrt', D$edi+4 'sd  ' | add edi 7
@@ -4928,6 +5403,7 @@ OpF2:
     ..Else
         .If B$EscapePrefix = &TRUE
           ; 0F F2 /r PSLLD mm, mm/m64   ;  66 0F F2 /r PSLLD xmm1, xmm2/m128
+            inc D$LikelyCode
             mov D$edi 'psll', W$edi+4 'd ' | add edi 6 | jmp Dis_xmmx1__xmmx2_m64_128
         .Else
             inc D$UnLikelyCode | mov B$DisFlag DISDONE | ret
@@ -4956,15 +5432,18 @@ OpF3:
             add esi 2 | call MarkSSEdata SSE_4_F
             mov D$edi 'movs', D$edi+4 'hdup', B$edi+8 ' ' | add edi 9
             jmp Dis_xmm1__xmm2_m128
+        .Else_If W$esi+1 = 0F638     ; F3,0F,38,F6 ADOX
+            add esi 3
+            mov D$edi 'ADOX', B$edi+4 ' ' | add edi 5 | jmp Dis_r32__rm32
         .Else_If B$esi+1 = 051      ; F3 0F 51 /r SQRTSS xmm1, xmm2/m32
             add esi 2 | call MarkSSEdata SSE_4_F
             mov D$edi 'sqrt', D$edi+4 'ss  ' | add edi 7 | jmp Dis_xmm1__xmm2_m32
         .Else_If B$esi+1 = 052      ; F3 0F 52 /r RSQRTSS xmm1,xmm2/m32
             add esi 2 | call MarkSSEdata SSE_4_F
             mov D$edi 'rsqr', D$edi+4 'tss ' | add edi 8 | jmp Dis_xmm1__xmm2_m32
-        .Else_If al = 053; F3 0F 53 /r RCPSS xmm1, xmm2/m32; F3 0F 53 /r RCPSS xmm1, xmm2/m32
+        .Else_If B$esi+1 = 053      ; F3 0F 53 /r RCPSS xmm1, xmm2/m32;
             add esi 2 | call MarkSSEdata SSE_4_F
-            mov D$edi 'rcpp', W$edi+4 's ' | add edi 6 | jmp Dis_xmm1__xmm2_m32
+            mov D$edi 'rcps', W$edi+4 's ' | add edi 6 | jmp Dis_xmm1__xmm2_m32
         .Else_If B$esi+1 = 058 ; F3 0F 58 /r ADDSS
             add esi 2 | call MarkSSEdata SSE_1_F
             mov D$edi 'adds', W$edi+4 's ' | add edi 6 | jmp Dis_xmm1__xmm2_m32
@@ -5031,6 +5510,21 @@ OpF3:
         .Else_If B$esi+1 = 07F      ; F3 0F 7F /r MOVDQU xmm2/m128, xmm1
             add esi 2 | mov D$edi 'movd', D$edi+4 'qu  ' | add edi 7
             jmp Dis_xmm2_m128__xmm1
+        .Else_If B$esi+1 = 0B8      ; POPCNT
+            add esi 2 | mov D$edi 'POPC', D$edi+4 'NT  ' | add edi 7
+            jmp Dis_r32_r16__rm32_rm16
+        .Else_If B$esi+1 = 0BC      ; TZCNT
+            add esi 2 | mov D$edi 'TZCN', W$edi+4 'T ' | add edi 6
+            jmp Dis_r32_r16__rm32_rm16
+        .Else_If B$esi+1 = 0BD      ; LZCNT
+            add esi 2 | mov D$edi 'LZCN', W$edi+4 'T ' | add edi 6
+            jmp Dis_r32_r16__rm32_rm16
+        .Else_If B$esi+1 = 0C7      ; F3,0F,C7 /6 VMXON m64
+            mov BL B$esi+2 | add esi 3
+            RegMask BL to AL
+            If AL = 6
+                mov D$edi 'VMXO', W$edi+4 'N ' | add edi 6 | jmp EndWith.Q.mem
+            End_If
         .Else
             mov B$DisFlag DISDONE | ret
         .End_If
@@ -5500,6 +5994,31 @@ Dis_r32_r16__rm32_rm16:
     jmp EndWith.D.mem
 ret
 
+Dis_r32__rm32:
+    movzx ebx B$esi | inc esi
+    call WriteEregsFromRegBits | mov B$edi ' ' | inc edi
+    jmp EndWith.D.mem
+ret
+
+Dis_r32__rm32_rm16:
+    movzx ebx B$esi | inc esi
+    call WriteEregsFromRegBits | mov B$edi ' ' | inc edi
+    On  B$OperandSizeOverride = &TRUE, jmp EndWith.W.mem
+    jmp EndWith.D.mem
+ret
+
+Dis_r32__m128:
+    movzx ebx B$esi | inc esi
+    call WriteEregsFromRegBits | mov B$edi ' ' | inc edi
+    mov W$DisSizeMarker 'O$' | jmp EndWithModRm
+ret
+
+Dis_r32__m64:
+    movzx ebx B$esi | inc esi
+    call WriteEregsFromRegBits | mov B$edi ' ' | inc edi
+    jmp EndWith.Q.mem
+ret
+
 Dis_r32_r16__rm32_rm16_orNone__SignedImm8:
     On  B$OperandSizeOverride = &TRUE, mov W$DisSizeMarker 'W$'
     movzx ebx B$esi | inc esi
@@ -5817,7 +6336,12 @@ Dis_xmm1__xmm2_m128:
     mov B$DisFlag DISDONE+DISLINEOVER
 ret
 
-Dis_mm1__mm2_m128:
+Dis_xmm1__xmm2_m128__imm8:
+    call Dis_xmm1__xmm2_m128 | mov B$edi ' ' | inc edi
+    call WriteImm8
+ret
+
+Dis_mm1__mm2_m64:
     mov bl B$esi | inc esi
     call WriteMMXRegsFromRegBits | mov B$edi ' ' | inc edi
     ModMask bl to al
@@ -5829,8 +6353,8 @@ Dis_mm1__mm2_m128:
     mov B$DisFlag DISDONE+DISLINEOVER
 ret
 
-Dis_xmm1__xmm2_m128__imm8:
-    call Dis_xmm1__xmm2_m128 | mov B$edi ' ' | inc edi
+Dis_mm1__mm2_m64__imm8:
+    call Dis_mm1__mm2_m64 | mov B$edi ' ' | inc edi
     call WriteImm8
 ret
 
@@ -5846,12 +6370,24 @@ ret
 
 Dis_xmm1__xmm2_m64:
     mov bl B$esi | inc esi
-    call WriteXMMRegsFromRegBits | mov B$edi ' ' | inc edi | jmp EndWith.X.XMMmem
+    call WriteXMMRegsFromRegBits | mov B$edi ' ' | inc edi | jmp EndWith.X.m64
 ret
 
 Dis_xmm1__xmm2_m32:
     mov bl B$esi | inc esi
-    call WriteXMMRegsFromRegBits | mov B$edi ' ' | inc edi | jmp EndWith.X.XMMmem
+    call WriteXMMRegsFromRegBits | mov B$edi ' ' | inc edi | jmp EndWith.X.m32
+ret
+
+Dis_xmm1__xmm2_m32_imm8:
+    mov bl B$esi | inc esi
+    call WriteXMMRegsFromRegBits | mov B$edi ' ' | inc edi
+    call EndWith.X.m32
+    call WriteImm8
+ret
+
+Dis_xmm1__xmm2_m16:
+    mov bl B$esi | inc esi
+    call WriteXMMRegsFromRegBits | mov B$edi ' ' | inc edi | jmp EndWith.X.m16
 ret
 
 Dis_xmm1__xmm2_m32F:
@@ -5888,6 +6424,41 @@ Dis_rm32_xmm:
         call WriteEffectiveAddressFromModRm | mov B$edi ' ' | inc edi
     pop ebx
     call WriteXMMRegsFromRegBits
+    mov B$DisFlag DISDONE+DISLINEOVER
+ret
+
+Dis_xmm_r32m8_imm8:
+    mov W$DisSizeMarker 'B$' | jmp L0>
+Dis_xmm_r32m16_imm8:
+    mov W$DisSizeMarker 'W$' | jmp L0>
+Dis_xmm_r32m32_imm8:
+    mov W$DisSizeMarker 'D$'
+L0: mov bl B$esi | inc esi
+    call WriteXMMRegsFromRegBits | mov B$edi ' ' | inc edi
+    ModMask bl to al | cmp al 3 | jne L0>
+    call WriteEregsFromRegBits | jmp L1>
+L0: push ebx
+        call WriteEffectiveAddressFromModRm | mov B$edi ' ' | inc edi
+    pop ebx
+L1:
+    call WriteImm8
+    mov B$DisFlag DISDONE+DISLINEOVER
+ret
+
+Dis_r32m8_xmm_imm8:
+    mov W$DisSizeMarker 'B$' | jmp L0>
+Dis_r32m16_xmm_imm8:
+    mov W$DisSizeMarker 'W$' | jmp L0>
+Dis_r32m32_xmm_imm8:
+    mov W$DisSizeMarker 'D$'
+L0: mov bl B$esi | inc esi
+    ModMask bl to al | cmp al 3 | jne L0>
+    call WriteEregsFromRegBits | jmp L1>
+L0: push ebx
+        call WriteEffectiveAddressFromModRm | mov B$edi ' ' | inc edi
+    pop ebx
+L1: call WriteXMMRegsFromRegBits | mov B$edi ' ' | inc edi
+    call WriteImm8
     mov B$DisFlag DISDONE+DISLINEOVER
 ret
 
@@ -5950,16 +6521,13 @@ Dis_xmm1__xmm_m128:
     mov bl B$esi | inc esi
     call WriteXMMRegsFromRegBits | mov B$edi ' ' | inc edi | jmp EndWith.X.XMMmem
 
-Dis_mmx1__mmx2_m128:
-    mov bl B$esi | inc esi
-    call WriteMMXRegsFromRegBits | mov B$edi ' ' | inc edi | jmp EndWith.X.MMXmem
-
 Dis_mmx_xmm:
     mov bl B$esi | inc esi
     RegMask bl to al
-    mov D$edi 'MMX0', B$edi+4 ' ' | add B$edi+3 al | add edi 5
+    mov D$edi 'MM0 ', B$edi+4 ' ' | add B$edi+2 al | add edi 4
     BaseMask bl to al
     mov D$edi 'XMM0', B$edi+4 ' ' | add B$edi+3 al | add edi 4
+    mov B$DisFlag DISDONE+DISLINEOVER
 ret
 
 Dis_xmm_mmx:
@@ -5968,6 +6536,7 @@ Dis_xmm_mmx:
     mov D$edi 'XMM0', B$edi+4 ' ' | add B$edi+3 al | add edi 5
     BaseMask bl to al
     mov D$edi 'MM0 ' | add B$edi+2 al | add edi 3
+    mov B$DisFlag DISDONE+DISLINEOVER
 ret
 
 Dis_xmm1__mmx2_m64:
@@ -6053,7 +6622,7 @@ WritePacketCondition:
     Else_If al = 2
         mov D$edi 'LE) ' | add edi 3
     Else_If al = 3
-        mov D$edi 'UNOR', W$edi 'D)' | add edi 6
+        mov D$edi 'UNOR', W$edi+4 'D)' | add edi 6
     Else_If al = 4
         mov D$edi 'NEQ)' | add edi 4
     Else_If al = 5
@@ -6109,10 +6678,18 @@ EndWith.X.mem:
     mov W$DisSizeMarker 'X$' | jmp EndWithModRm
 ret
 
+EndWith.X.m16:
+    mov W$DisSizeMarker 'W$' | jmp L0>
+
+EndWith.X.m32:
+    mov W$DisSizeMarker 'D$' | jmp L0>
+
+EndWith.X.m64:
+    mov W$DisSizeMarker 'Q$' | jmp L0>
+
 EndWith.X.XMMmem:
-EndWith.X.MMXmem:
     mov W$DisSizeMarker 'X$'
-    ModMask bl to al
+L0: ModMask bl to al
     If al = 3
         call WriteXMMregsFromRmBits
     Else
@@ -6170,6 +6747,13 @@ Dis_m128_xmm:
     mov W$DisSizeMarker 'X$' | call WriteEffectiveAddressFromModRm
     mov B$edi ' ' | inc edi
     call WriteXMMRegsFromRegBits
+    mov B$DisFlag DISDONE+DISLINEOVER
+ret
+
+Dis_xmm_m128:
+    mov bl B$esi | inc esi
+    call WriteXMMRegsFromRegBits | mov B$edi ' ' | inc edi
+    mov W$DisSizeMarker 'X$' | call WriteEffectiveAddressFromModRm
     mov B$DisFlag DISDONE+DISLINEOVER
 ret
 

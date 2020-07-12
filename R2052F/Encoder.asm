@@ -1420,10 +1420,10 @@ L6:               mov op1 001011000 | jmp XMMmemXMM
 L5:            BadMnemonic
 L4:          ifnot op4 'S', L4>
                ifnot op5 'D', L5>                    ; ADDSD
-                  ToOpcode 0011110010 | jmp L6>
+                  ToOpcode 0011110010 | mov op1 001011000 | jmp XMMmem64XMM
 L5:            ifnot op5 'S', L5>                    ; ADDSS
                   ToOpcode 0011110011                ; additional frefix for ADDSS
-L6:               mov op1 001011000 | jmp XMMmemXMM
+L6:               mov op1 001011000 | jmp XMMmem32XMM
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        BadMnemonic
@@ -1548,10 +1548,10 @@ L6:              mov op1 001011110 | jmp XMMmemXMM
 L5:            BadMnemonic
 L4:          ifnot op4 'S', L4>>
                ifnot op5 'D', L5>>                        ;DIVSD
-                   ToOpcode 0011110010 | jmp L6>
+                   ToOpcode 0011110010 | mov op1 001011110 | jmp XMMmem64XMM
 L5:            ifnot op5 'S', L5>>                        ;DIVSS
                    ToOpcode 0011110011
-L6:                mov op1 001011110 | jmp XMMmemXMM
+L6:                mov op1 001011110 | jmp XMMmem32XMM
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
 L3:        ;BadMnemonic
@@ -2146,9 +2146,9 @@ L1:    ifnot op1 'C', L1>
              ifnot op4 'I', L4>
                ifnot op5 'S', L5>
                  ifnot op6 'S', L6>                      ; COMISS
-                   mov op1 00101111 | jmp XMMmemXMM
+                   mov op1 00101111 | jmp XMMmem32XMM
 L6:              ifnot op6 'D', L6>                      ; COMISD
-                   ToOpcode 001100110 | mov op1 02F | jmp XMMmemXMM  ; 66 0F 2F xx
+                   ToOpcode 001100110 | mov op1 02F | jmp XMMmem64XMM  ; 66 0F 2F xx
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
@@ -2597,6 +2597,16 @@ L7:                  mov op1 001010001 | jmp XMMmemXMM
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic
 L4:          ;BadMnemonic
+L3:        BadMnemonic
+L2:      ifnot op2 'Y', L2>
+           ifnot op3 'S', L3>
+             ifnot op4 'R', L4>
+               ifnot op5 'E', L5>
+                 ifnot op6 'T', L6>                       ; SYSRET
+                     mov op1 0F, op2 07 | jmp op_op
+L6:              ;BadMnemonic
+L5:            ;BadMnemonic
+L4:          ;BadMnemonic
 L3:        ;BadMnemonic
 L2:      BadMnemonic
 L1:    ifnot op1 'X', L1>>
@@ -2657,7 +2667,10 @@ L3:        ifnot op3 'R', L3>
              ifnot op4 'E', L4>
                ifnot op5 'A', L5>
                  ifnot op6 'D', L6>                       ; VMREAD
-                  mov op1 0F, op2 078 | jmp op_op_modRm32Reg2
+                  mov op1 0F, op2 078
+                  ifnot B$Operands RegToReg, op_op_modRm32Reg2
+                  jmp op_op_reg1reg2R32
+
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic
 L4:          BadMnemonic
@@ -3040,9 +3053,9 @@ L7:                ifnot op7 'S', L7>                ; ROUNDPS
 L7:              BadMnemonic
 L6:              ifnot op6 'S', L6>
 L7:                ifnot op7 'D', L7>                ; ROUNDSD
-                    ToOpcode 066, 0F, 03A, 0B | jmp XmmMemXmmImm8Any
+                    ToOpcode 066, 0F, 03A, 0B | jmp XmmMem64XmmImm8Any
 L7:                ifnot op7 'S', L7>                ; ROUNDSS
-                    ToOpcode 066, 0F, 03A, 0A | jmp XmmMemXmmImm8Any
+                    ToOpcode 066, 0F, 03A, 0A | jmp XmmMem32XmmImm8Any
 L7:                ;BadMnemonic
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic
@@ -3066,12 +3079,16 @@ L2:      BadMnemonic
 L1:    ifnot op1 'S', L1>>
          ifnot op2 'Y', L2>
            ifnot op3 'S', L3>
-             ifnot op4 'E', L4>
+             ifnot op4 'C', L4>
+               ifnot op5 'A', L5>
+                 ifnot op6 'L', L6>
+                   ifnot op7 'L', L7>                ;  SYSCALL
+                       mov op1 0F, op2 05 | jmp op_op
+L4:          ifnot op4 'E', L4>
                ifnot op5 'X', L5>
                  ifnot op6 'I', L6>
                    ifnot op7 'T', L7>                ;  SYSEXIT (no use in win Apps)
-                       parms 0
-                       mov al 0F | stosb | mov al 035 | stosb | ret
+                       mov op1 0F, op2 035 | jmp op_op
 L7:                ;BadMnemonic
 L6:              ;BadMnemonic
 L5:            ;BadMnemonic
@@ -3132,7 +3149,9 @@ L3:        ifnot op3 'W', L3>
                ifnot op5 'I', L5>
                  ifnot op6 'T', L6>
                    ifnot op7 'E', L7>                       ; VMWRITE
-                    mov op1 0F, op2 079 | jmp op_op_modReg1Rm32
+                    mov op1 0F, op2 079
+                    ifnot B$Operands RegToReg, op_op_modReg1Rm32
+                    jmp op_op_reg1reg2R32
 L7:
 L6:
 L5:
@@ -3194,7 +3213,7 @@ L1:  ifnot op1 'C', L1>>
                ifnot op6 '2', L6>
                  ifnot op7 'P', L7>
                    ifnot op8 'D', L8>                 ; CVTDQ2PD
-                     ToOpcode 0011110011 | mov op1 0011100110 | jmp XMMmemXMM
+                     ToOpcode 0011110011 | mov op1 0011100110 | jmp XMMmem64XMM
 L8:                ifnot op8 'S', L8>                 ; CVTDQ2PS
                      mov op1 001011011 | jmp XMMmemXMM
 L8:                ;BadMnemonic
@@ -3212,7 +3231,7 @@ L7:              ifnot op7 'P', L7>
                    ifnot op8 'I', L8>                 ; CVTPD2PI
                      ToOpcode 001100110 | mov op1 00101101 | jmp MMXmemXMM
 L8:                ifnot op8 'S', L8>                 ; CVTPD2PS
-                     ToOpcode 001100110 | mov op1 001011010 | jmp MMXmemXMM
+                     ToOpcode 001100110 | mov op1 001011010 | jmp XMMmemXMM
 L8:                ;BadMnemonic
 L7:              ;BadMnemonic
 L6:            BadMnemonic
@@ -3234,7 +3253,7 @@ L5:          ifnot op5 'S', L5>
 L8:                BadMnemonic
 L7:              ifnot op7 'P', L7>
                    ifnot op8 'D', L8>                 ;  CVTPS2PD
-                      mov op1 001011010 | jmp XMMmemXMM
+                      mov op1 001011010 | jmp XMMmem64XMM
 L8:                ifnot op8 'I', L8>                 ;  CVTPS2PI
                        mov op1  00101101 | jmp MMXmemXMM
 L8:                ;BadMnemonic
@@ -3246,7 +3265,7 @@ L4:        ifnot op4 'S', L4>>
                ifnot op6 '2', L6>
                  ifnot op7 'S', L7>
                    ifnot op8 'S', L8>                 ;  CVTSD2SS
-                       ToOpcode 0011110010 | mov op1 001011010 | jmp XMMmemXMM
+                       ToOpcode 0011110010 | mov op1 001011010 | jmp XMMmem64XMM
 L8:                ifnot op8 'I', L8>                 ;  CVTSD2SI
                        mov op1 02D | jmp LowXMMtoDwordWithF2
 L8:                ;BadMnemonic
@@ -3269,7 +3288,7 @@ L5:          ifnot op5 'S', L5>
                ifnot op6 '2', L6>
                  ifnot op7 'S', L7>
                    ifnot op8 'D', L8>                 ;  CVTSS2SD
-                       ToOpcode 0011110011 | mov op1 001011010 | jmp XMMmemXMM
+                       ToOpcode 0011110011 | mov op1 001011010 | jmp XMMmem32XMM
 L8:                ifnot op8 'I', L8>                 ;  CVTSS2SI
 L9:                    mov op1 00101101 | jmp LowXMMtoDword
 L8:                ;BadMnemonic
@@ -3287,7 +3306,7 @@ L1:  ifnot op1 'I', L1>
                ifnot op6 'T', L6>
                  ifnot op7 'P', L7>
                    ifnot op8 'S', L8>                 ; INSERTPS
-                    ToOpcode 066, 0F, 03A, 021 | jmp XmmMemXmmImm8Any
+                    ToOpcode 066, 0F, 03A, 021 | jmp XmmMem32XmmImm8Any
 L8:                ;BadMnemonic
 L7:              ;BadMnemonic
 L6:            ;BadMnemonic
@@ -4157,7 +4176,7 @@ L4:   ifnot op4 'B', L4>>
         ifnot B$Operands MemToReg, L6>
         cmp B$FirstOperandwbit ByteSize | je L5>
           ToOpcode 0F | mov op1 038, op2 0F0 | jmp op_op_modReg1Rm
-L6:     ifnot B$Operands RegToMem, L5>
+L6:     ifnot B$Operands RegToMem, OperandsError
         cmp B$SecondOperandwbit ByteSize | je L5>
           ToOpcode 0F | mov op1 038, op2 0F1 | jmp op_op_modReg2Rm
 L5:     BadMnemonic
@@ -4177,7 +4196,7 @@ L5:     ifnot op5 'D', L5>                  ; MOVSD
               mov op1 00_0101_00101 | jmp op
           End_If
 
-          ToOpcode 0011110010 | mov op1 00010000 | jmp XMMmemXMMmem
+          ToOpcode 0011110010 | mov op1 00010000 | jmp XMMmem64XMMmem64
 
 L5:     ifnot op5 'S', L5>                      ; MOVSS (SSE SIMD)
           ToOpcode 0011110011
@@ -4269,7 +4288,7 @@ L6:       BadMnemonic
 L5:     ifnot op5 'D', L5>
           ifnot op6 'U', L6>
             ifnot op7 'P', L7>                   ; MOVDDUP F2,0F,12,/r MOVDDUP xmm1, xmm2/m64
-              ToOPcode 0F2 | mov Op1 012 | jmp XmmMemXmm
+              ToOPcode 0F2 | mov Op1 012 | jmp XmmMem64Xmm
 L7:         ;BadMnemonic
 L6:       ;BadMnemonic
 L5:     BadMnemonic
@@ -5896,6 +5915,44 @@ L1:     cmp B$FirstRegGender XmmReg | jne L8>>
 L7: BadOperandSize
 L8: BadOperand
 
+XMMmem64XMM:
+    ParmsAny 2
+L0: ToOpcode 0F, op1
+    cmp B$Operands RegToReg | jne L2>
+        cmp B$FirstRegGender  XmmReg | jne L8>>
+        cmp B$SecondRegGender XmmReg | jne L8>>
+            mov al B$FirstReg | shl al 3 | or al 0011_000_000 | or al B$SecondReg
+            LastOpcode al
+
+L2: cmp B$Operands MemToReg | jne L8>
+        cmp B$SecondOperandwbit xSize | je L1>
+        cmp B$SecondOperandwbit QuadSize | jne L7>
+L1:     cmp B$FirstRegGender XmmReg | jne L8>>
+            mov al B$FirstReg | shl al 3 | or al B$ModBits | or al B$RmBits
+            LastOpcode al
+
+L7: BadOperandSize
+L8: BadOperand
+
+XMMmem32XMM:
+    ParmsAny 2
+L0: ToOpcode 0F, op1
+    cmp B$Operands RegToReg | jne L2>
+        cmp B$FirstRegGender  XmmReg | jne L8>>
+        cmp B$SecondRegGender XmmReg | jne L8>>
+            mov al B$FirstReg | shl al 3 | or al 0011_000_000 | or al B$SecondReg
+            LastOpcode al
+
+L2: cmp B$Operands MemToReg | jne L8>
+        cmp B$SecondOperandwbit xSize | je L1>
+        cmp B$SecondOperandwbit doubleSize | jne L7>
+L1:     cmp B$FirstRegGender XmmReg | jne L8>>
+            mov al B$FirstReg | shl al 3 | or al B$ModBits | or al B$RmBits
+            LastOpcode al
+
+L7: BadOperandSize
+L8: BadOperand
+
 XmmMemXmmImm3Any:
 ParmsAny 3
     On B$immInside = &FALSE, error D$EndingImmPtr
@@ -5929,6 +5986,57 @@ L0: cmp B$Operands RegToReg | jne L2>
 L2: cmp B$Operands MemToReg | jne L8>
         cmp B$SecondOperandwbit xSize | je L1>
         cmp B$SecondOperandwbit OctoSize | jne L7>
+L1:     cmp B$FirstRegGender XmmReg | jne L8>>
+            mov al B$FirstReg | shl al 3 | or al B$ModBits | or al B$RmBits
+            LastOpcode al
+
+L7: BadOperandSize
+L8: BadOperand
+
+
+XmmMem32XmmImm8Any:
+ParmsAny 3
+    On B$immInside = &FALSE, error D$EndingImmPtr
+    On D$imm32 > 0FF, BadOperandSize
+        mov B$TrueSize ByteSize                 ; to ajust imm size to 8 bits storage
+        jmp L0>
+
+XMMmem32XMMany:
+    ParmsAny 2
+L0: cmp B$Operands RegToReg | jne L2>
+        cmp B$FirstRegGender  XmmReg | jne L8>>
+        cmp B$SecondRegGender XmmReg | jne L8>>
+            mov al B$FirstReg | shl al 3 | or al 0011_000_000 | or al B$SecondReg
+            LastOpcode al
+
+L2: cmp B$Operands MemToReg | jne L8>
+        cmp B$SecondOperandwbit xSize | je L1>
+        cmp B$SecondOperandwbit doubleSize | jne L7>
+L1:     cmp B$FirstRegGender XmmReg | jne L8>>
+            mov al B$FirstReg | shl al 3 | or al B$ModBits | or al B$RmBits
+            LastOpcode al
+
+L7: BadOperandSize
+L8: BadOperand
+
+XmmMem64XmmImm8Any:
+ParmsAny 3
+    On B$immInside = &FALSE, error D$EndingImmPtr
+    On D$imm32 > 0FF, BadOperandSize
+        mov B$TrueSize ByteSize                 ; to ajust imm size to 8 bits storage
+        jmp L0>
+
+XMMmem64XMMany:
+    ParmsAny 2
+L0: cmp B$Operands RegToReg | jne L2>
+        cmp B$FirstRegGender  XmmReg | jne L8>>
+        cmp B$SecondRegGender XmmReg | jne L8>>
+            mov al B$FirstReg | shl al 3 | or al 0011_000_000 | or al B$SecondReg
+            LastOpcode al
+
+L2: cmp B$Operands MemToReg | jne L8>
+        cmp B$SecondOperandwbit xSize | je L1>
+        cmp B$SecondOperandwbit QuadSize | jne L7>
 L1:     cmp B$FirstRegGender XmmReg | jne L8>>
             mov al B$FirstReg | shl al 3 | or al B$ModBits | or al B$RmBits
             LastOpcode al
@@ -6130,7 +6238,6 @@ XMMmem32XMMmem32:
 L2: cmp B$Operands MemToReg | jne L2>
         cmp B$SecondOperandwbit doubleSize | je L1>
         cmp B$SecondOperandwbit xSize | je L1>
-        cmp B$SecondOperandwbit OctoSize | jne L7>
 L1:     cmp B$FirstRegGender XmmReg | jne L8>>
             ToOpcode op1
             mov al B$FirstReg | shl al 3 | or al B$ModBits | or al B$RmBits
@@ -6139,7 +6246,6 @@ L1:     cmp B$FirstRegGender XmmReg | jne L8>>
 L2: cmp B$Operands RegToMem | jne L8>
         cmp B$FirstOperandwbit doubleSize | je L1>
         cmp B$FirstOperandwbit xSize | je L1>
-        cmp B$FirstOperandwbit OctoSize | jne L7>
 L1:     cmp B$SecondRegGender XmmReg | jne L8>>
             or op1 1 | ToOpcode op1
             mov al B$SecondReg | shl al 3 | or al B$ModBits | or al B$RmBits
@@ -6148,6 +6254,35 @@ L1:     cmp B$SecondRegGender XmmReg | jne L8>>
 L7: BadOperandSize
 L8: BadOperand
 
+
+XMMmem64XMMmem64:
+    ParmsAny 2
+    ToOpcode 0F
+    cmp B$Operands RegToReg | jne L2>
+        cmp B$FirstRegGender  XmmReg | jne L8>>
+        cmp B$SecondRegGender XmmReg | jne L8>>
+            ToOpcode op1
+            mov al B$FirstReg | shl al 3 | or al 0011_000_000 | or al B$SecondReg
+            LastOpcode al
+
+L2: cmp B$Operands MemToReg | jne L2>
+        cmp B$SecondOperandwbit QuadSize | je L1>
+        cmp B$SecondOperandwbit xSize | je L1>
+L1:     cmp B$FirstRegGender XmmReg | jne L8>>
+            ToOpcode op1
+            mov al B$FirstReg | shl al 3 | or al B$ModBits | or al B$RmBits
+            LastOpcode al
+
+L2: cmp B$Operands RegToMem | jne L8>
+        cmp B$FirstOperandwbit QuadSize | je L1>
+        cmp B$FirstOperandwbit xSize | je L1>
+L1:     cmp B$SecondRegGender XmmReg | jne L8>>
+            or op1 1 | ToOpcode op1
+            mov al B$SecondReg | shl al 3 | or al B$ModBits | or al B$RmBits
+            LastOpcode al
+
+L7: BadOperandSize
+L8: BadOperand
 
 ; Same as uper but with "xor op1 0010000" (instead of "or 1").
 ; For MOVQ/MOVDQA/MOVDQU only.

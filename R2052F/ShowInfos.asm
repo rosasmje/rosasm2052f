@@ -137,14 +137,14 @@ ________________________________________________________________________________
 OldSearchMneMonic:
     pushad
         mov D$MnemonicIndex 7
-        or ah 32 | xor ah 32         ;  > upper case (all Upper case in the list
-        mov esi OpcodesList
+        cmp ah 'z' | ja L2> | cmp ah 'a' | jb L2> | sub ah 020 ; > upper case (all Upper case in the list
+L2:     mov esi OpcodesList
         .While B$esi > 0
             lodsb
             .If al = ah
                 pushad | mov ecx ebx, edi edx
-L0:             lodsb | mov ah B$edi | inc edi | or ah 020 | xor ah 020 ; Source upper case.
-                cmp ah al | jne L1>
+L0:             lodsb | mov ah B$edi | inc edi | cmp ah 'z' | ja L2> | cmp ah 'a' | jb L2> | sub ah 020 ; Source upper case.
+L2:             cmp ah al | jne L1>
                 loop L0<
 L1:             popad | jne L3>
                 If B$esi+ebx = ' '
@@ -348,6 +348,7 @@ ADC r/m8,r8          10    /r     Add with carry
 ADC r/m32,r32        11    /r     Add with carry
 ADC r8,r/m8          12    /r     Add with carry 
 ADC r32,r/m32        13    /r     Add with carry
+ADCX r32,r/m32       66 0F 38 F6 /r    Add with CF, writes only CF.
 ADD AL,imm8          04       ib  Add 
 ADD EAX,imm32        05       id  Add 
 ADD r/m8,imm8        80    /0 ib  Add 
@@ -357,6 +358,13 @@ ADD r/m8,r8          00    /r     ADD
 ADD r/m32,r32        01    /r     ADD 
 ADD r8,r/m8          02    /r     ADD 
 ADD r32,r/m32        03    /r     ADD 
+ADOX r32,r/m32       F3 0F 38 F6 /r    Add with OF, writes only OF.
+AESDEC XMM,XMM/m128     66 0F 38 DE /r
+AESDECLAST XMM,XMM/m128 66 0F 38 DF /r
+AESENC XMM,XMM/m128     66 0F 38 DC /r
+AESENCLAST XMM,XMM/m128 66 0F 38 DD /r
+AESIMC XMM,XMM/m128     66 0F 38 DB /r
+AESKEYGENASSIST XMM,XMM/m128,imm8   66 0F 3A DF    /r
 AND AL,imm8          24       ib  AND 
 AND EAX,imm32        25       id  AND
 AND r/m8,imm8        80    /4 ib  AND
@@ -367,6 +375,10 @@ AND r/m32,r32        21    /r     AND
 AND r8,r/m8          22    /r     AND
 AND r32,r/m32        23    /r     AND
 ARPL r/m16,r16       63    /r     Adjust Request Privilege Level of Sel.
+BLENDPD XMM,XMM/m128,imm8    66 0F 3A 0D /r
+BLENDPS XMM,XMM/m128,imm8    66 0F 3A 0C /r
+BLENDVPD XMM1,XMM2/m128,<xmm0>  66 0F 38 15 /r
+BLENDVPS XMM1,XMM2/m128,<xmm0>  66 0F 38 14 /r
 BOUND r32,m32&32     62    /r     Check Array Index Against Bounds
 BSF r32,r/m32        0F BC /r     Bit scan forward on r/m32
 BSR r32,r/m32        0F BD /r     Bit scan reverse on r/m32
@@ -386,10 +398,13 @@ CALL m16:32          FF    /3     Call far, abs.ind.add. given in m16:32
 CBW                  98           Convert Byte to Word
 CWD                  99           Convert Word to Doubleword
 CDQ                  99           Convert Doubleword to Quadword 
+CLAC                 0F 01 CA     Clear AC flag
 CLC                  F8           Clear CF flag
 CLD                  FC           Clear DF flag
+CLFLUSHOPT m8        66 0F AE /7  Flushes cache at Mem8.
 CLI                  FA           Clear interrupt flag
 CLTS                 0F 06        Clear Task-Switched Flag in Control Reg. Zero
+CLWB m8              66 0F AE /6  Writes back cache line at Mem8,
 CMC                  F5           Complement CF flag
 CMOVA r32,r/m32      0F 47 /r     Move if above 
 CMOVAE r32,r/m32     0F 43 /r     Move if above or equal 
@@ -436,6 +451,9 @@ CMPXCHG r/m8,r8      0F B0 /r     Compare and Exchange
 CMPXCHG r/m32,r32    0F B1 /r     Compare and Exchange
 CMPXCHG8B m64        0F C7 /1 m64 Compare and Exchange
 CPUID                0F A2        EAX := Processor id.info.
+CRC32 r32,r8/m8   F2 0F 38 F0 /r  Accumulate CRC32 of r8/m8.
+CRC32 r32,r16/m16 F2 0F 38 F1 /r  Accumulate CRC32 of r16/m16.
+CRC32 r32,r32/m32 F2 0F 38 F1 /r  Accumulate CRC32 of r32/m32.
 DAA                  27           Decimal adjust AL after addition
 DAS                  2F           Decimal adjust AL after subtraction
 DEC r/m8             FE    /1     Decrement r/m8 by 1
@@ -444,10 +462,12 @@ DEC r32              48+rd        Decrement r32 by 1
 DIV r/m8             F6    /6     Unsigned divide AX by r/m8
 DIV r/m16            F7    /6     Unsigned divide DX:AX by r/m16
 DIV r/m32            F7    /6     Unsigned divide EDX:EAX by r/m32 
+DPPD XMM,XMM/m128,imm8    66 0F 3A 41 /r ib
+DPPS XMM,XMM/m128,imm8    66 0F 3A 40 /r ib
 EMMS                 0F 77        Set the FP tag word to empty
 ENTER imm16,0        C8     iw 00 Create a stack frame for a procedure
-ENTER imm16,1        C8     iw 01 Create a nested stack frame for a proc.
 ENTER imm16,imm8     C8     iw ib Create a nested stack frame for a proc.
+EXTRACTPS r/m32,xmm,imm8   66 0F 3A 17 /r ib    Extract Packed Single-FP Value
 F2XM1                D9 F0        Replace ST0 with 2**ST0 - 1
 FABS                 D9 E1        Replace ST0 with its absolute value
 FADD m32real         D8    /0     Add m32real to ST0 and s.r. in ST0
@@ -595,6 +615,7 @@ FXCH                 D9 C9        Exchange ST0 and ST1
 FXTRACT              D9 F4        Seperate value in ST(0) exp. and sig.
 FYL2X                D9 F1        Replace ST1 with ST1*log2(ST0) and pop
 FYL2XP1              D9 F9        Replace ST1 with ST1*log2(ST0+1) pop
+GETSEC               0F 37        GETSEC LEAF FUNCTIONS; finction IDs in EAX
 HLT                  F4           Halt
 IDIV r/m8            F6    /7     Divide   
 IDIV r/m32           F7    /7     Divide  
@@ -614,11 +635,14 @@ INC r/m32            FF    /0     Increment 1
 INC r32              40+rd        Increment register by 1
 INS m8               6C           Input byte from I/O(DX) into  (E)DI
 INS m32              6D           Input dw from I/O(DX) into (E)DI
+INSERTPS xmm,xmm/m32,imm8   66 0F 3A 21 /r ib   SSE4_1
 INT 3                CC           Interrupt 3--trap to debugger
 INT imm8             CD       ib  Interrupt vector number (imm8)
 INTO                 CE           Interrupt 4--if overflow flag is 1
 INVD                 0F 08        Flush internal caches
+INVEPT r32,m128      66 0F 38 80  Invalidates EPT-derived entries in the TLBs; VMX
 INVLPG m             0F 01 /7     Invalidate TLB Entry for page (m)
+INVVPID r32,m128     66 0F 38 81  Invalidates TLBs and caches based on VPID; VMX
 IRETD                CF           Interrupt return(32)
 JA rel8              77       cb  Jump short if above 
 JAE rel8             73       cb  Jump short if above or equal 
@@ -660,13 +684,13 @@ JMP ptr16:32         EA       cp  Jump far, abs.add given in operand
 JMP m16:32           FF    /r     Jump far, abs.ind.in m16:32
 LAHF                 9F           Load Status Flags into AH 
 LAR r32,r/m32        0F 02 /r     Load Access Rights Byte     
-LDS r32,m16:32       C5    /r     Load DS:r32 with far ptr
+LDS ds:r32,m16:32    C5    /r     Load DS:r32 with far ptr
 LEA r32,m            8D    /r     Load effective address  
 LEAVE                C9           Set ESP to EBP, then pop EBP
-LES r32,m16:32       C4    /r     Load ES:r32 with far ptr 
-LFS r32,m16:32       0F B4 /r     Load FS:r32 with far ptr
-LGS r32,m16:32       0F B5 /r     Load GS:r32 with far ptr
+LES es:r32,m16:32    C4    /r     Load ES:r32 with far ptr 
+LFS fs:r32,m16:32    0F B4 /r     Load FS:r32 with far ptr
 LGDT m16&32          0F 01 /2     Load m into GDTR
+LGS gs:r32,m16:32    0F B5 /r     Load GS:r32 with far ptr
 LIDT m16&32          0F 01 /3     Load m into IDTR
 LLDT r/m16           0F 00 /2     Load segment selector r/m16 into LDTR
 LMSW r/m16           0F 01 /6     Load r/m16 in machine status word of CR0
@@ -681,8 +705,10 @@ LOOPNE rel8          E0       cb  Dec count;jump if count # 0 and ZF=0
 LOOPNZ rel8          E0       cb  Dec count;jump if count # 0 and ZF=0
 LSL r16,r/m16        0F 03 /r     Load Segment Limit
 LSL r32,r/m32        0F 03 /r     Load Segment Limit
-LSS r32,m16:32       0F B2 /r     Load SS:r32 with far ptr
+LSS ss:r32,m16:32    0F B2 /r     Load SS:r32 with far ptr
 LTR r/m16            0F 00 /3     Load Task Register
+LZCNT r16,r/m16      F3 0F BD /r  Count Leading Zero Bits
+LZCNT r32,r/m32      F3 0F BD /r  Count Leading Zero Bits
 MOV r/m8,r8          88    /r     Move 
 MOV r/m32,r32        89    /r     Move 
 MOV r8,r/m8          8A    /r     Move 
@@ -709,8 +735,13 @@ MOV r32,CR3          0F 20 /r     Move CR3 to r32
 MOV r32,CR4          0F 20 /r     Move CR4 to r32
 MOV r32,DR0-DR7      0F 21 /r     Move debug register to r32
 MOV DR0-DR7,r32      0F 23 /r     Move r32 to debug register
+MOVBE r/m16,r16      0F 38 F0     Swap bytes in r16 and move to r/m16
+MOVBE r/m32,r32      0F 38 F0     Swap bytes in r32 and move to r/m32
+MOVBE r16,r/m16      0F 38 F1     Swap bytes in r/m16 and move to r16
+MOVBE r32,r/m32      0F 38 F1     Swap bytes in r/m32 and move to r32
 MOVD mm,r/m32        0F 6E /r     Move doubleword from r/m32 to mm
 MOVD r/m32,mm        0F 7E /r     Move doubleword from mm to r/m32
+MOVNTDQA XMM,m128    66 0F 38 2A  SSE4_1
 MOVQ mm,mm/m64       0F 6F /r     Move quadword from mm/m64 to mm
 MOVQ mm/m64,mm       0F 7F /r     Move quadword from mm to mm/m64
 MOVSB                A4           Move byte at ESI to  EDI
@@ -720,6 +751,7 @@ MOVSX r32,r/m8       0F BE /r     Move byte to doubleword, sign-extension
 MOVSX r32,r/m16      0F BF /r     Move word to doubleword, sign-extension
 MOVZX r32,r/m8       0F B6 /r     Move byte to doubleword, zero-extension
 MOVZX r32,r/m16      0F B7 /r     Move word to doubleword, zero-extension
+MPSADBW xmm,xmm/m128,imm8    66 0F 3A 42 /r ib   SSE4_1
 MUL r/m8             F6    /4     Unsigned multiply 
 MUL r/m32            F7    /4     Unsigned multiply 
 NEG r/m8             F6    /3     Two's complement negate r/m8
@@ -742,8 +774,15 @@ OUT DX,AL            EE           Output byte in AL to I/O(DX)
 OUT DX,EAX           EF           Output dword in EAX to I/O(DX)
 OUTS DX,m8           6E           Output byte from (E)SI to I/O(DX)
 OUTS DX,m32          6F           Output dword from (E)SI to I/O (DX)
+PABSB mm,mm          0F 38 1C     SSSE3
+PABSB xmm,xmm        66 0F 38 1C  SSSE3
+PABSD mm,mm          0F 38 1E     SSSE3
+PABSD xmm,xmm        66 0F 38 1E  SSSE3
+PABSW mm,mm          0F 38 1D     SSSE3
+PABSW xmm,xmm        66 0F 38 1D  SSSE3
 PACKSSWB mm,mm/m64   0F 63 /r     Pack with Signed Saturation
 PACKSSDW mm,mm/m64   0F 6B /r     Pack with Signed Saturation
+PACKUSDW xmm,xmm/m128   66 0F 38 2B    SSE4_1
 PACKUSWB mm,mm/m64   0F 67 /r     Pack with Unsigned Saturation
 PADDB mm,mm/m64      0F FC /r     Add packed bytes 
 PADDW mm,mm/m64      0F FD /r     Add packed words 
@@ -752,16 +791,74 @@ PADDSB mm,mm/m64     0F EC /r     Add signed packed bytes
 PADDSW mm,mm/m64     0F ED /r     Add signed packed words 
 PADDUSB mm,mm/m64    0F DC /r     Add unsigned pkd bytes 
 PADDUSW mm,mm/m64    0F DD /r     Add unsigned pkd words 
+PALIGNR mm,mm/m64,imm8     0F 3A 0F  SSSE3
+PALIGNR xmm,xmm/m128,imm8  66 0F 3A 0F  SSSE3
 PAND mm,mm/m64       0F DB /r     AND quadword from .. to ..
 PANDN mm,mm/m64      0F DF /r     And qword from .. to NOT qw in mm
+PBLENDVB xmm,xmm/m128,<XMM0>  66 0F 38 10 /r    SSE4_1
+PBLENDW  xmm,xmm/m128,imm8    66 0F 3A 0E /r ib   SSE4_1
+PCLMULQDQ xmm,xmm/imm128,imm8    66 0F 3A 44 /r ib    SSE4_1
 PCMPEQB mm,mm/m64    0F 74 /r     Packed Compare for Equal
 PCMPEQW mm,mm/m64    0F 75 /r     Packed Compare for Equal
 PCMPEQD mm,mm/m64    0F 76 /r     Packed Compare for Equal
+PCMPEQQ xmm,xmm/m128 66 0F 38 29  SSE4_1
+PCMPESTRI xmm,xmm/imm128,imm8 66 0F 3A 61    SSE4_2 store to ECX
+PCMPESTRM xmm,xmm/imm128,imm8 66 0F 3A 60    SSE4_2 store to XMM0
 PCMPGTB mm,mm/m64    0F 64 /r     Packed Compare for GT
 PCMPGTW mm,mm/m64    0F 65 /r     Packed Compare for GT
 PCMPGTD mm,mm/m64    0F 66 /r     Packed Compare for GT
+PCMPGTQ xmm,xmm/m128    66 0F 38 37    Packed Compare for GT SSE4_2
+PCMPISTRI xmm,xmm/imm128,imm8 66 0F 3A 63    SSE4_2 store to ECX
+PCMPISTRM xmm,xmm/imm128,imm8 66 0F 3A 62    SSE4_2 store to XMM0
+PEXTRB r32/m8,xmm,imm8  66 0F 3A 14    SSE4_1
+PEXTRD r32/m32,xmm,imm8 66 0F 3A 16    SSE4_1
+PEXTRW r32/m16,xmm,imm8 66 0F 3A 15    SSE4_1
+PHADDD mm,mm/m64        0F 38 02 /r    Packed Horizontal Add SSSE3
+PHADDD xmm,xmm/m128  66 0F 38 02 /r    Packed Horizontal Add SSSE3
+PHADDSW mm,mm/m64    0F 38 03 /r  Packed Horizontal Add and Saturate
+PHADDSW xmm,xmm/m128xmm1   66 0F 38 03 /r    Packed Horizontal Add and Saturate
+PHADDW mm,mm/m64     0F 38 01 /r  Packed Horizontal Add
+PHADDW xmm,xmm/m128  66 0F 38 01 /r  C2+           Packed Horizontal Add
+PHMINPOSUW xmm,xmm/m128 66 0F 38 41 /r Packed Horizontal Word Minimum SSE4_1
+PHSUBD mm,mm/m64     0F 38 06 /r  Packed Horizontal Subtract
+PHSUBD xmm,xmm/m128  66 0F 38 06 /r    Packed Horizontal Subtract
+PHSUBSW mm,mm/m64    0F 38 07 /r       Packed Horizontal Subtract and Saturate
+PHSUBSW xmm,xmm/m128 66 0F 38 07 /r    Packed Horizontal Subtract and Saturate
+PHSUBW mm,mm/m64     0F 38 05 /r       Packed Horizontal Subtract
+PHSUBW xmm,xmm/m128  66 0F 38 05 /r    Packed Horizontal Subtract
+PINSRB xmm,r/m8,imm8    66 0F 3A 20 /r   Insert Byte SSE4_1
+PINSRD xmm,r/m32,imm8   66 0F 3A 22 /r   Insert Dword SSE4_1
+PINSRW mm,r/m16,imm8    0F C4 /r  Insert Word
+PINSRW xmm,r/m16,imm8   66 0F C4 /r   Insert Word
+PMADDUBSW mm,mm/m64     0F 38 04 /r    Multiply and Add Packed Signed and Unsigned Bytes
+PMADDUBSW xmm,xmm/m128  66 0F 38 04 /r    Multiply and Add Packed Signed and Unsigned Bytes
 PMADDWD mm,mm/m64    0F F5 /r     Packed Multiply and Add
+PMADDWD xmm,xmm/m128 66 0F F5 /r     Packed Multiply and Add
+PMAXSB xmm,xmm/m128  66 0F 38 3C /r  Maximum of Packed Signed Byte Integers
+PMAXSD xmm,xmm/m128  66 0F 38 3D /r  Maximum of Packed Signed Dword Integers
+PMAXUD xmm,xmm/m128  66 0F 38 3F /r  Maximum of Packed Unsigned Dword Integers
+PMAXUW xmm,xmm/m128  66 0F 38 3E /r  Maximum of Packed Unsigned Word Integers
+PMINSB xmm,xmm/m128  66 0F 38 38 /r  Minimum of Packed Signed Byte Integers
+PMINSD xmm,xmm/m128  66 0F 38 39 /r  Minimum of Packed Signed Dword Integers
+PMINUD xmm,xmm/m128  66 0F 38 3B /r  Minimum of Packed Unsigned Dword Integers
+PMINUW xmm,xmm/m128  66 0F 38 3A /r  Minimum of Packed Unsigned Word Integers
+PMOVSXBD xmm,xmm/m32 66 0F 38 21 /r  Packed Move w Sign Extend
+PMOVSXBQ xmm,xmm/m16 66 0F 38 22 /r  Packed Move w Sign Extend
+PMOVSXBW xmm,xmm/m64 66 0F 38 20 /r  Packed Move w Sign Extend
+PMOVSXDQ xmm,xmm/m64 66 0F 38 25 /r  Packed Move w Sign Extend
+PMOVSXWD xmm,xmm/m64 66 0F 38 23 /r  Packed Move w Sign Extend
+PMOVSXWQ xmm,xmm/m32 66 0F 38 24 /r  Packed Move w Sign Extend
+PMOVZXBD xmm,xmm/m32 66 0F 38 31 /r  Packed Move w Zero Extend
+PMOVZXBQ xmm,xmm/m16 66 0F 38 32 /r  Packed Move w Zero Extend
+PMOVZXBW xmm,xmm/m64 66 0F 38 30 /r  Packed Move w Zero Extend
+PMOVZXDQ xmm,xmm/m64 66 0F 38 35 /r  Packed Move w Zero Extend
+PMOVZXWD xmm,xmm/m64 66 0F 38 33 /r  Packed Move w Zero Extend
+PMOVZXWQ xmm,xmm/m32 66 0F 38 34 /r  Packed Move w Zero Extend
+PMULDQ xmm,xmm/m128  66 0F 38 28 /r  Multiply Packed Signed Dword Integers
+PMULHRSW mm,mm/m64   0F 38 0B /r  Packed Multiply High with Round and Scale
+PMULHRSW xmm,xmm/m128 66 0F 38 0B /r   Packed Multiply High with Round and Scale
 PMULHW mm,mm/m64     0F E5 /r     Packed Multiply High
+PMULLD xmm,xmm2/m128  66 0F 38 40 /r   Multiply Packed Signed Dword Integers and Store Low Result
 PMULLW mm,mm/m64     0F D5 /r     Packed Multiply Low
 POP m32              8F    /0     Pop m32
 POP r32              58+rd        Pop r32
@@ -771,8 +868,20 @@ POP SS               17           Pop SS
 POP FS               0F A1        Pop FS
 POP GS               0F A9        Pop GS
 POPAD                61           Pop EDI,... and EAX
+POPAW                61           Pop DI,...  and AX
+POPCNT r16,r/m16     F3 0F B8 /r  Count nonzero Bits
+POPCNT r32,r/m32     F3 0F B8 /r  Count nonzero Bits
 POPFD                9D           Pop Stack into EFLAGS Register
+POPFW                9D           Pop Stack into FLAGS Register
 POR mm,mm/m64        0F EB /r     OR qword from .. to mm
+PSHUFB mm,mm/m64     0F 38 00 /r       Packed Shuffle Bytes
+PSHUFB xmm,xmm/m128  66 0F 38 00 /r    Packed Shuffle Bytes
+PSIGNB mm1,mm2/m64   0F 38 08     Negate/zero/preserve packed bytes
+PSIGNB xmm,xmm2/m128 66 0F 38 08     Negate/zero/preserve packed bytes
+PSIGND mm,mm/m64     0F 38 0A     Negate/zero/preserve packed bytes
+PSIGND xmm,xmm/m128  66 0F 38 0A     Negate/zero/preserve packed bytes
+PSIGNW mm,mm/m64     0F 38 09     Negate/zero/preserve packed bytes
+PSIGNW xmm,xmm/m128  66 0F 38 09     Negate/zero/preserve packed bytes
 PSLLW mm,mm/m64      0F F1 /r     Packed Shift Left Logical
 PSLLW mm,imm8        0F 71 /6 ib  Packed Shift Left Logical
 PSLLD mm,mm/m64      0F F2 /r     Packed Shift Left Logical
@@ -796,6 +905,7 @@ PSUBSB mm,mm/m64     0F E8 /r     Packed Subtract with Saturation
 PSUBSW mm,mm/m64     0F E9 /r     Packed Subtract with Saturation
 PSUBUSB mm,mm/m64    0F D8 /r     Packed Subtract Unsigned with S.
 PSUBUSW mm,mm/m64    0F D9 /r     Packed Subtract Unsigned with S.
+PTEST xmm,xmm/m128   66 0F 38 17 /r
 PUNPCKHBW mm,mm/m64  0F 68 /r     Unpack High Packed Data
 PUNPCKHWD mm,mm/m64  0F 69 /r     Unpack High Packed Data
 PUNPCKHDQ mm,mm/m64  0F 6A /r     Unpack High Packed Data
@@ -812,8 +922,10 @@ PUSH DS              1E           Push DS
 PUSH ES              06           Push ES
 PUSH FS              0F A0        Push FS
 PUSH GS              0F A8        Push GS
-PUSHAD               60           Push All g-regs
+PUSHAD               60           Push All regs32
+PUSHAW               60           Push All regs16
 PUSHFD               9C           Push EFLAGS
+PUSHFW               9C           Push FLAGS
 PXOR mm,mm/m64       0F EF /r     XOR qword
 RCL r/m8,1           D0    /2     Rotate 9 bits left once
 RCL r/m8,CL          D2    /2     Rotate 9 bits left CL times
@@ -840,8 +952,12 @@ ROR r/m32,1          D1    /1     Rotate 32 bits r/m32 right once
 ROR r/m32,CL         D3    /1     Rotate 32 bits r/m32 right CL times
 ROR r/m32,imm8       C1    /1 ib  Rotate 32 bits r/m32 right imm8 times
 RDMSR                0F 32        Read from Model Specific Register
+RDPKRU               0F 01 EE     Read Protection Key Rights for User Pages
 RDPMC                0F 33        Read Performance-Monitoring counters
+RDRAND r16|r32       0F C7 /6     Read 16 or 32-bit random number to dest Reg.
+RDSEED r16|r32       0F C7 /7     Read 16 or 32-bit random SEED to dest Reg.
 RDTSC                0F 31        Read Time-Stamp Counter
+RDTSCP               0F 01 F9     Read Time-Stamp Counter and Processor ID
 REP INS m8,DX        F3 6C        Input ECX bytes from port DX into [(E)DI]
 REP INS m32,DX       F3 6D        Input ECX dwords from port DX into [(E)DI]
 REP MOVSB            F3 A4        Move ECX bytes from ESI to EDI
@@ -868,9 +984,13 @@ REPNE SCASB          F2 AE        Find AL, starting at EDI
 REPNE SCASD          F2 AF        Find EAX, starting at EDI
 REPNE SCASW          F2 AF        Find AX, starting at EDI
 RET                  C3           Near return 
-RET                  CB           Far return 
+RETF                 CB           Far return 
 RET imm16            C2       iw  Near return, pop imm16 bytes from stack
-RET imm16            CA       iw  Far return, pop imm16 bytes from stack
+RETF imm16           CA       iw  Far return, pop imm16 bytes from stack
+ROUNDPD xmm,xmm/m128,imm8   66 0F 3A 09    Round Packed Double-FP Values
+ROUNDPS xmm,xmm/m128,imm8   66 0F 3A 08    Round Packed Single-FP Values
+ROUNDSD xmm,xmm/m128,imm8   66 0F 3A 0B    Round Scalar Double-FP Values
+ROUNDSS xmm,xmm/m128,imm8   66 0F 3A 0A    Round Scalar Single-FP Values
 RSM                  0F AA        Resume from System Management
 SAHF                 9E           Store AH into Flags
 SAL r/m8,1           D0    /4     Shift Arithmetic Left
@@ -912,8 +1032,10 @@ SCASD                AF           Scan String
 SETA r/m8            0F 97 /r     Set byte if above 
 SETAE r/m8           0F 93 /r     Set byte if above or equal
 SETB r/m8            0F 92 /r     Set byte if below 
+SETC r/m8            0F 92 /r     Set byte if below 
 SETBE r/m8           0F 96 /r     Set byte if below or equal 
 SETE r/m8            0F 94 /r     Set byte if equal 
+SETZ r/m8            0F 94 /r     Set byte if equal 
 SETG r/m8            0F 9F /r     Set byte if greater 
 SETGE r/m8           0F 9D /r     Set byte if greater or equal
 SETL r/m8            0F 9C /r     Set byte if less 
@@ -933,6 +1055,7 @@ SHRD r/m32,r32,imm8  0F AC /r ib  Double Precision Shift Right
 SHRD r/m32,r32,CL    0F AD /r     Double Precision Shift Right
 SLDT r/m32           0F 00 /0     Store Local Descriptor Table Register
 SMSW r/m32           0F 01 /4     Store Machine Status Word
+STAC                 0F 01 CB     Set the AC flag
 STC                  F9           Set Carry Flag
 STD                  FD           Set Direction Flag
 STI                  FB           Set Interrup Flag
@@ -956,13 +1079,27 @@ TEST r/m32,imm32     F7    /0 id  Logical Compare
 TEST r/m8,r8         84    /r     Logical Compare
 TEST r/m16,r16       85    /r     Logical Compare
 TEST r/m32,r32       85    /r     Logical Compare
+TZCNT r16,r/m16      F3 0F BC     Count trailing zero bits
+TZCNT r32,r/m32      F3 0F BC     Count trailing zero bits
 UD2                  0F 0B        Undifined Instruction
 VERR r/m16           0F 00 /4     Verify a Segment for Reading
 VERW r/m16           0F 00 /5     Verify a Segment for Writing
+VMCALL               0F 01 C1     Call to VM Monitor
+VMCLEAR m64       66 0F C7 /6     Clear VM Control Structure
+VMFUNC               0F 01 D4     Invoke VM function specified in EAX
+VMLAUNCH             0F 01 C2     Launch VM
+VMPTRLD m64          0F C7 /6     Load VMCS Pointer
+VMPTRST m64          0F C7 /7     Store VMCS Pointer
+VMREAD r/m32,r32     0F 78        Read Field from VMCS
+VMRESUME             0F 01 C3     Resume VM
+VMWRITE r32,r/m32    0F 79        Write Field from VMCS
+VMXOFF               0F 01 C4     Leave VMX Operation
+VMXON m64         F3 0F C7 /6     Enter VMX Operation
 WAIT                 9B           Wait
 FWAIT                9B           Wait
 WBINVD               0F 09        Write Back and Invalidate Cache
 WRMSR                0F 30        Write to Model Specific Register
+WRPKRU               0F 01 EF     Write Data to User Page Key Register
 XADD r/m8,r8         0F C0 /r     Exchange and Add
 XADD r/m16,r16       0F C1 /r     Exchange and Add
 XADD r/m32,r32       0F C1 /r     Exchange and Add
@@ -972,6 +1109,7 @@ XCHG r/m8,r8         86    /r     Exchange byte
 XCHG r8,r/m8         86    /r     Exchange byte 
 XCHG r/m32,r32       87    /r     Exchange doubleword 
 XCHG r32,r/m32       87    /r     Exchange doubleword 
+XGETBV               0F 01 D0     Reads XCR specified by ECX into EDX:EAX
 XLAT m8              D7           Table Look-up Translation
 XOR AL,imm8          34       ib  Logical Exclusive OR
 XOR EAX,imm32        35       id  Logical Exclusive OR
@@ -981,7 +1119,10 @@ XOR r/m32,imm8       83    /6 ib  Logical Exclusive OR
 XOR r/m8,r8          30    /r     Logical Exclusive OR
 XOR r/m32,r32        31    /r     Logical Exclusive OR
 XOR r8,r/m8          32    /r     Logical Exclusive OR
-XOR r32,r/m32        33    /r     Logical Exclusive OR" 0]
+XOR r32,r/m32        33    /r     Logical Exclusive OR
+XRSTOR mem           0F AE /5     Restore state components specified by EDX:EAX from mem.
+XSAVE  mem           0F AE /4     Save state components specified by EDX:EAX to mem.
+XSETBV               0F 01 D1     Set Extended Control Register" 0]
 
 ;;
   Each Name must be 16 Bytes aligned for the search. Any error breaks all of the
@@ -990,185 +1131,6 @@ XOR r32,r/m32        33    /r     Logical Exclusive OR" 0]
   A '<' before the Name indicates a substitution. Example, 'AAD' is in the same
   B_U_Asm Description as 'AAA'.
 ;;
-[<16 OldOpCodeList: B$
-'AAA            <AAD            <AAM            <AAS             ADC             '
-'ADD             ADDPD           ADDPS           ADDSD           ADDSS           '
-'ADDSUBP         ADDSUBS         AND             ANDNPS          ANDPD           '
-'ANDPS           ARPL            BOUND           BSF            <BSR             '
-'BSWAP           BT             <BTC            <BTR            <BTS             '
-'CALL            CBW            <CDQ            <CWD            <CWDE            '
-'CLC            <CLD            <CLI            <CLTS            CMC             '
-'CLFLUSH         '
-'CMOVcc         <CMOVA          <CMOVAE         <CVMOVB         <CMOVBE         <'
-'CMOVC          <CMOVE          <CMOVG          <CMOVE          <CMOVL          <'
-'CMOVLE         <CMOVNA         <CMOVNAE        <CMOVNB         <CMOVNBE        <'
-'CMOVNC         <CMOVNE         <CMOVNG         <CMOVNGE        <CMOVNL         <'
-'CMOVNLE        <CMOVNO         <CMOVNP         <CMOVNS         <CMOVNZ         <'
-'CMOVO          <CMOVP          <CMOVPE         <CMOVPO         <CMOVS          <'
-'CMOVZ           '
-
-'CMP             '
-
-'CMPccPD        <CMPEQPD        <CMPLEPD        <CMPLTPD        <CMPNEQPD       <'
-'CMPNLEPD       <CMPNLTPD       <CMPORDPD       <CMPPD          <CMPUNORDPD      '
-
-'CMPccPS        <CMPEQPS        <CMPLEPS        <CMPLTPS        <CMPNEQPS       <'
-'CMPNLEPS       <CMPNLTPS       <CMPORDPS       <CMPPS          <CMPUNORDPS      '
-
-'CMPccSD        <CMPEQSD        <CMPLESD        <CMPLTSD        <CMPNEQSD       <'
-'CMPNLESD       <CMPNLTSD       <CMPORDSD       <CMPSD          <CMPUNORDSD      '
-
-'CMPccSS        <CMPEQSS        <CMPLESS        <CMPLTSS        <CMPNEQSS       <'
-'CMPNLESS       <CMPNLTSS       <CMPORDSS       <CMPSS          <CMPUNORDSS      '
-'CMPSB          <CMPSD           <CMPSW          '
-'CMPXCHG        <CMPXCHG486      CMPXCHG8B       COMISD          COMISS          '
-
-'CVTDQ2PD        CVTDQ2PS        '
-'CVTPD2DQ        CVTPD2PI        CVTPD2PS        CVTPI2PD        CVTPI2PS        '
-'CVTPS2DQ        CVTPS2PD        CVTPS2PI        '
-'CVTSD2SI        CVTSD2SS        CVTSI2SD        CVTSI2SS        '
-'CVTSS2SD        CVTSS2SI        '
-'CVTTPD2DQ       CVTTPD2PI       CVTTPS2DQ       CVTTPS2PI       '
-'CVTTSD2SI       CVTTSS2SI       '
-
-'CPUID           DAA            <'
-'DAS             DEC             DIV             DIVPD           DIVPS           '
-'DIVSS           '
-'EMMS            ENTER           '
-'F2XM1           FABS            FADD           <FADDP           FBLD            '
-'FBSTP           FCHS            FCLEX          <FNCLEX          '
-'FCMOVcc        <FCMOVB         <FCMOVBE        <'
-'FCMOVE         <FCMOVNB        <FCMOVNBE       <FCMOVNE        <FCMOVNU        <'
-'FCMOVU          FCOM           <FCOMI          <FCOMIP         <FCOMP          <'
-'FCOMPP          FCOS            FDECSTP         '
-'FDIV           <'
-'FDIVP          <FDIVR          <FDIVRP          FEMMS           '
-
-'FFREE           FIADD           FICOM          <FICOMP          FIDIV          <'
-'FIDIVR          FIMUL           FINCSTP         FINIT          <FNINIT          '
-'FILD           <FIST           <FISTP           FISUB           FISUBR          '
-'FLD             '
-'FLDxx          <FLD1           <FLDL2E         <FLDL2T         <FLDLG2         <'
-'FLDLN2         <FLDZ           <FLDPI           '
-
-'FLDCW           FLDENV          '
-'FMUL           <FMULP           '
-'FNOP            '
-'FPATAN         <FPTAN           FPREM          <FPREM1          FRNDINT         '
-'FRSTOR         <FSAVE          <FNSAVE          FSCALE          FSETPM          '
-'FSIN           <FSINCOS         '
-'FSQRT           FST            <FSTP            FSTCW          <FNSTCW          '
-'FSTENV         <FNSTENV         '
-'FSTSW           FSUB           <FSUBP          <FSUBR          <FSUBRP          '
-'FTST            FUCOM          <FUCOMI         <FUCOMIP        <'
-
-'FUCOMxx        <FUCOMP         <FUCOMPP        <FUCOMI         <FUCOMIP         '
-
-'FXAM            FXCH            FXRSTOR         '
-'FXSAVE          FXTRACT         FYL2X          <FYL2XP1         HLT             '
-'IBTS            ICEBP           IDIV            IMUL            IN              '
-'INC             INCBIN          INSB           <INSD           <INSW            '
-'INT             INT01           INT03           INT1            INT3            '
-'INTO            INVD            INVLPG          IRET           <IRETD          <'
-'IRETW           JCXZ           <JECXZ           JMP             '
-
-'Jcc            <JA             <JAE            <JB             <JBE            <'
-'JC             <JE             <JG             <JGE            <JL             <'
-'JLE            <JNA            <JNAE           <JNB            <JNBE           <'
-'JNC            <JNE            <JNG            <JNGE           <JNL            <'
-'JNLE           <JNO            <JNP            <JNS            <JNZ            <'
-'JO             <JP             <JPE            <JPO            <JS             <'
-'JZ              '
-
-'LAHF            LAR             LDMXCSR         LEA             '
-'LDS            <LES            <LGS            <LFS            <LSS             '
-'LEAVE           LGDT           <LIDT           <LLDT            '
-'LMSW            LOCK            '
-'LODSB          <LODSD          <LODSW           LOOP           <LOOPE          <'
-'LOOPNE         <LOOPNZ         <LOOPZ           LSL             '
-'LTR             MASKMOVQ        MAXPD           MAXPS           MAXSS           '
-'MINPS           '
-'MINSS           MOV             MOVAPD          MOVAPS          MOVD            '
-'MOVDQ2Q         MOVDQA          MOVDQU          '
-'MOVHLPS         MOVHPD          '
-'MOVHPS          MOVLHPS         MOVLPD          MOVLPS          MOVMSKPS        '
-'MOVMSKPD        '
-'MOVNTPS         '
-'MOVNTQ          MOVQ            MOVQ2DQ         MOVSB           MOVSD           '
-'MOVSW           MOVSS           '
-'MOVSW           MOVSX           MOVUPS          MOVZX           MUL             '
-'MULPD           MULPS           MULSD           '
-'MULSS           NEG             NOP             NOT             '
-'OR              ORPD            '
-'ORPS            OUT             OUTSB           OUTSD           '
-'OUTSW           PACKSSDW       <PACKSSWB       <PACKUSWB        '
-'PADDB          <PADDW          <PADDD           '
-'PADDQ           '
-'PADDSB         <PADDSW          PADDSIW         PADDUSB        <'
-'PADDUSW         PAND           <PANDN           PAVEB           '
-'PAVGB          <PAVGW           PAVGUSB         '
-
-'PCMPxx         <PCMPEQB        <PCMPEQD        <PCMPEQW        <'
-'PCMPGTB        <PCMPGTD        <PCMPGTW         '
-
-'PDISTIB         '
-'PEXTRW          PF2ID           PFPFACC         PFADD           '
-
-'PFCMPxx        <PFCMPEQ        <PFCMPGE        <PFCMPGT         '
-
-'PFMAX           PFMIN           PFMUL           PFNACC          '
-'PFRCP           PFRCPIT1        PFRCPIT2        PFRSQIT1        PFRSQRT         '
-'PFSUB           PFSUBR          PI2FD           PINSRW          PMACHRIW        '
-'PMADDWD         PMAXSW          PMINSW          '
-'PMINUB          PMOVMSKB        PMULHRWA        '
-'PMULHUW         PMULHW          PMULLW          '
-
-'POP             POPA           <POPAD          <'
-'POPAW           POPF           <POPFD          <POPFW           POR             '
-'PREFETCH       <PREFETCHW       '
-'PREFETCHh      <PREFETCHNTA    <PREFETCHT0     <PREFETCHT1     <PREFETCHT2      '
-'PSADBW          PSLLD           PSLLQ           PSLLW           '
-'PSRAD           PSRAW           PSRLD           PSRLQ           PSRLW           '
-'PSUBB          <PSUBW          <PSUBD          <PSUBQ           '
-
-'PSUBSB         <PSUBSW          '
-
-'PSUBUSB        <PSUBUSW        <PSUBUSB        <PSUBUSW         '
-
-'PUNPCKxxx      <PUNPCKHBW      <PUNPCKHDQ      <PUNPCKHQDQ     <'
-'PUNPCKHWD      <PUNPCKLBW      <PUNPCKLDQ      <PUNPCKLWD      <PUNPCKLQDQ      '
-
-'PUSH            '
-'PUSHA          <PUSHAD          PUSHAW          PUSHF          <PUSHFD         <'
-'PUSHFW          PXOR            RCL             RCPPS           RCR             '
-'RDMSR           RDPMC           RDSHR           RDTSC           '
-'RET             '
-'RETF            RETN            ROR             RSDC            RSLDT           '
-'RSM             RSQRTPS         RSQRTSS         SAHF            SAL             '
-'SAR             SBB             SCASB          <SCASD          <'
-'SCASW           '
-
-'SETcc          <SETA           <SETAE          <SETB           <SETBE          <'
-'SETC           <SETE           <SETG           <SETGE          <SETL           <'
-'SETLE          <SETNA          <SETNAE         <SETNB          <SETNC          <'
-'SETNE          <SETNG          <SETNL          <SETNLE         <SETNO          <'
-'SETNP          <SETNS          <SETNZ          <SETNO          <SETP           <'
-'SETPE          <SETPO          <SETS           <SETZ            '
-
-'SFENCE          SGDT            SHL             '
-'SHLD            SHR             SHRD            SHUFPS          SIDT            '
-'SLDT            SMSW            '
-'SQRTPS          SQRTSS          STC             STD             STI             '
-'STMXCSR         STOSB          <STOSD          <STOSW           STR             '
-'SUB             SUBPS           SUBSS           '
-'SYSCALL         SYSENTER        SYSEXIT         SYSRET          '
-'TEST            UCOMISS         UD1             UD2             '
-'UNPCKHPS        UNPCKLPS        VERR            VERW            WAIT            '
-'WBINVD          WRMSR           XADD            '
-'XCHG            XLATB           XOR             XORPD           XORPS           '
-0 0 0 0  0 0 0 0  0 0 0 0  0 0 0 0]
-
-
 [<16 OpCodeList: B$
 
 'AAA             AAS             AAM             AAD             ADC             '
@@ -1179,7 +1141,7 @@ XOR r32,r/m32        33    /r     Logical Exclusive OR" 0]
 'BOUND           BSF             BSR             BSWAP           BT              '
 'BTC             BTR             BTS             '
 
-'CALL            CBW             CWD             CWDE            CDQ             '
+'CALL           <CALLF           CBW             CWD             CWDE            CDQ             '
 'CLC             CLD             CLI             CLTS            CLFLUSH         '
 'CMC             CMP             '
 'CMPccPD        <CMPEQPD        <CMPLEPD        <CMPLTPD        <CMPNEQPD       <'
@@ -1214,7 +1176,7 @@ XOR r32,r/m32        33    /r     Logical Exclusive OR" 0]
 'FCMOVU          '
 'FCOM            FCOMP           FCOMPP          FCOMI           FCOMIP          '
 'FCOS            FDECSTP         FDIV            FDIVP           FDIVR           '
-'FDIVRP          FEMMS           FFREE           FIADD           FICOM           '
+'FDIVRP          FEMMS           FFREE          <FFREEP          FIADD           FICOM           '
 'FICOMP          FIDIV           FIDIVR          FILD            FIST            '
 'FISTP           FISTTP          FIMUL           FINCSTP         FINIT           '
 'FNINIT          FISUB           FISUBR          FLD             '
@@ -1285,8 +1247,8 @@ XOR r32,r/m32        33    /r     Logical Exclusive OR" 0]
 'PMADDWD         PMAXSW          PMAXUB          PMINSW          PMINUB          '
 'PMOVMSKB        PMULHRWA        PMULHUW         PMULHW          PMULLW          '
 'PMULUDQ         POP             POPA            POPAD           POPF            '
-'POR             PREFETCH        '
-'PREFETCHh      <PREFETCHNTA    <PREFETCHT0     <PREFETCHT1     <PREFETCHT2      '
+'POR             PREFETCH       <PREFETCHW       '
+'PREFETCHh      <PREFETCHNTA    <PREFETCHT0     <PREFETCHT1     <PREFETCHT2     <PREFETCH0      <PREFETCH1      <PREFETCH2       '
 'PSADBW          PSHUFD          PSHUFHW         PSHUFLW         PSHUFW          '
 'PSLLDQ          '
 'PSLLx          <PSLLW          <PSLLD          <PSLLQ           '
