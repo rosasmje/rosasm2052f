@@ -5,7 +5,7 @@ ________________________________________________________________________________
 ; This is the only one Table used in the Disassembler.
 ; Table of Pointers to each primary Opcode computation Routine:
 
-[DisOp1:
+[<64 DisOp1:
  Op00 Op01 Op02 Op03 Op04 Op05 Op06 Op07 Op08 Op09 Op0A Op0B Op0C Op0D Op0E Op0F
  Op10 Op11 Op12 Op13 Op14 Op15 Op16 Op17 Op18 Op19 Op1A Op1B Op1C Op1D Op1E Op1F
  Op20 Op21 Op22 Op23 Op24 Op25 Op26 Op27 Op28 Op29 Op2A Op2B Op2C Op2D Op2E Op2F
@@ -23,7 +23,10 @@ ________________________________________________________________________________
  OpE0 OpE1 OpE2 OpE3 OpE4 OpE5 OpE6 OpE7 OpE8 OpE9 OpEA OpEB OpEC OpED OpEE OpEF
  OpF0 OpF1 OpF2 OpF3 OpF4 OpF5 OpF6 OpF7 OpF8 OpF9 OpFA OpFB OpFC OpFD OpFE OpFF]
 
-[AMDassumed: &FALSE]
+[AMDassumed: B$ &FALSE]
+
+[invOP0F01: B$ 0C0 0C5 0C6 0C7 0CC 0CD 0CE 0CF, 0D2 0D3 0D5 0D6 0D7,
+      0E8 0E9 0EA 0EB 0EC 0ED, 0F8, 0FA 0FB 0FC 0FD 0FE 0FF invOP0F01Len: D$ LEN]
 ;;
   Prefixes: Op0F (EscapePrefix) , Op66 (OperandSizeOverride), Op67 (AddressSizeOverride)
 ;;
@@ -101,56 +104,14 @@ Op00:
 
 Op01:
     ..If B$EscapePrefix = &FALSE
+        inc D$LikelyCode
         mov B$LockPrefix &FALSE
         mov D$edi 'add ' | add edi 4 | jmp Dis_rm32_rm16__r32_r16
-        inc D$LikelyCode
-
-    ..Else_If W$esi-1 = 0CA01 ; 0F,01,CA CLAC
-;        inc D$LikelyCode
-        add esi 1
-        mov D$edi 'CLAC', B$edi+4 ' ' | add edi 5
-        mov B$DisFlag DISDONE+DISLINEOVER | ret
-
-    ..Else_If W$esi-1 = 0CB01 ; 0F,01,CB STAC
-;        inc D$LikelyCode
-        add esi 1
-        mov D$edi 'STAC', B$edi+4 ' ' | add edi 5
-        mov B$DisFlag DISDONE+DISLINEOVER | ret
-
-    ..Else_If W$esi-1 = 0C801 ; 0F,01,C8 MONITOR
-        inc D$LikelyCode
-        add esi 1
-        mov D$edi 'moni', D$edi+4 'tor ' | add edi 8
-        mov B$DisFlag DISDONE+DISLINEOVER | ret
-
-    ..Else_If W$esi-1 = 0C901 ; 0F,01,C9 MWAIT
-        inc D$LikelyCode
-        add esi 1
-        mov D$edi 'mwai', D$edi+4 't ' | add edi 6
-        mov B$DisFlag DISDONE+DISLINEOVER | ret
-
-    ..Else_If W$esi-1 = 0EE01 ; 0F,01,EE RDPKRU
-;        inc D$LikelyCode
-        add esi 1
-        mov D$edi 'RDPK', D$edi+4 'RU  ' | add edi 7
-        mov B$DisFlag DISDONE+DISLINEOVER | ret
-
-    ..Else_If W$esi-1 = 0F901 ; 0F,01,F9 RDTSCP
-        inc D$LikelyCode
-        add esi 1
-        mov D$edi 'RDTS', D$edi+4 'CP  ' | add edi 7
-        mov B$DisFlag DISDONE+DISLINEOVER | ret
 
     ..Else_If W$esi-1 = 0C101 ; 0F,01,C1 VMCALL
 ;        inc D$LikelyCode
         add esi 1
         mov D$edi 'VMCA', D$edi+4 'LL  ' | add edi 7
-        mov B$DisFlag DISDONE+DISLINEOVER | ret
-
-    ..Else_If W$esi-1 = 0D401 ; 0F,01,D4 VMFUNC
-;        inc D$LikelyCode
-        add esi 1
-        mov D$edi 'VMFU', D$edi+4 'NC  ' | add edi 7
         mov B$DisFlag DISDONE+DISLINEOVER | ret
 
     ..Else_If W$esi-1 = 0C201 ; 0F,01,C2 VMLAUNCH
@@ -171,42 +132,140 @@ Op01:
         mov D$edi 'VMXO', D$edi+4 'FF  ' | add edi 7
         mov B$DisFlag DISDONE+DISLINEOVER | ret
 
+    ..Else_If W$esi-1 = 0C801 ; 0F,01,C8 MONITOR
+        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'moni', D$edi+4 'tor ' | add edi 8
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0C901 ; 0F,01,C9 MWAIT
+        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'mwai', D$edi+4 't ' | add edi 6
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0CA01 ; 0F,01,CA CLAC
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'CLAC', B$edi+4 ' ' | add edi 5
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0CB01 ; 0F,01,CB STAC
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'STAC', B$edi+4 ' ' | add edi 5
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0D001 ; 0F,01,D0 XGETBV
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'XGET', D$edi+4 'BV  ' | add edi 7
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0D101 ; 0F,01,D1 XSETBV
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'XSET', D$edi+4 'BV  ' | add edi 7
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0D401 ; 0F,01,D4 VMFUNC
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'VMFU', D$edi+4 'NC  ' | add edi 7
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0D801 ; 0F,01,D8 VMRUN
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'VMRU', W$edi+4 'N ' | add edi 6
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0D901 ; 0F,01,D9 VMMCALL
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'VMMC', D$edi+4 'ALL ' | add edi 8
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0DA01 ; 0F,01,DA VMLOAD
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'VMLO', D$edi+4 'AD  ' | add edi 7
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0DB01 ; 0F,01,DB VMSAVE
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'VMSA', D$edi+4 'VE  ' | add edi 7
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0DC01 ; 0F,01,DC STGI
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'STGI', B$edi+4 ' ' | add edi 5
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0DD01 ; 0F,01,DD CLGI
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'CLGI', B$edi+4 ' ' | add edi 5
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0DE01 ; 0F,01,DE SKINIT
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'SKIN', D$edi+4 'IT  ' | add edi 7
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0DF01 ; 0F,01,DF INVLPGA
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'INVL', D$edi+4 'PGA ' | add edi 8
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
+    ..Else_If W$esi-1 = 0EE01 ; 0F,01,EE RDPKRU
+;        inc D$LikelyCode
+        add esi 1
+        mov D$edi 'RDPK', D$edi+4 'RU  ' | add edi 7
+        mov B$DisFlag DISDONE+DISLINEOVER | ret
+
     ..Else_If W$esi-1 = 0EF01 ; 0F,01,EF WRPKRU
 ;        inc D$LikelyCode
         add esi 1
         mov D$edi 'WRPK', D$edi+4 'RU  ' | add edi 7
         mov B$DisFlag DISDONE+DISLINEOVER | ret
 
-    ..Else_If W$esi-1 = 0D001 ; 0F,01,D0 XGETBV
+    ..Else_If W$esi-1 = 0F901 ; 0F,01,F9 RDTSCP
+        inc D$LikelyCode
         add esi 1
-        mov D$edi 'xget', D$edi+4 'bv  ' | add edi 7
-        mov B$DisFlag DISDONE+DISLINEOVER | ret
-
-    ..Else_If W$esi-1 = 0D101 ; 0F,01,D1 XSETBV
-        add esi 1
-        mov D$edi 'xset', D$edi+4 'bv  ' | add edi 7
+        mov D$edi 'RDTS', D$edi+4 'CP  ' | add edi 7
         mov B$DisFlag DISDONE+DISLINEOVER | ret
 
     ..Else
-        mov bl B$esi | inc esi | DigitMask bl To al
-        inc D$UnLikelyCode
+        push edi | mov AL B$esi, edi invOP0F01 | mov ecx D$invOP0F01Len | REPNE SCASB | pop edi | jne L0>
+        inc D$UnLikelyCode | mov B$DisFlag DISFAILED | ret
+
+L0:     mov bl B$esi | inc esi | DigitMask bl To al
 
         .If al = 0          ; 0F 01 /0 SGDT m
             mov D$edi 'sgdt', B$edi+4 ' ' | add edi 5 | jmp EndWith.X.mem
         .Else_If al = 1     ; 0F 01 /1 SIDT m
             mov D$edi 'sidt', B$edi+4 ' ' | add edi 5 | jmp EndWith.X.mem
         .Else_If al = 2     ; LGDT m16&32
+            inc D$UnLikelyCode
             mov D$edi 'lgdt', B$edi+4 ' ' | add edi 5 | jmp EndWith.X.mem
         .Else_If al = 3     ; LIDT m16&32
+            inc D$UnLikelyCode
             mov D$edi 'lidt', B$edi+4 ' ' | add edi 5 | jmp EndWith.X.mem
         .Else_If al = 4     ; 0F 01 /4 SMSW r/m16 ; 0F 01 /4 SMSW r32/m16
             mov D$edi 'smsw', B$edi+4 ' ' | add edi 5 | jmp Dis_rm32_rm16
         .Else_If al = 6     ; LMSW r/m16
+            inc D$UnLikelyCode
             mov D$edi 'lmsw', B$edi+4 ' ' | add edi 5 | jmp EndWith.W.mem
         .Else_If al = 7     ; INVLPG m
+            inc D$UnLikelyCode
             mov D$edi 'invl', D$edi+4 'pg  ' | add edi 7 | jmp EndWith.X.mem
         .Else
-            dec esi | ret
+            dec esi | inc D$UnLikelyCode | mov B$DisFlag DISFAILED | ret
         .End_If
     ..End_If
 
@@ -429,6 +488,7 @@ Op0F:
                 jmp Dis_mmx1__mmx2_m64_v2
             .ElseIf B$esi+1 = 087 ; 0F 0F xx 087 - PFRSQRTV**
                 mov D$edi 'PFRS', D$edi+4 'QRTV', B$edi+8 ' ' | add edi 9
+                jmp Dis_mmx1__mmx2_m64_v2
     ;* Enhanced 3DNow! or Extended 3DNow! or 3DNow!+ (Athlon/XP+-Doc[22466.pdf])
     ;** 3DNow! Professional or 3DNow! Pro (Geode LX/GX)
             .Else

@@ -1274,7 +1274,7 @@ L5:            BadOperand
 L4:          ;BadMnemonic
 L3:        BadMnemonic
 
-L2:      ifnot op2 'T', L1>
+L2:      ifnot op2 'T', L2>
            ifnot op3 'A', L3>
              ifnot op4 'C', L4>                 ; STAC
                Parms 0 | ToOpcode 0F, 01, 0CB | RET
@@ -3926,7 +3926,7 @@ N15Letters: cmp B$esi+15 Separators | ja N16Letters
          ifnot D$esi+3 'KEYG', L2>
            ifnot D$esi+7 'ENAS', L2>
              ifnot D$esi+11 'SIST', L2>                    ; AESKEYGENASSIST
-             ToOpcode 066 0F 03A 0DF | jmp XmmMemXmmImm7Any
+             ToOpcode 066 0F 03A 0DF | jmp XmmMemXmmImm8Any
 L2: BadMnemonic
 
 L1: BadMnemonic

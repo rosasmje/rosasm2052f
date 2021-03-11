@@ -3503,10 +3503,9 @@ L3:     or B$eax INSTRUCTION
 L3:     mov D$TestLastLocation esi
         movzx eax B$esi | inc esi | cmp esi D$UserPeEnd | ja E0<
         call D$DisOp1+eax*4 | cmp B$DisFlag DISDONE | je L3< ; Loop immidiately in case of simple Prefix:
+        cmp B$DisFlag DISFAILED | je E0<
       ; Opc Max Len check!
-        mov eax esi | sub eax D$TestLastLineLocation | sub eax 15 | jg E0<
-
-        ;mov eax D$TestLastLineLocation | sub eax D$UserPeStart | add eax D$DisImageBase
+        mov eax esi | sub eax D$TestLastLineLocation | sub eax 15 | jg E0<<
 
       ; Clear any LABEL from inside the valid parsed Code:
         mov eax D$TestLastLineLocation, edx esi | inc eax
@@ -4435,11 +4434,12 @@ L4:     inc ebx
         On esi < D$UserPeEnd, jmp L1<<
 
     Else_If B$DisFlag = DISFAILED
-        push esi, eax
+        push esi
             mov esi D$StartOfDisLine
             call WriteDisCodeLabel
-        pop eax, esi
+        pop esi
         mov D$edi ' DB ' | add edi 4
+        mov eax D$StartOfDisLine, AL B$eax
         call LoadedOpToHexa | stosw
             NextDisLine
     End_If
