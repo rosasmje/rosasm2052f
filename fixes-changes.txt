@@ -538,6 +538,8 @@ corrected in assebler many things (CMPEQxx, CVTTPD2PI,INT4,PREFETCHW, +Parms0 to
 _34
 updated disassembler to SSSE3,SSE4.1,SSE4.2 instructions
 
+_35
+added some AMD VM opcodes to Disassembler. DisassembleForCodeRouting recognize DISFAILED.
 
 
 ; RestoreRealSource: ActualTitle sometimes 0. needs more checks
