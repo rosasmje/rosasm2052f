@@ -541,6 +541,9 @@ updated disassembler to SSSE3,SSE4.1,SSE4.2 instructions
 _35
 added some AMD VM opcodes to Disassembler. DisassembleForCodeRouting recognize DISFAILED.
 
+_36
+crash fix for incomplete api call like 'DLLNAME.'
+
 
 ; RestoreRealSource: ActualTitle sometimes 0. needs more checks
 ; TextPos is called on every WM_Paint!?? strange

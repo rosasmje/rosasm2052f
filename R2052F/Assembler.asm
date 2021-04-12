@@ -6226,7 +6226,7 @@ AraseSameFunctions:
   ; 'Function', in 'ApiListA':
     push esi, edi, edx
 
-        mov esi D$StartOfFunctionName, edi CopyOfFunctionName
+        mov esi D$StartOfFunctionName, edi CopyOfFunctionName | cmp B$esi 0 | je L9>> ; noname!?
         While B$esi <> 0 | movsb | End_While | mov D$edi 0
 
         mov esi D$ApiListA, edi CopyOfFunctionName, bl B$edi
@@ -6282,7 +6282,7 @@ L7:             pop esi, ebx
             ...End_If
 
         .End_While
-    pop edx, edi, esi
+L9: pop edx, edi, esi
 ret
 
 
