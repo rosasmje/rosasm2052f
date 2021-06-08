@@ -544,6 +544,10 @@ added some AMD VM opcodes to Disassembler. DisassembleForCodeRouting recognize D
 _36
 crash fix for incomplete api call like 'DLLNAME.'
 
+_37
+crash fix in preparsers, when called from RightClick>PairedEquate on small text chuncks
+
+
 
 ; RestoreRealSource: ActualTitle sometimes 0. needs more checks
 ; TextPos is called on every WM_Paint!?? strange
