@@ -173,9 +173,9 @@ KillMultiLineComments:
 
     .While esi < ecx
         ..If B$esi = '"'
-            Do | inc esi | Loop_Until B$esi = '"'
+            Do | inc esi | On esi >= ecx, ret | Loop_Until B$esi = '"'
         ..Else_If B$esi = "'"
-            Do | inc esi | Loop_Until B$esi = "'"
+            Do | inc esi | On esi >= ecx, ret | Loop_Until B$esi = "'"
         ..Else_If B$esi = ';'
             .If D$esi-1 = MLC
                 Do
@@ -222,11 +222,11 @@ KillTitles: ; ConvertTextSigns
     .While esi < ecx
         .If B$esi = '"'
             mov B$esi TextSign
-            Do | inc esi | Loop_Until B$esi = '"'
+            Do | inc esi | On esi >= ecx, ret | Loop_Until B$esi = '"'
             mov B$esi TextSign
         .Else_If B$esi = "'"
             mov B$esi TextSign
-            Do | inc esi | Loop_Until B$esi = "'"
+            Do | inc esi | On esi >= ecx, ret | Loop_Until B$esi = "'"
             mov B$esi TextSign
         .Else_If D$esi = 'TITL'
             If B$esi-1 = LF
@@ -252,9 +252,9 @@ NewKillVirtualCRLF:
 
     ..While esi < ecx
         ...If B$esi = '"'
-            Do | inc esi | Loop_Until B$esi = '"'
+            Do | inc esi | On esi >= ecx, ret | Loop_Until B$esi = '"'
         ...Else_If B$esi = "'"
-            Do | inc esi | Loop_Until B$esi = "'"
+            Do | inc esi | On esi >= ecx, ret | Loop_Until B$esi = "'"
         ...Else_If B$esi = ','
             push esi
             .While W$esi-1 <> CRLF
@@ -302,9 +302,9 @@ KillMeaninglessCommas:
 
     .While esi < ecx
         .If B$esi = '"'
-            Do | inc esi | Loop_Until B$esi = '"'
+            Do | inc esi | On esi >= ecx, ret | Loop_Until B$esi = '"'
         .Else_If B$esi = "'"
-            Do | inc esi | Loop_Until B$esi = "'"
+            Do | inc esi | On esi >= ecx, ret | Loop_Until B$esi = "'"
         .Else_If B$esi = ','
             mov edi esi
             Do
@@ -338,9 +338,9 @@ CheckandKillPreParsers:
 
     .While esi < ecx
         .If B$esi = '"'
-            Do | inc esi | Loop_Until B$esi = '"'
+            Do | inc esi | On esi >= ecx, ret | Loop_Until B$esi = '"'
         .Else_If B$esi = "'"
-            Do | inc esi | Loop_Until B$esi = "'"
+            Do | inc esi | On esi >= ecx, ret | Loop_Until B$esi = "'"
         .Else_If D$esi = 'PREP'             ; PREPARSE
             ..If D$esi+4 = 'ARSE'
                 If B$esi-1 = LF
@@ -497,9 +497,9 @@ CheckBracketsPairing:
 
     .While esi < ecx
         .If B$esi = '"'
-            Do | inc esi | Loop_Until B$esi = '"'
+            Do | inc esi | On esi >= ecx, ret | Loop_Until B$esi = '"'
         .Else_If B$esi = "'"
-            Do | inc esi | Loop_Until B$esi = "'"
+            Do | inc esi | On esi >= ecx, ret | Loop_Until B$esi = "'"
         .Else_If B$esi = '['
             If B$InsideBrackets = &TRUE
                 jmp L9>
@@ -758,9 +758,9 @@ CheckOpenCloseSignPairing:
 
     .While esi < ecx
         .If B$esi = '"'
-            Do | inc esi | Loop_Until B$esi = '"'
+            Do | inc esi | On esi >= ecx, ret | Loop_Until B$esi = '"'
         .Else_If B$esi = "'"
-            Do | inc esi | Loop_Until B$esi = "'"
+            Do | inc esi | On esi >= ecx, ret | Loop_Until B$esi = "'"
         .Else_If B$esi = '('
             If B$OpenSignsCount = 0
                 mov edx esi
