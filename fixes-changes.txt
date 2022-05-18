@@ -546,7 +546,8 @@ crash fix for incomplete api call like 'DLLNAME.'
 
 _37
 crash fix in preparsers, when called from RightClick>PairedEquate on small text chuncks
-
+_37a
+2 fixes in LoadBookMarks
 
 
 ; RestoreRealSource: ActualTitle sometimes 0. needs more checks
