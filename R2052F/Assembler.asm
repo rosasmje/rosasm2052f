@@ -1328,7 +1328,7 @@ ________________________________________________________________________________
 
 LoadBookMarks:
     mov D$NumberOfBookMarks 0
-    mov edi SaveFilter, al 0, ecx 0-1 | repne scasb
+    mov edi SaveFilter, al 0, ecx 0-1 | repne scasb | dec edi
     While B$edi <> '.'
         dec edi
     End_While
@@ -1350,7 +1350,7 @@ LoadBookMarks:
 
    .If eax = &INVALID_HANDLE_VALUE
         mov eax D$BusyFilePtr | call MessageBox
-        pop eax | ret                       ; pop return adress of caller and ret to Callback
+        ret
    .Else
         mov D$BookMarksFileHandle eax
    .End_If
