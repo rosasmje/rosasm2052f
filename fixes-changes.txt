@@ -548,7 +548,8 @@ _37
 crash fix in preparsers, when called from RightClick>PairedEquate on small text chuncks
 _37a
 2 fixes in LoadBookMarks
-
+_37b
+crash fix in ClipBordCleaner if empty on CtrlV
 
 ; RestoreRealSource: ActualTitle sometimes 0. needs more checks
 ; TextPos is called on every WM_Paint!?? strange
