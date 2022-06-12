@@ -1858,7 +1858,8 @@ L8: call 'USER32.CloseClipboard' | ret
 ClipBordCleaner:
     mov esi D$ClipBoardPtr
 BlockCleaner:
-L0: lodsb | If al = CR
+L0: test ecx ecx | jle L9>
+    lodsb | If al = CR
                 On B$esi <> LF, mov B$esi-1 ' '
                 inc esi | dec ecx | jecxz L9>
             Else_If al = LF
